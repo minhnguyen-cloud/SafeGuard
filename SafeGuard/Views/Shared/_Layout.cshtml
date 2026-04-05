@@ -216,17 +216,17 @@
 
     <nav class="navbar navbar-expand-lg navbar-custom sticky-top">
         <div class="container">
-            <a class="navbar-brand" href="@Url.Action("Index", "Home")"><i class="fa-solid fa-fire-flame-curved"></i> Safe<span>Guard</span></a>            
+            <a class="navbar-brand" href="@Url.Action("Index", "Home")"><i class="fa-solid fa-fire-flame-curved"></i> Safe<span>Guard</span></a>
             <button class="navbar-toggler bg-light" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav mx-auto">
-                    <li class="nav-item"><a class="nav-link" href="@Url.Action("Features", "Home")"><i class="fa-solid fa-star"></i> Tính Năng</a></li>                    
+                    <li class="nav-item"><a class="nav-link" href="@Url.Action("Features", "Home")"><i class="fa-solid fa-star"></i> Tính Năng</a></li>
                     <li class="nav-item"><a class="nav-link" href="@Url.Action("Benefits", "Home")"><i class="fa-solid fa-shield-halved"></i> Lợi Ích</a></li>
                     <li class="nav-item"><a class="nav-link" href="@Url.Action("Devices", "Home")"><i class="fa-solid fa-video"></i> Thiết Bị</a></li>
-                <li class="nav-item"><a class="nav-link" href="@Url.Action("News", "Home")"><i class="fa-regular fa-newspaper"></i> Tin Tức</a></li>
-                    <li class="nav-item"><a class="nav-link" href="@Url.Action("Contact", "Home")"><i class="fa-solid fa-envelope"></i> Liên Hệ</a></li>           
+                    <li class="nav-item"><a class="nav-link" href="@Url.Action("News", "Home")"><i class="fa-regular fa-newspaper"></i> Tin Tức</a></li>
+                    <li class="nav-item"><a class="nav-link" href="@Url.Action("Contact", "Home")"><i class="fa-solid fa-envelope"></i> Liên Hệ</a></li>
                 </ul>
                 <div class="d-flex">
                     <a href="@Url.Action("Login", "Account")" class="btn btn-login me-2 px-4">Đăng Nhập</a>
@@ -267,6 +267,209 @@
         </div>
     </footer>
 
+    <style>
+        /* Nút Bong bóng hình tròn (Mặc định hiện) */
+        #chat-fab {
+            position: fixed;
+            bottom: 25px;
+            right: 25px;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background-color: #ff9f1c; /* Màu cam nổi bật */
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            box-shadow: 0 5px 20px rgba(255, 159, 28, 0.4);
+            cursor: pointer;
+            z-index: 10000;
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+            #chat-fab:hover {
+                transform: scale(1.1) rotate(5deg);
+            }
+
+        /* Khung Chat (Mặc định ẨN, có hiệu ứng trượt lên) */
+        #safeguard-chat-widget {
+            position: fixed;
+            bottom: 100px; /* Nằm ngay trên nút tròn */
+            right: 25px;
+            width: 350px;
+            height: 500px;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            z-index: 9999;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            /* Hiệu ứng ẩn/hiện mượt mà */
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(20px) scale(0.95);
+            transform-origin: bottom right;
+            transition: all 0.3s ease-in-out;
+        }
+
+            /* Class này sẽ được JS thêm vào khi bấm mở */
+            #safeguard-chat-widget.chat-open {
+                opacity: 1;
+                visibility: visible;
+                transform: translateY(0) scale(1);
+            }
+
+        /* Các thành phần bên trong khung chat */
+        #chat-header {
+            background: #003366;
+            color: white;
+            padding: 15px;
+            font-weight: bold;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        #chat-body {
+            flex: 1;
+            padding: 15px;
+            overflow-y: auto;
+            background: #f8f9fa;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        #chat-input-area {
+            padding: 12px;
+            background: white;
+            border-top: 1px solid #eee;
+            display: flex;
+            gap: 10px;
+        }
+
+        #user-input {
+            flex: 1;
+            border: 1px solid #dee2e6;
+            border-radius: 20px;
+            padding: 10px 15px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+            #user-input:focus {
+                border-color: #ff9f1c;
+            }
+
+        .message {
+            padding: 10px 15px;
+            border-radius: 15px;
+            max-width: 85%;
+            word-wrap: break-word;
+            font-size: 0.95rem;
+            line-height: 1.4;
+        }
+
+            .message.user {
+                background: #e3f2fd;
+                color: #003366;
+                align-self: flex-end;
+                border-bottom-right-radius: 4px;
+            }
+
+            .message.bot {
+                background: white;
+                color: #333;
+                align-self: flex-start;
+                border: 1px solid #eee;
+                border-bottom-left-radius: 4px;
+                box-shadow: 0 2px 5px rgba(0,0,0,0.02);
+            }
+    </style>
+
+    <div id="chat-fab" onclick="toggleChat()">
+        <i class="fa-solid fa-robot"></i>
+    </div>
+
+    <div id="safeguard-chat-widget">
+        <div id="chat-header">
+            <span><i class="fa-solid fa-fire-extinguisher me-2 text-warning"></i> Tư Vấn PCCC 24/7</span>
+            <button onclick="toggleChat()" style="background:none; border:none; color:white; font-size:1.2rem; cursor:pointer;"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div id="chat-body">
+            <div class="message bot">Xin chào! Dù bạn là ai, hệ thống AI của SafeGuard luôn sẵn sàng tư vấn cách phòng cháy chữa cháy và thoát hiểm. Bạn cần hỏi gì?</div>
+        </div>
+        <div id="chat-input-area">
+            <input type="text" id="user-input" placeholder="Nhập câu hỏi tại đây..." onkeypress="handleKeyPress(event)">
+            <button onclick="sendMessage()" style="background:#003366; border:none; color:white; border-radius:50%; width:40px; height:40px; cursor:pointer; display:flex; align-items:center; justify-content:center;">
+                <i class="fa-solid fa-paper-plane"></i>
+            </button>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+        // Hàm bật/tắt (mở/đóng) khung chat với hiệu ứng
+        function toggleChat() {
+            var widget = document.getElementById('safeguard-chat-widget');
+            widget.classList.toggle('chat-open'); // Thêm hoặc xóa class 'chat-open'
+        }
+
+        // Hàm gửi tin nhắn
+        function sendMessage() {
+            var inputBody = $('#user-input');
+            var question = inputBody.val().trim();
+
+            if (question === "") return;
+
+            // 1. In tin nhắn user
+            $('#chat-body').append('<div class="message user">' + question + '</div>');
+            inputBody.val('');
+            scrollChatToBottom();
+
+            // 2. In chữ đang suy nghĩ
+            $('#chat-body').append('<div class="message bot" id="loading-msg"><i class="fa-solid fa-ellipsis fa-fade"></i> AI đang phân tích...</div>');
+            scrollChatToBottom();
+
+            // 3. Gọi AJAX lên C# (Nhớ Build lại C# sau khi sửa link API nhé)
+            $.ajax({
+                url: '@Url.Action("AskGemini", "Api")',
+                method: 'POST',
+                data: { question: question },
+                success: function (response) {
+                    $('#loading-msg').remove();
+
+                    if (response.success) {
+                        // Dùng biến Markdown thành Text cơ bản (vì Gemini hay trả về dấu sao **)
+                        var cleanText = response.reply.replace(/\*\*/g, '');
+                        var botReply = $('<div class="message bot"></div>').text(cleanText);
+                        $('#chat-body').append(botReply);
+                    } else {
+                        $('#chat-body').append('<div class="message bot text-danger"><i class="fa-solid fa-triangle-exclamation"></i> Lỗi: ' + response.reply + '</div>');
+                    }
+                    scrollChatToBottom();
+                },
+                error: function () {
+                    $('#loading-msg').remove();
+                    $('#chat-body').append('<div class="message bot text-danger"><i class="fa-solid fa-wifi"></i> Mất kết nối. Vui lòng thử lại.</div>');
+                    scrollChatToBottom();
+                }
+            });
+        }
+
+        function scrollChatToBottom() {
+            var chatBody = document.getElementById('chat-body');
+            chatBody.scrollTop = chatBody.scrollHeight;
+        }
+
+        function handleKeyPress(e) {
+            if (e.key === 'Enter') sendMessage();
+        }
+    </script>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         function togglePassword(inputId, iconSpan) {
@@ -284,5 +487,19 @@
             }
         }
     </script>
+
+    <div id="safeguard-chat-widget">
+        <div id="chat-header">
+            <span>🤖 Trợ lý PCCC 24/7 (Gemini API)</span>
+            <button onclick="toggleChat()" style="background:none; border:none; color:white; cursor:pointer;">_</button>
+        </div>
+        <div id="chat-body">
+            <div class="message bot">Xin chào! Dù bạn là ai, tôi luôn sẵn sàng tư vấn về phòng cháy chữa cháy. Hãy đặt câu hỏi?</div>
+        </div>
+        <div id="chat-input-area">
+            <input type="text" id="user-input" placeholder="Hỏi về PCCC..." onkeypress="handleKeyPress(event)">
+            <button onclick="sendMessage()" style="background:#ff9f1c; border:none; color:white; border-radius:50%; width:35px; height:35px; cursor:pointer;">></button>
+        </div>
+    </div>
 </body>
 </html>
