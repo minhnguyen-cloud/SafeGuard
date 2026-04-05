@@ -1,0 +1,124 @@
+﻿@{
+    ViewBag.Title = "Lợi Ích Cốt Lõi - SafeGuard";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<section class="page-header py-5 text-white text-center position-relative">
+    <div class="container position-relative" style="z-index: 2;">
+        <h1 class="display-4 fw-bold mb-3"><i class="fa-solid fa-shield-heart text-danger me-3"></i>Lợi Ích Đột Phá</h1>
+        <p class="lead w-75 mx-auto">Không chỉ là một thiết bị báo cháy, SafeGuard mang lại sự an tâm tuyệt đối, bảo vệ tài sản và giải quyết triệt để bài toán quản lý an toàn cho chủ trọ & ban quản lý KTX.</p>
+    </div>
+    <div class="header-overlay"></div>
+</section>
+
+<section class="py-5 bg-white overflow-hidden">
+    <div class="container py-4">
+
+        <div class="row align-items-center mb-5 benefit-row">
+            <div class="col-md-6 mb-4 mb-md-0">
+                <img src="~/Content/images/LoiIt1.jpg" alt="Bình yên tâm trí" class="img-fluid rounded-4 shadow-lg benefit-img">
+            </div>
+            <div class="col-md-6 ps-md-5">
+                <div class="d-flex align-items-center mb-3">
+                    <div class="icon-circle-small me-3" style="background-color: var(--accent-orange); color: white;">
+                        <i class="fa-solid fa-hands-holding-child fa-lg"></i>
+                    </div>
+                    <h3 class="fw-bold mb-0" style="color: var(--primary-blue);">Bình Yên Tâm Trí 24/7</h3>
+                </div>
+                <p class="text-muted fs-5">Phụ huynh an tâm gửi gắm con em. Sinh viên có thể ngủ ngon giấc mà không phải lo sợ những tai nạn chập điện hay hỏa hoạn rình rập giữa đêm khuya. Hệ thống đóng vai trò như một "người gác đêm" không bao giờ ngủ.</p>
+                <ul class="list-unstyled text-muted mt-3">
+                    <li><i class="fa-solid fa-check text-success me-2"></i> Trải nghiệm sống an toàn tuyệt đối.</li>
+                    <li><i class="fa-solid fa-check text-success me-2"></i> Giảm thiểu căng thẳng và ám ảnh tâm lý.</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="row align-items-center mb-5 benefit-row flex-column-reverse flex-md-row">
+            <div class="col-md-6 pe-md-5 mt-4 mt-md-0">
+                <div class="d-flex align-items-center mb-3">
+                    <div class="icon-circle-small me-3 bg-danger text-white">
+                        <i class="fa-solid fa-scale-balanced fa-lg"></i>
+                    </div>
+                    <h3 class="fw-bold mb-0" style="color: var(--primary-blue);">Tuân Thủ Nghiêm Ngặt Luật PCCC</h3>
+                </div>
+                <p class="text-muted fs-5">Giúp các chủ nhà trọ, ban quản lý chung cư mini và Ký túc xá đáp ứng dễ dàng các tiêu chuẩn khắt khe về Phòng Cháy Chữa Cháy mới nhất của Nhà nước.</p>
+                <ul class="list-unstyled text-muted mt-3">
+                    <li><i class="fa-solid fa-check text-success me-2"></i> Tránh bị phạt tiền hoặc đình chỉ hoạt động.</li>
+                    <li><i class="fa-solid fa-check text-success me-2"></i> Tự động lưu lịch sử cảnh báo để trình báo cơ quan chức năng.</li>
+                </ul>
+            </div>
+            <div class="col-md-6">
+                <img src="~/Content/images/LoiIt2.jpg" alt="Luật PCCC" class="img-fluid rounded-4 shadow-lg benefit-img">
+            </div>
+        </div>
+
+        <div class="row align-items-center benefit-row">
+            <div class="col-md-6 mb-4 mb-md-0">
+                <img src="~/Content/images/LoiIt3.png" alt="Giảm thiệt hại" class="img-fluid rounded-4 shadow-lg benefit-img">
+            </div>
+            <div class="col-md-6 ps-md-5">
+                <div class="d-flex align-items-center mb-3">
+                    <div class="icon-circle-small me-3 bg-success text-white">
+                        <i class="fa-solid fa-piggy-bank fa-lg"></i>
+                    </div>
+                    <h3 class="fw-bold mb-0" style="color: var(--primary-blue);">Giảm Thiểu Tối Đa Thiệt Hại Tự Động</h3>
+                </div>
+                <p class="text-muted fs-5">Thời gian vàng trong chữa cháy là dưới 3 phút. SafeGuard với khả năng tự động ngắt điện và phun nước cục bộ giúp dập tắt mầm mống ngọn lửa ngay trước khi đám cháy kịp bùng phát, bảo vệ cơ sở vật chất hàng tỷ đồng.</p>
+                <a href="@Url.Action("Index", "Home")" class="btn btn-outline-primary mt-3 rounded-pill px-4">Tìm hiểu cách thức hoạt động</a>
+            </div>
+        </div>
+
+    </div>
+</section>
+
+<style>
+    /* Kế thừa Header Overlay từ trang Tính năng để đồng bộ */
+    .page-header {
+        background-image: url('https://images.unsplash.com/photo-1502672260266-1c15e82254fc?auto=format&fit=crop&q=80&w=1920');
+        background-size: cover;
+        background-position: center;
+        background-attachment: fixed;
+    }
+
+    .header-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 51, 102, 0.85);
+        z-index: 1;
+    }
+
+    /* Icon tròn nhỏ trên tiêu đề */
+    .icon-circle-small {
+        width: 45px;
+        height: 45px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    }
+
+    /* Hiệu ứng trượt khi Hover vào dòng Lợi ích */
+    .benefit-row {
+        transition: transform 0.4s ease;
+        padding: 20px 0;
+    }
+
+        .benefit-row:hover {
+            transform: scale(1.01);
+        }
+
+    /* Hiệu ứng nổi bật hình ảnh */
+    .benefit-img {
+        transition: all 0.4s ease;
+        border: 1px solid #eee;
+    }
+
+    .benefit-row:hover .benefit-img {
+        box-shadow: 0 20px 40px rgba(0,0,0,0.15) !important;
+        transform: translateY(-5px);
+    }
+</style>

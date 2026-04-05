@@ -1,0 +1,288 @@
+﻿<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FireGuard - Hệ Thống Cảnh Báo Cháy</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        /* ========================================== */
+        /* TÙY CHỈNH MÀU SẮC & BIẾN CƠ BẢN */
+        /* ========================================== */
+        :root {
+            --primary-blue: #003366;
+            --accent-red: #e63946;
+            --accent-orange: #ff9f1c;
+        }
+
+        /* ========================================== */
+        /* 1. THANH ĐIỀU HƯỚNG (NAVBAR) */
+        /* ========================================== */
+        .navbar-custom {
+            background: linear-gradient(90deg, var(--primary-blue) 0%, #00509e 100%);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            border-bottom: 3px solid var(--accent-orange);
+        }
+
+        .navbar-brand {
+            font-weight: bold;
+            color: white !important;
+            font-size: 1.5rem;
+            text-transform: uppercase;
+        }
+
+            .navbar-brand span {
+                color: var(--accent-orange);
+            }
+
+        .nav-link {
+            color: white !important;
+            font-weight: 500;
+            padding: 10px 15px !important;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+            .nav-link::after {
+                content: '';
+                position: absolute;
+                width: 0;
+                height: 2px;
+                bottom: 0;
+                left: 50%;
+                background-color: var(--accent-orange);
+                transition: all 0.3s ease;
+            }
+
+            .nav-link:hover {
+                color: var(--accent-orange) !important;
+                text-shadow: 0 0 8px rgba(255, 159, 28, 0.5);
+            }
+
+                .nav-link:hover::after {
+                    width: 100%;
+                    left: 0;
+                }
+
+        .btn-login {
+            background-color: transparent;
+            border: 2px solid white;
+            color: white;
+            border-radius: 20px;
+            transition: 0.3s;
+        }
+
+            .btn-login:hover {
+                background-color: var(--accent-orange);
+                border-color: var(--accent-orange);
+                color: white;
+            }
+
+        /* ========================================== */
+        /* 2. CÁC HIỆU ỨNG DÙNG CHUNG (CSS CHUNG) */
+        /* ========================================== */
+        /* Hiệu ứng đập nhịp tim (Pulse) cho nút Đăng ký */
+        .pulse-button {
+            animation: pulse 2s infinite;
+        }
+
+        @@keyframes pulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(255, 193, 7, 0.7);
+            }
+
+            70% {
+                box-shadow: 0 0 0 20px rgba(255, 193, 7, 0);
+            }
+
+            100% {
+                box-shadow: 0 0 0 0 rgba(255, 193, 7, 0);
+            }
+        }
+
+        /* Vòng tròn Icon Gradient */
+        .icon-circle {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #ff416c, #ff4b2b);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.3s;
+        }
+        /* ========================================================= */
+        /* CSS CHO BANNER CHẠY ẢNH (CAROUSEL) */
+        /* ========================================================= */
+        .carousel-item {
+            height: 80vh; /* Ép chiều cao ảnh chỉ chiếm 80% màn hình */
+            background-color: #000;
+        }
+
+            .carousel-item img {
+                width: 100%;
+                height: 100%;
+                object-fit: cover; /* Cắt ảnh vừa vặn khung hình mà không bị méo */
+                opacity: 0.6; /* Làm tối ảnh 1 xíu để chữ màu trắng nổi bật lên */
+            }
+
+        .carousel-caption {
+            top: 50%;
+            transform: translateY(-50%);
+            bottom: initial;
+            z-index: 10;
+        }
+
+            .carousel-caption h1 {
+                font-size: 3.5rem;
+                font-weight: bold;
+                text-shadow: 2px 2px 5px rgba(0,0,0,0.8);
+            }
+
+        .highlight-text {
+            color: var(--accent-orange);
+        }
+
+        /* Thu nhỏ banner và chữ khi xem trên điện thoại */
+        @@media (max-width: 768px) {
+            .carousel-item {
+                height: 50vh;
+            }
+
+            .carousel-caption h1 {
+                font-size: 1.8rem !important;
+            }
+
+            .carousel-caption p {
+                font-size: 1rem !important;
+            }
+        }
+
+        /* ========================================== */
+        /* 3. CHÂN TRANG (FOOTER) */
+        /* ========================================== */
+        .footer-custom {
+            background-color: #1a1a1a;
+            color: #d3d3d3;
+            padding: 40px 0 20px;
+            border-top: 4px solid var(--accent-red);
+        }
+
+            .footer-custom h5 {
+                color: white;
+                border-bottom: 2px solid var(--accent-orange);
+                padding-bottom: 10px;
+                display: inline-block;
+            }
+
+        .footer-links a {
+            color: #d3d3d3;
+            text-decoration: none;
+            transition: 0.3s;
+            display: block;
+            margin-bottom: 8px;
+        }
+
+            .footer-links a:hover {
+                color: var(--accent-orange);
+                padding-left: 5px;
+            }
+
+        /* Hiệu ứng focus cho các ô nhập liệu Login/Register */
+        .custom-input:focus {
+            box-shadow: none !important;
+            border-color: #ced4da !important;
+        }
+
+        .input-group:focus-within {
+            box-shadow: 0 0 0 0.25rem rgba(255, 159, 28, 0.25);
+            border-radius: 0.375rem;
+        }
+
+        .custom-eye {
+            cursor: pointer;
+            transition: color 0.3s;
+        }
+
+            .custom-eye:hover {
+                color: var(--accent-orange) !important;
+            }
+    </style>
+</head>
+<body>
+
+    <nav class="navbar navbar-expand-lg navbar-custom sticky-top">
+        <div class="container">
+            <a class="navbar-brand" href="@Url.Action("Index", "Home")"><i class="fa-solid fa-fire-flame-curved"></i> Safe<span>Guard</span></a>            
+            <button class="navbar-toggler bg-light" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav mx-auto">
+                    <li class="nav-item"><a class="nav-link" href="@Url.Action("Features", "Home")"><i class="fa-solid fa-star"></i> Tính Năng</a></li>                    
+                    <li class="nav-item"><a class="nav-link" href="@Url.Action("Benefits", "Home")"><i class="fa-solid fa-shield-halved"></i> Lợi Ích</a></li>
+                    <li class="nav-item"><a class="nav-link" href="@Url.Action("Devices", "Home")"><i class="fa-solid fa-video"></i> Thiết Bị</a></li>
+                <li class="nav-item"><a class="nav-link" href="@Url.Action("News", "Home")"><i class="fa-regular fa-newspaper"></i> Tin Tức</a></li>
+                    <li class="nav-item"><a class="nav-link" href="@Url.Action("Contact", "Home")"><i class="fa-solid fa-envelope"></i> Liên Hệ</a></li>           
+                </ul>
+                <div class="d-flex">
+                    <a href="@Url.Action("Login", "Account")" class="btn btn-login me-2 px-4">Đăng Nhập</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    @RenderBody()
+
+    <footer class="footer-custom">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-4 mb-4">
+                    <h5><i class="fa-solid fa-fire-flame-curved" style="color: var(--accent-orange)"></i> FireGuard System</h5>
+                    <p class="mt-3">Giải pháp an toàn hiệu quả giúp phát hiện sớm nguy cơ cháy, cảnh báo kịp thời để bảo vệ tính mạng và tài sản cho khu phòng trọ và ký túc xá.</p>
+                </div>
+                <div class="col-md-4 mb-4">
+                    <h5>Liên Kết Nhanh</h5>
+                    <div class="footer-links mt-3">
+                        <a href="#"><i class="fa-solid fa-angle-right"></i> Tính năng hệ thống</a>
+                        <a href="#"><i class="fa-solid fa-angle-right"></i> Thiết bị cảm biến</a>
+                        <a href="#"><i class="fa-solid fa-angle-right"></i> Hướng dẫn lắp đặt</a>
+                        <a href="#"><i class="fa-solid fa-angle-right"></i> Quy định phòng cháy</a>
+                    </div>
+                </div>
+                <div class="col-md-4 mb-4">
+                    <h5>Liên Hệ Kỹ Thuật</h5>
+                    <p class="mt-3"><i class="fa-solid fa-location-dot me-2"></i> Ký túc xá Đại học Nguyễn Tất Thành</p>
+                    <p><i class="fa-solid fa-phone me-2"></i> Hotline Khẩn Cấp: 114</p>
+                    <p><i class="fa-solid fa-envelope me-2"></i> support@fireguard.vn</p>
+                </div>
+            </div>
+            <hr class="border-secondary">
+            <div class="text-center mt-3">
+                <p class="mb-0">&copy; @DateTime.Now.Year Bản quyền thuộc về Đội thi Khoa CNTT. Phát triển cho Cuộc thi KTPM.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function togglePassword(inputId, iconSpan) {
+            var input = document.getElementById(inputId);
+            var icon = iconSpan.querySelector('i');
+
+            if (input.type === "password") {
+                input.type = "text"; // Chuyển sang kiểu text để hiện chữ
+                icon.classList.remove('fa-eye');
+                icon.classList.add('fa-eye-slash'); // Đổi thành icon mắt bị gạch chéo
+            } else {
+                input.type = "password"; // Đổi lại thành kiểu password (dấu sao)
+                icon.classList.remove('fa-eye-slash');
+                icon.classList.add('fa-eye'); // Đổi lại icon mắt bình thường
+            }
+        }
+    </script>
+</body>
+</html>

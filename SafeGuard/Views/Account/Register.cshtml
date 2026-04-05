@@ -1,0 +1,66 @@
+﻿@{
+    ViewBag.Title = "Đăng Ký - SafeGuard";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<section class="py-5 bg-light" style="min-height: 85vh; display: flex; align-items: center;">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-md-6 col-lg-5">
+                <div class="card border-0 shadow-lg rounded-4 overflow-hidden">
+                    <div class="card-header text-center py-4 bg-white border-0">
+                        <h2 class="fw-bold mb-0" style="color: var(--primary-blue);">Tạo Tài Khoản</h2>
+                        <p class="text-muted mt-2 mb-0">Bảo vệ ngôi nhà bạn ngay hôm nay</p>
+                    </div>
+                    <div class="card-body p-4 p-md-5 pt-0">
+                        <form>
+                            <div class="mb-3">
+                                <label class="form-label fw-bold text-muted small">Họ và Tên</label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-white text-muted border-end-0"><i class="fa-regular fa-address-card"></i></span>
+                                    <input type="text" class="form-control border-start-0 ps-0 custom-input" placeholder="Nguyễn Văn A">
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label fw-bold text-muted small">Email</label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-white text-muted border-end-0"><i class="fa-regular fa-envelope"></i></span>
+                                    <input type="email" class="form-control border-start-0 ps-0 custom-input" placeholder="name@example.com">
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label fw-bold text-muted small">Mật khẩu</label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-white text-muted border-end-0"><i class="fa-solid fa-lock"></i></span>
+                                    <input type="password" class="form-control border-start-0 border-end-0 ps-0 custom-input" id="regPassword" placeholder="Tạo mật khẩu">
+                                    <span class="input-group-text bg-white text-muted border-start-0 custom-eye" onclick="togglePassword('regPassword', this)">
+                                        <i class="fa-solid fa-eye"></i>
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div class="mb-4">
+                                <label class="form-label fw-bold text-muted small">Xác nhận mật khẩu</label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-white text-muted border-end-0"><i class="fa-solid fa-shield-check"></i></span>
+                                    <input type="password" class="form-control border-start-0 border-end-0 ps-0 custom-input" id="regPasswordConfirm" placeholder="Nhập lại mật khẩu">
+                                    <span class="input-group-text bg-white text-muted border-start-0 custom-eye" onclick="togglePassword('regPasswordConfirm', this)">
+                                        <i class="fa-solid fa-eye"></i>
+                                    </span>
+                                </div>
+                            </div>
+
+                            <button type="submit" class="btn btn-warning w-100 py-3 fw-bold rounded-pill mb-3 text-white">
+                                ĐĂNG KÝ TÀI KHOẢN
+                            </button>
+
+                            <p class="text-center text-muted small mb-0">Đã có tài khoản? <a href="@Url.Action("Login", "Account")" class="fw-bold text-decoration-none" style="color: var(--primary-blue);">Đăng nhập</a></p>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>

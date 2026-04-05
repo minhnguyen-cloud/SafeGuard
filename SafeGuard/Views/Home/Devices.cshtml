@@ -1,0 +1,167 @@
+﻿@{
+    ViewBag.Title = "Thiết Bị Cảm Biến - SafeGuard";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<section class="page-header py-5 text-white text-center position-relative">
+    <div class="container position-relative" style="z-index: 2;">
+        <h1 class="display-4 fw-bold mb-3"><i class="fa-solid fa-microchip text-warning me-3"></i>Hệ Sinh Thái Thiết Bị</h1>
+        <p class="lead w-75 mx-auto">SafeGuard sử dụng các cảm biến IoT độ nhạy cao, kết nối không dây siêu tốc và vận hành bền bỉ trong mọi điều kiện khắc nghiệt nhất.</p>
+    </div>
+    <div class="header-overlay"></div>
+</section>
+
+<section class="py-5 bg-light">
+    <div class="container py-4">
+        <div class="text-center mb-5">
+            <h2 class="fw-bold" style="color: var(--primary-blue);">Các Thiết Bị Phần Cứng Cốt Lõi</h2>
+            <p class="text-muted">Được đồng bộ hóa hoàn toàn với phần mềm quản lý trung tâm</p>
+        </div>
+
+        <div class="row row-cols-1 row-cols-md-2 row-cols-lg-4 g-4">
+
+            <div class="col">
+                <div class="card h-100 border-0 shadow-sm device-card text-center p-3 rounded-4">
+                    <span class="badge bg-danger position-absolute top-0 end-0 m-3 z-3">Quan Trọng</span>
+                    <div class="device-img-wrapper mb-3 overflow-hidden rounded-3">
+                        <img src="https://images.unsplash.com/photo-1558389186-4e58b16e4dbb?auto=format&fit=crop&q=80&w=400" class="card-img-top" alt="Cảm biến khói">
+                    </div>
+                    <div class="card-body p-0">
+                        <h5 class="fw-bold" style="color: var(--primary-blue);">Cảm Biến Khói Kép</h5>
+                        <p class="text-muted small mb-3">Phát hiện khói quang học & nhiệt độ gia tăng đột ngột.</p>
+                        <ul class="list-unstyled small text-start bg-light p-2 rounded-3 text-muted">
+                            <li><i class="fa-solid fa-microchip me-2 text-secondary"></i>Chip: ESP32 / ESP8266</li>
+                            <li><i class="fa-solid fa-wifi me-2 text-secondary"></i>Kết nối: Wi-Fi 2.4GHz</li>
+                            <li><i class="fa-solid fa-battery-half me-2 text-secondary"></i>Pin: 2 năm (CR123A)</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col">
+                <div class="card h-100 border-0 shadow-sm device-card text-center p-3 rounded-4">
+                    <span class="badge position-absolute top-0 end-0 m-3 z-3 text-white" style="background-color: var(--accent-orange);">Hub Trung Tâm</span>
+                    <div class="device-img-wrapper mb-3 overflow-hidden rounded-3">
+                        <img src="https://images.unsplash.com/photo-1544197150-b99a580bb7a8?auto=format&fit=crop&q=80&w=400" class="card-img-top" alt="Bộ điều khiển trung tâm">
+                    </div>
+                    <div class="card-body p-0">
+                        <h5 class="fw-bold" style="color: var(--primary-blue);">SafeGuard Hub</h5>
+                        <p class="text-muted small mb-3">Thu thập dữ liệu, ra lệnh tự động và giao tiếp với Cloud.</p>
+                        <ul class="list-unstyled small text-start bg-light p-2 rounded-3 text-muted">
+                            <li><i class="fa-solid fa-network-wired me-2 text-secondary"></i>Mạng: LAN / Wi-Fi / 4G</li>
+                            <li><i class="fa-solid fa-bolt me-2 text-secondary"></i>Nguồn: 220V + UPS Mini</li>
+                            <li><i class="fa-solid fa-memory me-2 text-secondary"></i>Lưu trữ: Thẻ nhớ 64GB</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col">
+                <div class="card h-100 border-0 shadow-sm device-card text-center p-3 rounded-4">
+                    <div class="device-img-wrapper mb-3 overflow-hidden rounded-3">
+                        <img src="https://images.unsplash.com/photo-1517309230475-6736d926b979?auto=format&fit=crop&q=80&w=400" class="card-img-top" alt="Còi báo động">
+                    </div>
+                    <div class="card-body p-0">
+                        <h5 class="fw-bold" style="color: var(--primary-blue);">Chuông & Đèn Còi</h5>
+                        <p class="text-muted small mb-3">Phát âm thanh cường độ cao và ánh sáng nhấp nháy chói.</p>
+                        <ul class="list-unstyled small text-start bg-light p-2 rounded-3 text-muted">
+                            <li><i class="fa-solid fa-volume-high me-2 text-secondary"></i>Cường độ: 110 dB</li>
+                            <li><i class="fa-solid fa-lightbulb me-2 text-secondary"></i>Đèn: LED Strobe đỏ</li>
+                            <li><i class="fa-solid fa-plug me-2 text-secondary"></i>Nguồn: 12V DC</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col">
+                <div class="card h-100 border-0 shadow-sm device-card text-center p-3 rounded-4">
+                    <div class="device-img-wrapper mb-3 overflow-hidden rounded-3">
+                        <img src="https://images.unsplash.com/photo-1558449028-b53a39d100fc?auto=format&fit=crop&q=80&w=400" class="card-img-top" alt="Rơ le ngắt điện">
+                    </div>
+                    <div class="card-body p-0">
+                        <h5 class="fw-bold" style="color: var(--primary-blue);">Module Relay Khởi Động Tự Động</h5>
+                        <p class="text-muted small mb-3">Tự động ngắt điện tổng và mở cửa từ khi có cảnh báo.</p>
+                        <ul class="list-unstyled small text-start bg-light p-2 rounded-3 text-muted">
+                            <li><i class="fa-solid fa-power-off me-2 text-secondary"></i>Tải trọng: Lên tới 30A</li>
+                            <li><i class="fa-solid fa-shield-halved me-2 text-secondary"></i>Cách ly quang chống nhiễu</li>
+                            <li><i class="fa-solid fa-stopwatch me-2 text-secondary"></i>Phản hồi: < 0.5 giây</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</section>
+
+<section class="py-5 bg-white border-top">
+    <div class="container py-4">
+        <div class="row align-items-center">
+            <div class="col-lg-5 mb-4 mb-lg-0">
+                <h2 class="fw-bold mb-4" style="color: var(--primary-blue);">Kiến Trúc Hệ Thống Đám Mây</h2>
+                <p class="text-muted fs-5 mb-4">Các thiết bị phần cứng của chúng tôi không hoạt động đơn lẻ. Chúng liên tục giao tiếp với hệ thống máy chủ Cloud thông qua giao thức MQTT để đảm bảo dữ liệu được cập nhật theo thời gian thực (Real-time).</p>
+                <ul class="list-unstyled">
+                    <li class="mb-3"><i class="fa-solid fa-circle-check text-success me-2"></i> <strong>Tầng Thiết Bị (Edge):</strong> Cảm biến thu thập dữ liệu thô.</li>
+                    <li class="mb-3"><i class="fa-solid fa-circle-check text-success me-2"></i> <strong>Tầng Mạng (Network):</strong> Router và Gateway gửi dữ liệu.</li>
+                    <li class="mb-3"><i class="fa-solid fa-circle-check text-success me-2"></i> <strong>Tầng Đám Mây (Cloud):</strong> Server ASP.NET MVC lưu trữ (SQL Server) và phân tích.</li>
+                    <li class="mb-3"><i class="fa-solid fa-circle-check text-success me-2"></i> <strong>Tầng Người Dùng (App/Web):</strong> Hiển thị Dashboard quản lý.</li>
+                </ul>
+            </div>
+            <div class="col-lg-7 text-center">
+                <img src="https://images.unsplash.com/photo-1519389950473-47ba0277781c?auto=format&fit=crop&q=80&w=800" alt="Sơ đồ kiến trúc" class="img-fluid rounded-4 shadow-lg border">
+            </div>
+        </div>
+    </div>
+</section>
+
+<style>
+    /* Header Overlay */
+    .page-header {
+        background-image: url('https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&q=80&w=1920');
+        background-size: cover;
+        background-position: center;
+        background-attachment: fixed;
+    }
+
+    .header-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 51, 102, 0.85);
+        z-index: 1;
+    }
+
+    /* Thẻ Card Thiết bị */
+    .device-card {
+        border: 1px solid #f0f0f0 !important;
+        transition: all 0.4s ease;
+    }
+
+        .device-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 15px 30px rgba(0,0,0,0.1) !important;
+            border-color: var(--accent-orange) !important;
+        }
+
+    /* Hình ảnh thiết bị */
+    .device-img-wrapper {
+        height: 180px;
+        background-color: #f8f9fa;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+        .device-img-wrapper img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.5s ease;
+        }
+
+    .device-card:hover .device-img-wrapper img {
+        transform: scale(1.1);
+    }
+</style>

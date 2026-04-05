@@ -1,0 +1,177 @@
+﻿@{
+    ViewBag.Title = "Liên Hệ - SafeGuard";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<section class="page-header py-5 text-white text-center position-relative">
+    <div class="container position-relative" style="z-index: 2;">
+        <h1 class="display-4 fw-bold mb-3"><i class="fa-solid fa-envelope-open-text text-warning me-3"></i>Liên Hệ Với Chúng Tôi</h1>
+        <p class="lead w-75 mx-auto">Đội ngũ kỹ thuật SafeGuard luôn sẵn sàng hỗ trợ bạn 24/7. Hãy gửi câu hỏi, yêu cầu lắp đặt hoặc báo cáo sự cố cho chúng tôi.</p>
+    </div>
+    <div class="header-overlay"></div>
+</section>
+
+<section class="py-5 bg-light">
+    <div class="container py-4">
+        <div class="row g-5">
+
+            <div class="col-lg-5">
+                <div class="card border-0 shadow-sm rounded-4 p-4 h-100 bg-white">
+                    <h3 class="fw-bold mb-4" style="color: var(--primary-blue);">Thông Tin Hỗ Trợ</h3>
+
+                    <div class="d-flex align-items-center mb-4 contact-item">
+                        <div class="icon-circle-small bg-danger text-white me-3 shadow-sm">
+                            <i class="fa-solid fa-phone-volume"></i>
+                        </div>
+                        <div>
+                            <h6 class="mb-1 fw-bold text-muted">Hotline Khẩn Cấp (24/7)</h6>
+                            <p class="mb-0 fs-5 fw-bold text-danger">114 - 0987.xxx.xxx</p>
+                        </div>
+                    </div>
+
+                    <div class="d-flex align-items-center mb-4 contact-item">
+                        <div class="icon-circle-small bg-primary text-white me-3 shadow-sm">
+                            <i class="fa-solid fa-envelope"></i>
+                        </div>
+                        <div>
+                            <h6 class="mb-1 fw-bold text-muted">Email Hỗ Trợ</h6>
+                            <p class="mb-0 fs-5 fw-bold" style="color: var(--primary-blue);">support@safeguard.vn</p>
+                        </div>
+                    </div>
+
+                    <div class="d-flex align-items-center mb-5 contact-item">
+                        <div class="icon-circle-small text-white me-3 shadow-sm" style="background-color: var(--accent-orange);">
+                            <i class="fa-solid fa-location-dot"></i>
+                        </div>
+                        <div>
+                            <h6 class="mb-1 fw-bold text-muted">Trụ Sở Kỹ Thuật</h6>
+                            <p class="mb-0 fw-bold" style="color: var(--primary-blue);">Đại học Nguyễn Tất Thành<br>Khu Công nghệ cao, TP. Thủ Đức</p>
+                        </div>
+                    </div>
+
+                    <div class="map-container rounded-4 overflow-hidden shadow-sm mt-auto">
+                        <iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3918.420594896587!2d106.78289841535402!3d10.855574792267605!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3175276398969f7b%3A0x9672b7efd0893fc4!2zVHLGsOG7nW5nIMSQ4bqhaSBo4buNYyBOZ3V54buFbiBU4bqldCBUaMOgbmggLSBDxqEgc-G7nyBLaHUgQ8O0bmcgbmdo4buHIGNhbw!5e0!3m2!1svi!2s!4v1680000000000!5m2!1svi!2s"
+                                width="100%" height="250" style="border:0;" allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-7">
+                <div class="card border-0 shadow-lg rounded-4 p-4 p-md-5 h-100" style="background-color: #fffdfa; border-top: 5px solid var(--accent-orange) !important;">
+                    <h3 class="fw-bold mb-4 text-center" style="color: var(--primary-blue);">Gửi Yêu Cầu Cho Chúng Tôi</h3>
+                    <p class="text-muted text-center mb-4">Bạn cần tư vấn lắp đặt hệ thống cho khu trọ hoặc báo lỗi thiết bị? Hãy điền thông tin bên dưới.</p>
+
+                    <form>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <div class="form-floating mb-3">
+                                    <input type="text" class="form-control" id="nameInput" placeholder="Họ và tên">
+                                    <label for="nameInput"><i class="fa-regular fa-user me-2 text-muted"></i>Họ và tên</label>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-floating mb-3">
+                                    <input type="email" class="form-control" id="emailInput" placeholder="name@example.com">
+                                    <label for="emailInput"><i class="fa-regular fa-envelope me-2 text-muted"></i>Email</label>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="form-floating mb-3">
+                                    <input type="text" class="form-control" id="phoneInput" placeholder="Số điện thoại">
+                                    <label for="phoneInput"><i class="fa-solid fa-phone me-2 text-muted"></i>Số điện thoại</label>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="form-floating mb-3">
+                                    <select class="form-select" id="subjectSelect" aria-label="Chủ đề liên hệ">
+                                        <option selected>-- Chọn chủ đề --</option>
+                                        <option value="1">Tư vấn lắp đặt hệ thống mới</option>
+                                        <option value="2">Báo cáo lỗi / Bảo hành thiết bị</option>
+                                        <option value="3">Hợp tác kinh doanh</option>
+                                        <option value="4">Khác</option>
+                                    </select>
+                                    <label for="subjectSelect"><i class="fa-solid fa-clipboard-list me-2 text-muted"></i>Chủ đề</label>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="form-floating mb-4">
+                                    <textarea class="form-control" placeholder="Nội dung chi tiết" id="messageTextarea" style="height: 150px"></textarea>
+                                    <label for="messageTextarea"><i class="fa-regular fa-comment-dots me-2 text-muted"></i>Nội dung chi tiết...</label>
+                                </div>
+                            </div>
+                            <div class="col-12 text-center">
+                                <button type="submit" class="btn btn-warning btn-lg px-5 py-3 fw-bold rounded-pill shadow-sm w-100 send-btn">
+                                    <i class="fa-solid fa-paper-plane me-2"></i> GỬI YÊU CẦU NGAY
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</section>
+
+<style>
+    /* Kế thừa Header Overlay */
+    .page-header {
+        background-image: url('https://images.unsplash.com/photo-1516387938699-a93567ec168e?auto=format&fit=crop&q=80&w=1920');
+        background-size: cover;
+        background-position: center;
+        background-attachment: fixed;
+    }
+
+    .header-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 51, 102, 0.85);
+        z-index: 1;
+    }
+
+    /* Icon tròn nhỏ */
+    .icon-circle-small {
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.2rem;
+    }
+
+    /* Hiệu ứng hover thông tin */
+    .contact-item {
+        transition: transform 0.3s ease;
+        padding: 10px;
+        border-radius: 10px;
+    }
+
+        .contact-item:hover {
+            transform: translateX(10px);
+            background-color: #f8f9fa;
+        }
+
+    /* Tùy chỉnh Form Floating của Bootstrap */
+    .form-control:focus, .form-select:focus {
+        border-color: var(--accent-orange);
+        box-shadow: 0 0 0 0.25rem rgba(255, 159, 28, 0.25);
+    }
+
+    .form-floating > label {
+        color: #6c757d;
+    }
+
+    /* Nút gửi */
+    .send-btn {
+        transition: all 0.3s ease;
+    }
+
+        .send-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 20px rgba(255, 193, 7, 0.4) !important;
+        }
+</style>
