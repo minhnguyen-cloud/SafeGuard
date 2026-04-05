@@ -1,4 +1,5 @@
-﻿@{
+﻿@model SafeGuard.Models.RegisterViewModel
+@{
     ViewBag.Title = "Đăng Ký - SafeGuard";
     Layout = "~/Views/Shared/_Layout.cshtml";
 }
@@ -13,51 +14,46 @@
                         <p class="text-muted mt-2 mb-0">Bảo vệ ngôi nhà bạn ngay hôm nay</p>
                     </div>
                     <div class="card-body p-4 p-md-5 pt-0">
-                        <form>
+                        @using (Html.BeginForm("Register", "Account", FormMethod.Post))
+                        {
+                            @Html.AntiForgeryToken()
+
+                            @Html.ValidationSummary(true, "", new { @class = "text-danger mb-3 fw-bold text-center" })
+
                             <div class="mb-3">
-                                <label class="form-label fw-bold text-muted small">Họ và Tên</label>
-                                <div class="input-group">
-                                    <span class="input-group-text bg-white text-muted border-end-0"><i class="fa-regular fa-address-card"></i></span>
-                                    <input type="text" class="form-control border-start-0 ps-0 custom-input" placeholder="Nguyễn Văn A">
-                                </div>
+                                <label class="small fw-bold text-muted mb-1">Họ và Tên</label>
+                                @Html.TextBoxFor(m => m.FullName, new { @class = "form-control py-2" })
+                                @Html.ValidationMessageFor(m => m.FullName, "", new { @class = "text-danger small fw-bold" })
                             </div>
 
                             <div class="mb-3">
-                                <label class="form-label fw-bold text-muted small">Email</label>
-                                <div class="input-group">
-                                    <span class="input-group-text bg-white text-muted border-end-0"><i class="fa-regular fa-envelope"></i></span>
-                                    <input type="email" class="form-control border-start-0 ps-0 custom-input" placeholder="name@example.com">
-                                </div>
+                                <label class="small fw-bold text-muted mb-1">Tên đăng nhập (Username)</label>
+                                @Html.TextBoxFor(m => m.Username, new { @class = "form-control py-2" })
+                                @Html.ValidationMessageFor(m => m.Username, "", new { @class = "text-danger small fw-bold" })
                             </div>
 
                             <div class="mb-3">
-                                <label class="form-label fw-bold text-muted small">Mật khẩu</label>
-                                <div class="input-group">
-                                    <span class="input-group-text bg-white text-muted border-end-0"><i class="fa-solid fa-lock"></i></span>
-                                    <input type="password" class="form-control border-start-0 border-end-0 ps-0 custom-input" id="regPassword" placeholder="Tạo mật khẩu">
-                                    <span class="input-group-text bg-white text-muted border-start-0 custom-eye" onclick="togglePassword('regPassword', this)">
-                                        <i class="fa-solid fa-eye"></i>
-                                    </span>
-                                </div>
+                                <label class="small fw-bold text-muted mb-1">Email</label>
+                                @Html.TextBoxFor(m => m.Email, new { @class = "form-control py-2", placeholder = "VD: 24521068@gm.uit.edu.vn" })
+                                @Html.ValidationMessageFor(m => m.Email, "", new { @class = "text-danger small fw-bold" })
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="small fw-bold text-muted mb-1">Mật khẩu</label>
+                                @Html.PasswordFor(m => m.Password, new { @class = "form-control py-2" })
+                                @Html.ValidationMessageFor(m => m.Password, "", new { @class = "text-danger small fw-bold" })
                             </div>
 
                             <div class="mb-4">
-                                <label class="form-label fw-bold text-muted small">Xác nhận mật khẩu</label>
-                                <div class="input-group">
-                                    <span class="input-group-text bg-white text-muted border-end-0"><i class="fa-solid fa-shield-check"></i></span>
-                                    <input type="password" class="form-control border-start-0 border-end-0 ps-0 custom-input" id="regPasswordConfirm" placeholder="Nhập lại mật khẩu">
-                                    <span class="input-group-text bg-white text-muted border-start-0 custom-eye" onclick="togglePassword('regPasswordConfirm', this)">
-                                        <i class="fa-solid fa-eye"></i>
-                                    </span>
-                                </div>
+                                <label class="small fw-bold text-muted mb-1">Xác nhận mật khẩu</label>
+                                @Html.PasswordFor(m => m.ConfirmPassword, new { @class = "form-control py-2" })
+                                @Html.ValidationMessageFor(m => m.ConfirmPassword, "", new { @class = "text-danger small fw-bold" })
                             </div>
 
-                            <button type="submit" class="btn btn-warning w-100 py-3 fw-bold rounded-pill mb-3 text-white">
+                            <button type="submit" class="btn w-100 py-3 fw-bold text-white rounded-pill pulse-button" style="background-color: var(--accent-orange);">
                                 ĐĂNG KÝ TÀI KHOẢN
                             </button>
-
-                            <p class="text-center text-muted small mb-0">Đã có tài khoản? <a href="@Url.Action("Login", "Account")" class="fw-bold text-decoration-none" style="color: var(--primary-blue);">Đăng nhập</a></p>
-                        </form>
+                        }
                     </div>
                 </div>
             </div>

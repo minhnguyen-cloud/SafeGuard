@@ -84,7 +84,6 @@
         /* ========================================== */
         /* 2. CÁC HIỆU ỨNG DÙNG CHUNG (CSS CHUNG) */
         /* ========================================== */
-        /* Hiệu ứng đập nhịp tim (Pulse) cho nút Đăng ký */
         .pulse-button {
             animation: pulse 2s infinite;
         }
@@ -103,7 +102,6 @@
             }
         }
 
-        /* Vòng tròn Icon Gradient */
         .icon-circle {
             width: 80px;
             height: 80px;
@@ -114,19 +112,20 @@
             justify-content: center;
             transition: transform 0.3s;
         }
+
         /* ========================================================= */
         /* CSS CHO BANNER CHẠY ẢNH (CAROUSEL) */
         /* ========================================================= */
         .carousel-item {
-            height: 80vh; /* Ép chiều cao ảnh chỉ chiếm 80% màn hình */
+            height: 80vh;
             background-color: #000;
         }
 
             .carousel-item img {
                 width: 100%;
                 height: 100%;
-                object-fit: cover; /* Cắt ảnh vừa vặn khung hình mà không bị méo */
-                opacity: 0.6; /* Làm tối ảnh 1 xíu để chữ màu trắng nổi bật lên */
+                object-fit: cover;
+                opacity: 0.6;
             }
 
         .carousel-caption {
@@ -146,7 +145,6 @@
             color: var(--accent-orange);
         }
 
-        /* Thu nhỏ banner và chữ khi xem trên điện thoại */
         @@media (max-width: 768px) {
             .carousel-item {
                 height: 50vh;
@@ -191,7 +189,6 @@
                 padding-left: 5px;
             }
 
-        /* Hiệu ứng focus cho các ô nhập liệu Login/Register */
         .custom-input:focus {
             box-shadow: none !important;
             border-color: #ced4da !important;
@@ -210,65 +207,8 @@
             .custom-eye:hover {
                 color: var(--accent-orange) !important;
             }
-    </style>
-</head>
-<body>
 
-    <nav class="navbar navbar-expand-lg navbar-custom sticky-top">
-        <div class="container">
-            <a class="navbar-brand" href="@Url.Action("Index", "Home")"><i class="fa-solid fa-fire-flame-curved"></i> Safe<span>Guard</span></a>
-            <button class="navbar-toggler bg-light" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav mx-auto">
-                    <li class="nav-item"><a class="nav-link" href="@Url.Action("Features", "Home")"><i class="fa-solid fa-star"></i> Tính Năng</a></li>
-                    <li class="nav-item"><a class="nav-link" href="@Url.Action("Benefits", "Home")"><i class="fa-solid fa-shield-halved"></i> Lợi Ích</a></li>
-                    <li class="nav-item"><a class="nav-link" href="@Url.Action("Devices", "Home")"><i class="fa-solid fa-video"></i> Thiết Bị</a></li>
-                    <li class="nav-item"><a class="nav-link" href="@Url.Action("News", "Home")"><i class="fa-regular fa-newspaper"></i> Tin Tức</a></li>
-                    <li class="nav-item"><a class="nav-link" href="@Url.Action("Contact", "Home")"><i class="fa-solid fa-envelope"></i> Liên Hệ</a></li>
-                </ul>
-                <div class="d-flex">
-                    <a href="@Url.Action("Login", "Account")" class="btn btn-login me-2 px-4">Đăng Nhập</a>
-                </div>
-            </div>
-        </div>
-    </nav>
-
-    @RenderBody()
-
-    <footer class="footer-custom">
-        <div class="container">
-            <div class="row">
-                <div class="col-md-4 mb-4">
-                    <h5><i class="fa-solid fa-fire-flame-curved" style="color: var(--accent-orange)"></i> FireGuard System</h5>
-                    <p class="mt-3">Giải pháp an toàn hiệu quả giúp phát hiện sớm nguy cơ cháy, cảnh báo kịp thời để bảo vệ tính mạng và tài sản cho khu phòng trọ và ký túc xá.</p>
-                </div>
-                <div class="col-md-4 mb-4">
-                    <h5>Liên Kết Nhanh</h5>
-                    <div class="footer-links mt-3">
-                        <a href="#"><i class="fa-solid fa-angle-right"></i> Tính năng hệ thống</a>
-                        <a href="#"><i class="fa-solid fa-angle-right"></i> Thiết bị cảm biến</a>
-                        <a href="#"><i class="fa-solid fa-angle-right"></i> Hướng dẫn lắp đặt</a>
-                        <a href="#"><i class="fa-solid fa-angle-right"></i> Quy định phòng cháy</a>
-                    </div>
-                </div>
-                <div class="col-md-4 mb-4">
-                    <h5>Liên Hệ Kỹ Thuật</h5>
-                    <p class="mt-3"><i class="fa-solid fa-location-dot me-2"></i> Ký túc xá Đại học Nguyễn Tất Thành</p>
-                    <p><i class="fa-solid fa-phone me-2"></i> Hotline Khẩn Cấp: 114</p>
-                    <p><i class="fa-solid fa-envelope me-2"></i> support@fireguard.vn</p>
-                </div>
-            </div>
-            <hr class="border-secondary">
-            <div class="text-center mt-3">
-                <p class="mb-0">&copy; @DateTime.Now.Year Bản quyền thuộc về Đội thi Khoa CNTT. Phát triển cho Cuộc thi KTPM.</p>
-            </div>
-        </div>
-    </footer>
-
-    <style>
-        /* Nút Bong bóng hình tròn (Mặc định hiện) */
+        /* CHAT CSS */
         #chat-fab {
             position: fixed;
             bottom: 25px;
@@ -276,7 +216,7 @@
             width: 60px;
             height: 60px;
             border-radius: 50%;
-            background-color: #ff9f1c; /* Màu cam nổi bật */
+            background-color: #ff9f1c;
             color: white;
             display: flex;
             align-items: center;
@@ -292,10 +232,9 @@
                 transform: scale(1.1) rotate(5deg);
             }
 
-        /* Khung Chat (Mặc định ẨN, có hiệu ứng trượt lên) */
         #safeguard-chat-widget {
             position: fixed;
-            bottom: 100px; /* Nằm ngay trên nút tròn */
+            bottom: 100px;
             right: 25px;
             width: 350px;
             height: 500px;
@@ -307,7 +246,6 @@
             overflow: hidden;
             z-index: 9999;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            /* Hiệu ứng ẩn/hiện mượt mà */
             opacity: 0;
             visibility: hidden;
             transform: translateY(20px) scale(0.95);
@@ -315,14 +253,12 @@
             transition: all 0.3s ease-in-out;
         }
 
-            /* Class này sẽ được JS thêm vào khi bấm mở */
             #safeguard-chat-widget.chat-open {
                 opacity: 1;
                 visibility: visible;
                 transform: translateY(0) scale(1);
             }
 
-        /* Các thành phần bên trong khung chat */
         #chat-header {
             background: #003366;
             color: white;
@@ -389,6 +325,81 @@
                 box-shadow: 0 2px 5px rgba(0,0,0,0.02);
             }
     </style>
+</head>
+<body>
+
+    <nav class="navbar navbar-expand-lg navbar-custom sticky-top">
+        <div class="container">
+            <a class="navbar-brand" href="@Url.Action("Index", "Home")"><i class="fa-solid fa-fire-flame-curved"></i> Safe<span>Guard</span></a>
+            <button class="navbar-toggler bg-light" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav mx-auto">
+                    <li class="nav-item"><a class="nav-link" href="@Url.Action("Features", "Home")"><i class="fa-solid fa-star"></i> Tính Năng</a></li>
+                    <li class="nav-item"><a class="nav-link" href="@Url.Action("Benefits", "Home")"><i class="fa-solid fa-shield-halved"></i> Lợi Ích</a></li>
+                    <li class="nav-item"><a class="nav-link" href="@Url.Action("Devices", "Home")"><i class="fa-solid fa-video"></i> Thiết Bị</a></li>
+                    <li class="nav-item"><a class="nav-link" href="@Url.Action("News", "Home")"><i class="fa-regular fa-newspaper"></i> Tin Tức</a></li>
+                    <li class="nav-item"><a class="nav-link" href="@Url.Action("Contact", "Home")"><i class="fa-solid fa-envelope"></i> Liên Hệ</a></li>
+                </ul>
+
+                <ul class="navbar-nav ms-auto">
+                    @if (Session["UserEmail"] != null)
+                    {
+                        <li class="nav-item dropdown d-flex align-items-center">
+                            <a class="nav-link dropdown-toggle btn btn-warning text-dark fw-bold px-3 py-2" href="#" id="userMenu" role="button" data-bs-toggle="dropdown" aria-expanded="false" style="border-radius: 20px;">
+                                <i class="fa-solid fa-user-shield me-1"></i>
+                                @(Session["UserGroup"]?.ToString() == "ADMIN" ? "Quản lý:" : "Người thuê:") @Session["UserEmail"]
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-end shadow border-0 mt-2" aria-labelledby="userMenu">
+                                <li><a class="dropdown-item py-2" href="#"><i class="fa-solid fa-chart-line me-2"></i> Bảng điều khiển</a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item py-2 text-danger fw-bold" href="@Url.Action("Logout", "Account")"><i class="fa-solid fa-right-from-bracket me-2"></i> Đăng xuất</a></li>
+                            </ul>
+                        </li>
+                    }
+                    else
+                    {
+                        <li class="nav-item d-flex align-items-center">
+                            <a href="@Url.Action("Login", "Account")" class="btn btn-login px-4 py-2">Đăng Nhập</a>
+                        </li>
+                    }
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    @RenderBody()
+
+    <footer class="footer-custom">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-4 mb-4">
+                    <h5><i class="fa-solid fa-fire-flame-curved" style="color: var(--accent-orange)"></i> FireGuard System</h5>
+                    <p class="mt-3">Giải pháp an toàn hiệu quả giúp phát hiện sớm nguy cơ cháy, cảnh báo kịp thời để bảo vệ tính mạng và tài sản cho khu phòng trọ và ký túc xá.</p>
+                </div>
+                <div class="col-md-4 mb-4">
+                    <h5>Liên Kết Nhanh</h5>
+                    <div class="footer-links mt-3">
+                        <a href="#"><i class="fa-solid fa-angle-right"></i> Tính năng hệ thống</a>
+                        <a href="#"><i class="fa-solid fa-angle-right"></i> Thiết bị cảm biến</a>
+                        <a href="#"><i class="fa-solid fa-angle-right"></i> Hướng dẫn lắp đặt</a>
+                        <a href="#"><i class="fa-solid fa-angle-right"></i> Quy định phòng cháy</a>
+                    </div>
+                </div>
+                <div class="col-md-4 mb-4">
+                    <h5>Liên Hệ Kỹ Thuật</h5>
+                    <p class="mt-3"><i class="fa-solid fa-location-dot me-2"></i> Ký túc xá Đại học Nguyễn Tất Thành</p>
+                    <p><i class="fa-solid fa-phone me-2"></i> Hotline Khẩn Cấp: 114</p>
+                    <p><i class="fa-solid fa-envelope me-2"></i> support@fireguard.vn</p>
+                </div>
+            </div>
+            <hr class="border-secondary">
+            <div class="text-center mt-3">
+                <p class="mb-0">&copy; @DateTime.Now.Year Bản quyền thuộc về Đội thi Khoa CNTT. Phát triển cho Cuộc thi KTPM.</p>
+            </div>
+        </div>
+    </footer>
 
     <div id="chat-fab" onclick="toggleChat()">
         <i class="fa-solid fa-robot"></i>
@@ -409,32 +420,26 @@
             </button>
         </div>
     </div>
-
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script>
-        // Hàm bật/tắt (mở/đóng) khung chat với hiệu ứng
         function toggleChat() {
             var widget = document.getElementById('safeguard-chat-widget');
-            widget.classList.toggle('chat-open'); // Thêm hoặc xóa class 'chat-open'
+            widget.classList.toggle('chat-open');
         }
 
-        // Hàm gửi tin nhắn
         function sendMessage() {
             var inputBody = $('#user-input');
             var question = inputBody.val().trim();
 
             if (question === "") return;
 
-            // 1. In tin nhắn user
             $('#chat-body').append('<div class="message user">' + question + '</div>');
             inputBody.val('');
             scrollChatToBottom();
 
-            // 2. In chữ đang suy nghĩ
             $('#chat-body').append('<div class="message bot" id="loading-msg"><i class="fa-solid fa-ellipsis fa-fade"></i> AI đang phân tích...</div>');
             scrollChatToBottom();
 
-            // 3. Gọi AJAX lên C# (Nhớ Build lại C# sau khi sửa link API nhé)
             $.ajax({
                 url: '@Url.Action("AskGemini", "Api")',
                 method: 'POST',
@@ -443,7 +448,6 @@
                     $('#loading-msg').remove();
 
                     if (response.success) {
-                        // Dùng biến Markdown thành Text cơ bản (vì Gemini hay trả về dấu sao **)
                         var cleanText = response.reply.replace(/\*\*/g, '');
                         var botReply = $('<div class="message bot"></div>').text(cleanText);
                         $('#chat-body').append(botReply);
@@ -468,38 +472,22 @@
         function handleKeyPress(e) {
             if (e.key === 'Enter') sendMessage();
         }
-    </script>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script>
         function togglePassword(inputId, iconSpan) {
             var input = document.getElementById(inputId);
             var icon = iconSpan.querySelector('i');
 
             if (input.type === "password") {
-                input.type = "text"; // Chuyển sang kiểu text để hiện chữ
+                input.type = "text";
                 icon.classList.remove('fa-eye');
-                icon.classList.add('fa-eye-slash'); // Đổi thành icon mắt bị gạch chéo
+                icon.classList.add('fa-eye-slash');
             } else {
-                input.type = "password"; // Đổi lại thành kiểu password (dấu sao)
+                input.type = "password";
                 icon.classList.remove('fa-eye-slash');
-                icon.classList.add('fa-eye'); // Đổi lại icon mắt bình thường
+                icon.classList.add('fa-eye');
             }
         }
     </script>
-
-    <div id="safeguard-chat-widget">
-        <div id="chat-header">
-            <span>🤖 Trợ lý PCCC 24/7 (Gemini API)</span>
-            <button onclick="toggleChat()" style="background:none; border:none; color:white; cursor:pointer;">_</button>
-        </div>
-        <div id="chat-body">
-            <div class="message bot">Xin chào! Dù bạn là ai, tôi luôn sẵn sàng tư vấn về phòng cháy chữa cháy. Hãy đặt câu hỏi?</div>
-        </div>
-        <div id="chat-input-area">
-            <input type="text" id="user-input" placeholder="Hỏi về PCCC..." onkeypress="handleKeyPress(event)">
-            <button onclick="sendMessage()" style="background:#ff9f1c; border:none; color:white; border-radius:50%; width:35px; height:35px; cursor:pointer;">></button>
-        </div>
-    </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
