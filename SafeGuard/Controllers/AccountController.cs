@@ -1,6 +1,7 @@
 ﻿using SafeGuard.Models;
 using SafeGuard.Services;
 using System;
+using System.Net.Http; // Thêm thư viện này để gọi API
 using System.Threading.Tasks;
 using System.Web.Mvc;
 
@@ -78,8 +79,6 @@ namespace SafeGuard.Controllers
         // ==========================
         // 3. XÁC NHẬN MÃ (CONFIRM)
         // ==========================
-
-        // HÀM NÀY BỊ THIẾU LÚC NÃY NÈ (Hiển thị giao diện)
         [HttpGet]
         public ActionResult ConfirmSignUp(string username, string email)
         {
@@ -95,32 +94,55 @@ namespace SafeGuard.Controllers
 
             try
             {
-                // 1. Xác nhận mã 6 số 
+                // 1. Xác nhận mã 6 số (Khi dòng này chạy thành công, Lambda 1 sẽ tự động lưu user vào DynamoDB với quyền TENANT)
                 await _cognito.ConfirmSignUpAsync(model.Username, model.Code);
 
-                // 2. Add Group - Phân quyền tự động
-                try
+                // 2. Kiểm tra xem người dùng có nhập mã Quản lý không để gọi Lambda 2 (Nâng quyền)
+                if (!string.IsNullOrEmpty(model.AdminCode))
                 {
-                    string maBiMatCuaDung = "SAFEGUARD2026";
+                    try
+                    {
+                        using (var client = new HttpClient())
+                        {
+                            // Chuẩn bị dữ liệu gửi lên API Gateway
+                            var payload = new
+                            {
+                                userID = model.Username, // Khớp với cách bạn setup Cognito
+                                username = model.Username,
+                                upgradeCode = model.AdminCode
+                            };
 
-                    // Nếu có mã và đúng mã -> ADMIN. Không thì -> TENANT
-                    if (!string.IsNullOrEmpty(model.AdminCode) && model.AdminCode == maBiMatCuaDung)
-                    {
-                        await _cognito.AddUserToGroupAsync(model.Username, "ADMIN");
+                            var jsonPayload = System.Text.Json.JsonSerializer.Serialize(payload);
+                            var content = new StringContent(jsonPayload, System.Text.Encoding.UTF8, "application/json");
+
+                            // ⚠️ QUAN TRỌNG: DÁN INVOKE URL CỦA API GATEWAY VÀO ĐÂY (Nhớ giữ đuôi /upgrade)
+                            string apiUrl = "https://nycp96odz5.execute-api.ap-southeast-1.amazonaws.com/upgrade";
+
+                            // Gửi yêu cầu lên AWS Lambda
+                            var response = await client.PostAsync(apiUrl, content);
+
+                            if (response.IsSuccessStatusCode)
+                            {
+                                TempData["Success"] = "Kích hoạt và phân quyền Quản lý thành công! Vui lòng đăng nhập.";
+                                return RedirectToAction("Login");
+                            }
+                            else
+                            {
+                                // Kích hoạt email thành công nhưng mã Admin sai
+                                ModelState.AddModelError("", "Kích hoạt tài khoản thành công, nhưng mã nâng cấp không hợp lệ hoặc đã hết hạn.");
+                                return View(model);
+                            }
+                        }
                     }
-                    else
+                    catch (Exception apiEx)
                     {
-                        await _cognito.AddUserToGroupAsync(model.Username, "TENANT");
+                        ModelState.AddModelError("", "Lỗi khi gọi API nâng cấp: " + apiEx.Message);
+                        return View(model);
                     }
                 }
-                catch (Exception groupEx)
-                {
-                    // Lỗi IAM sẽ hiện đỏ ở đây
-                    ModelState.AddModelError("", "Lỗi phân quyền IAM (Chưa add được vào Group): " + groupEx.Message);
-                    return View(model);
-                }
 
-                TempData["Success"] = "Kích hoạt và Phân quyền thành công! Vui lòng đăng nhập.";
+                // Nếu không nhập mã Admin thì báo thành công bình thường (User là Tenant)
+                TempData["Success"] = "Kích hoạt tài khoản thành công! Vui lòng đăng nhập.";
                 return RedirectToAction("Login");
             }
             catch (Exception ex)
@@ -145,7 +167,6 @@ namespace SafeGuard.Controllers
             try
             {
                 await _cognito.ForgotPasswordAsync(model.Email);
-                // Gửi mã xong thì chuyển sang trang nhập mã và đặt pass mới
                 return RedirectToAction("ResetPassword", new { username = model.Email });
             }
             catch (Exception ex)
@@ -172,9 +193,7 @@ namespace SafeGuard.Controllers
 
             try
             {
-                // Gọi AWS để đổi pass
                 await _cognito.ConfirmForgotPasswordAsync(model.Email, model.Code, model.NewPassword);
-
                 TempData["Success"] = "Đã đổi mật khẩu thành công! Vui lòng đăng nhập lại với mật khẩu mới.";
                 return RedirectToAction("Login");
             }
@@ -201,10 +220,7 @@ namespace SafeGuard.Controllers
         {
             try
             {
-                // Token của AWS có 3 phần, phần số 2 chứa thông tin user
                 var payload = idToken.Split('.')[1];
-
-                // Cân bằng chuỗi Base64
                 payload = payload.Replace('-', '+').Replace('_', '/');
                 switch (payload.Length % 4)
                 {
@@ -212,11 +228,9 @@ namespace SafeGuard.Controllers
                     case 3: payload += "="; break;
                 }
 
-                // Dịch từ mã máy sang mã người đọc được
                 var jsonBytes = Convert.FromBase64String(payload);
                 var jsonString = System.Text.Encoding.UTF8.GetString(jsonBytes);
 
-                // Tìm xem trong thông tin có chữ ADMIN không
                 if (jsonString.Contains("\"cognito:groups\":[\"ADMIN\"]") || jsonString.Contains("\"cognito:groups\": [\"ADMIN\"]"))
                 {
                     return "ADMIN";
@@ -224,7 +238,7 @@ namespace SafeGuard.Controllers
             }
             catch { }
 
-            return "TENANT"; // Nếu lỗi hoặc không thấy, mặc định cho làm người thuê
+            return "TENANT";
         }
     }
 }
