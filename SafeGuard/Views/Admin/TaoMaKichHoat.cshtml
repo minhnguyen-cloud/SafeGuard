@@ -1,0 +1,58 @@
+﻿@{
+    ViewBag.Title = "Tạo Mã Kích Hoạt";
+    Layout = "~/Views/Shared/_DashboardLayout.cshtml";
+}
+
+<div class="container-fluid p-0">
+    <div class="row g-4">
+        <div class="col-md-4 anim-fade-up">
+            <div class="custom-card p-4">
+                <h6 class="card-title-custom text-primary mb-4"><i class="fa-solid fa-key me-2"></i>Tạo Mã Mới</h6>
+                <div class="mb-3">
+                    <label class="form-label text-muted small fw-bold">Chọn Phòng Cần Liên Kết</label>
+                    <select class="form-select">
+                        <option>Phòng 102 - Dãy A</option>
+                        <option>Phòng 205 - Dãy B</option>
+                    </select>
+                </div>
+                <div class="mb-4">
+                    <label class="form-label text-muted small fw-bold">Thời hạn mã (Giờ)</label>
+                    <input type="number" class="form-control" value="24" min="1" max="72">
+                </div>
+                <button class="btn btn-primary w-100 py-2 fw-bold">PHÁT SINH MÃ</button>
+            </div>
+        </div>
+
+        <div class="col-md-8 anim-fade-up delay-1">
+            <div class="custom-card p-4 h-100">
+                <h6 class="card-title-custom mb-4">Danh sách mã đang kích hoạt</h6>
+                <div class="table-responsive">
+                    <table class="table table-borderless table-hover align-middle">
+                        <thead class="border-bottom">
+                            <tr class="text-muted small">
+                                <th>Phòng</th>
+                                <th>Mã Kích Hoạt</th>
+                                <th>Thời gian tạo</th>
+                                <th>Trạng Thái</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="fw-bold">Phòng 101</td>
+                                <td><h5 class="mb-0 fw-bold text-primary" style="letter-spacing: 2px;">AXB-992</h5></td>
+                                <td class="text-muted small">Hôm nay, 08:30 AM</td>
+                                <td><span class="badge bg-warning text-dark">Chờ nhập</span></td>
+                            </tr>
+                            <tr>
+                                <td class="fw-bold">Phòng 304</td>
+                                <td><h5 class="mb-0 fw-bold text-muted text-decoration-line-through" style="letter-spacing: 2px;">KPT-110</h5></td>
+                                <td class="text-muted small">Hôm qua, 15:00 PM</td>
+                                <td><span class="badge bg-success">Đã sử dụng</span></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,43 @@
+﻿@{
+    ViewBag.Title = "Lịch Sử Cảnh Báo";
+    Layout = "~/Views/Shared/_DashboardLayout.cshtml";
+}
+
+<div class="container-fluid p-0">
+    <div class="custom-card p-4 anim-fade-up">
+        <div class="d-flex justify-content-between align-items-center mb-4 border-bottom pb-3">
+            <h6 class="card-title-custom mb-0">Nhật Ký Hệ Thống</h6>
+            <button class="btn btn-sm btn-outline-secondary"><i class="fa-solid fa-download me-2"></i>Xuất Excel</button>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead>
+                    <tr class="text-muted bg-light">
+                        <th>Thời Gian</th>
+                        <th>Phòng</th>
+                        <th>Mức Nhiệt Độ</th>
+                        <th>Mô Tả Cảnh Báo</th>
+                        <th>Trạng Thái Xử Lý</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="fw-bold">12/05/2024 14:30:00</td>
+                        <td>Phòng 103</td>
+                        <td class="text-danger fw-bold">48°C</td>
+                        <td>Nhiệt độ tăng cao bất thường</td>
+                        <td><span class="badge bg-success">Đã kiểm tra (An toàn)</span></td>
+                    </tr>
+                    <tr>
+                        <td class="fw-bold">10/05/2024 09:15:22</td>
+                        <td>Phòng 205</td>
+                        <td class="text-warning fw-bold">38°C</td>
+                        <td>Cảnh báo nhiệt độ ngưỡng 1</td>
+                        <td><span class="badge bg-success">Tự động hạ nhiệt</span></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>

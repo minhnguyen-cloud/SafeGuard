@@ -1,0 +1,57 @@
+﻿@{
+    ViewBag.Title = "Quản Lý Dãy Trọ";
+    Layout = "~/Views/Shared/_DashboardLayout.cshtml";
+}
+
+<div class="container-fluid p-0">
+    <div class="d-flex justify-content-between align-items-center mb-4 anim-fade-up">
+        <h5 class="fw-bold text-dark mb-0">Danh sách các dãy trọ</h5>
+        <button class="btn btn-primary fw-bold"><i class="fa-solid fa-plus me-2"></i>Thêm Dãy Mới</button>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-md-4 anim-fade-up delay-1">
+            <div class="custom-card p-4 position-relative overflow-hidden">
+                <div class="position-absolute top-0 start-0 w-100" style="height: 4px; background-color: var(--primary-blue);"></div>
+                <div class="d-flex justify-content-between align-items-start mb-3 mt-2">
+                    <h5 class="fw-bold mb-0">Dãy A (Khu Nam)</h5>
+                    <span class="badge bg-success bg-opacity-10 text-success border border-success">Hoạt động</span>
+                </div>
+                <p class="text-muted small mb-4"><i class="fa-solid fa-location-dot me-2"></i>123 Đường ABC, Quận 1</p>
+                <div class="row text-center mb-3">
+                    <div class="col-6 border-end">
+                        <h4 class="fw-bold mb-0 text-dark">20</h4>
+                        <small class="text-muted">Tổng Phòng</small>
+                    </div>
+                    <div class="col-6">
+                        <h4 class="fw-bold mb-0 text-primary">18</h4>
+                        <small class="text-muted">Đang Thuê</small>
+                    </div>
+                </div>
+                <button class="btn btn-outline-secondary w-100 btn-sm mt-2">Xem chi tiết</button>
+            </div>
+        </div>
+
+        <div class="col-md-4 anim-fade-up delay-2">
+            <div class="custom-card p-4 position-relative overflow-hidden">
+                <div class="position-absolute top-0 start-0 w-100" style="height: 4px; background-color: var(--primary-blue);"></div>
+                <div class="d-flex justify-content-between align-items-start mb-3 mt-2">
+                    <h5 class="fw-bold mb-0">Dãy B (Khu Bắc)</h5>
+                    <span class="badge bg-success bg-opacity-10 text-success border border-success">Hoạt động</span>
+                </div>
+                <p class="text-muted small mb-4"><i class="fa-solid fa-location-dot me-2"></i>456 Đường XYZ, Quận 3</p>
+                <div class="row text-center mb-3">
+                    <div class="col-6 border-end">
+                        <h4 class="fw-bold mb-0 text-dark">30</h4>
+                        <small class="text-muted">Tổng Phòng</small>
+                    </div>
+                    <div class="col-6">
+                        <h4 class="fw-bold mb-0 text-primary">30</h4>
+                        <small class="text-muted">Đang Thuê</small>
+                    </div>
+                </div>
+                <button class="btn btn-outline-secondary w-100 btn-sm mt-2">Xem chi tiết</button>
+            </div>
+        </div>
+    </div>
+</div>

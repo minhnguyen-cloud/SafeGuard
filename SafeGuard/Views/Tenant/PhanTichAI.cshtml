@@ -1,0 +1,35 @@
+﻿@{ ViewBag.Title = "Phân Tích AI"; Layout = "~/Views/Shared/_DashboardLayout.cshtml"; }
+<div class="container-fluid p-0">
+    <div class="row g-4 mb-4">
+        <div class="col-md-8 anim-fade-up">
+            <div class="custom-card p-4">
+                <h6 class="card-title-custom mb-1">Nhiệt Độ 7 Ngày Qua (Phòng Bạn)</h6>
+                <div style="height: 300px;"><canvas id="tenantChart"></canvas></div>
+            </div>
+        </div>
+        <div class="col-md-4 anim-fade-up delay-1">
+            <div class="custom-card p-4 bg-primary text-white border-0 shadow" style="background: linear-gradient(135deg, #0d6efd, #0a58ca);">
+                <div class="d-flex align-items-center mb-3">
+                    <i class="fa-solid fa-wand-magic-sparkles fs-3 me-3 text-warning"></i>
+                    <h6 class="fw-bold mb-0 text-uppercase">AI Đánh Giá</h6>
+                </div>
+                <hr class="border-light opacity-25">
+                <ul class="list-unstyled mt-3 mb-0">
+                    <li class="mb-3"><i class="fa-solid fa-circle-check text-success bg-white rounded-circle me-2"></i> Nhiệt độ phòng bạn rất ổn định tuần qua.</li>
+                    <li><i class="fa-solid fa-lightbulb text-warning bg-white rounded-circle me-2"></i> Mẹo AI: Hãy tắt bớt thiết bị điện khi ra ngoài để phòng mát hơn.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+@section Scripts {
+    <script>
+        const ctxT = document.getElementById('tenantChart').getContext('2d');
+        const gradT = ctxT.createLinearGradient(0, 0, 0, 300);
+        gradT.addColorStop(0, 'rgba(13, 110, 253, 0.5)'); gradT.addColorStop(1, 'rgba(13, 110, 253, 0)');
+        new Chart(ctxT, {
+            type: 'line', data: { labels: ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'], datasets: [{ label: 'Nhiệt độ', data: [26, 27, 26, 28, 26, 25, 26], borderColor: '#0d6efd', backgroundColor: gradT, borderWidth: 3, fill: true, tension: 0.4 }] },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { min: 20, max: 40 } } }
+        });
+    </script>
+}
