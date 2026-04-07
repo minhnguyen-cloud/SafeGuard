@@ -1,0 +1,42 @@
+﻿@{
+    ViewBag.Title = "Tổng Quan Phòng Của Tôi";
+    Layout = "~/Views/Shared/_DashboardLayout.cshtml";
+}
+
+<div class="container-fluid p-0">
+    <div class="alert alert-success border-0 shadow-sm anim-fade-up d-flex align-items-center mb-4">
+        <i class="fa-solid fa-shield-check fs-4 me-3"></i>
+        <div>
+            <strong>Trạng thái an toàn!</strong> Hệ thống báo cháy tại phòng bạn đang hoạt động bình thường.
+        </div>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <div class="col-md-6 anim-fade-up delay-1">
+            <div class="custom-card p-4 text-center d-flex flex-column justify-content-center h-100">
+                <h6 class="card-title-custom mb-4">Trạng Thái Cảm Biến Phòng Bạn</h6>
+                <i class="fa-solid fa-temperature-half fa-4x text-primary mb-3"></i>
+                <h2 class="fw-bold mb-0">26°C</h2>
+                <p class="text-muted mt-2">Nhiệt độ hiện tại (Real-time)</p>
+            </div>
+        </div>
+
+        <div class="col-md-6 anim-fade-up delay-2">
+            <div class="custom-card p-4 h-100">
+                <h6 class="card-title-custom">Thông Tin Liên Kết</h6>
+                <ul class="list-unstyled mt-3 mb-0">
+                    <li class="mb-3 border-bottom pb-2">
+                        <span class="text-muted">Phòng đang thuê:</span> <strong class="float-end text-primary">Phòng 102 - Dãy A</strong>
+                    </li>
+                    <li class="mb-3 border-bottom pb-2">
+                        <span class="text-muted">Tình trạng kết nối:</span> <strong class="float-end text-success">Đã đồng bộ cảm biến</strong>
+                    </li>
+                    <li>
+                        <span class="text-muted">Cập nhật lần cuối:</span> <strong class="float-end">Vừa xong</strong>
+                    </li>
+                </ul>
+                <a href="@Url.Action("QuanLyPhong", "Tenant")" class="btn btn-outline-primary w-100 mt-4">Xem chi tiết phòng</a>
+            </div>
+        </div>
+    </div>
+</div>

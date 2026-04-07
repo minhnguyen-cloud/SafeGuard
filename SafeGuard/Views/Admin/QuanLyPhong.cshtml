@@ -1,0 +1,66 @@
+﻿@{
+    ViewBag.Title = "Quản Lý Phòng & Cảm Biến";
+    Layout = "~/Views/Shared/_DashboardLayout.cshtml";
+}
+
+<div class="container-fluid p-0">
+    <div class="custom-card p-4 anim-fade-up">
+        <div class="row align-items-center mb-4">
+            <div class="col-md-4">
+                <div class="input-group">
+                    <span class="input-group-text bg-light border-end-0"><i class="fa-solid fa-magnifying-glass text-muted"></i></span>
+                    <input type="text" class="form-control border-start-0 bg-light" placeholder="Tìm kiếm phòng...">
+                </div>
+            </div>
+            <div class="col-md-3">
+                <select class="form-select">
+                    <option selected>Tất cả dãy trọ</option>
+                    <option>Dãy A</option>
+                    <option>Dãy B</option>
+                </select>
+            </div>
+            <div class="col-md-5 text-end">
+                <button class="btn btn-primary fw-bold"><i class="fa-solid fa-plus me-2"></i>Thêm Phòng</button>
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>Tên Phòng</th>
+                        <th>Khu Vực</th>
+                        <th>Người Thuê</th>
+                        <th>ID Thiết Bị (Cảm Biến)</th>
+                        <th>Trạng Thái Thiết Bị</th>
+                        <th class="text-end">Thao Tác</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="fw-bold">Phòng 101</td>
+                        <td>Dãy A</td>
+                        <td>nguyenvana@gmail.com</td>
+                        <td><code class="text-primary">DEV-101-TH</code></td>
+                        <td><span class="badge bg-success">Online</span></td>
+                        <td class="text-end">
+                            <button class="btn btn-sm btn-light text-primary"><i class="fa-solid fa-pen-to-square"></i></button>
+                            <button class="btn btn-sm btn-light text-danger"><i class="fa-solid fa-trash"></i></button>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="fw-bold">Phòng 102</td>
+                        <td>Dãy A</td>
+                        <td class="text-muted fst-italic">Trống</td>
+                        <td><code class="text-muted">Chưa gắn</code></td>
+                        <td><span class="badge bg-secondary">Offline</span></td>
+                        <td class="text-end">
+                            <button class="btn btn-sm btn-light text-primary"><i class="fa-solid fa-pen-to-square"></i></button>
+                            <button class="btn btn-sm btn-light text-danger"><i class="fa-solid fa-trash"></i></button>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>

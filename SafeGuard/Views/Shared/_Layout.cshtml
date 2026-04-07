@@ -324,6 +324,37 @@
                 border-bottom-left-radius: 4px;
                 box-shadow: 0 2px 5px rgba(0,0,0,0.02);
             }
+
+            /* Nút back*/
+        /* Nút Back to Top */
+        #btn-back-to-top {
+            position: fixed;
+            bottom: 100px; /* Đẩy lên cao hơn để nhường chỗ cho Chatbot */
+            right: 30px;
+            display: none;
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            background-color: #dc3545; /* Màu đỏ SafeGuard */
+            color: white;
+            border: 2px solid white;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+            z-index: 1000;
+            transition: all 0.3s ease;
+        }
+
+        /* Giả sử đây là ID nút Chatbot của bạn */
+        #chatbot-launcher {
+            position: fixed;
+            bottom: 30px; /* Nằm dưới cùng */
+            right: 30px;
+            z-index: 1000;
+        }
+
+        #btn-back-to-top:hover {
+            transform: scale(1.1);
+            background-color: #b02a37;
+        }
     </style>
 </head>
 <body>
@@ -352,7 +383,13 @@
                                 @(Session["UserGroup"]?.ToString() == "ADMIN" ? "Quản lý:" : "Người thuê:") @Session["UserEmail"]
                             </a>
                             <ul class="dropdown-menu dropdown-menu-end shadow border-0 mt-2" aria-labelledby="userMenu">
-                                <li><a class="dropdown-item py-2" href="#"><i class="fa-solid fa-chart-line me-2"></i> Bảng điều khiển</a></li>
+                                @{
+                                    // Điều hướng thông minh: Admin về Admin/Index, Tenant về Tenant/Index
+                                    string dashboardUrl = Session["UserGroup"]?.ToString() == "ADMIN"
+                                        ? Url.Action("Index", "Admin")
+                                        : Url.Action("Index", "Tenant");
+                                }
+                                <li><a class="dropdown-item py-2" href="@dashboardUrl"><i class="fa-solid fa-chart-line me-2"></i> Bảng điều khiển</a></li>
                                 <li><hr class="dropdown-divider"></li>
                                 <li><a class="dropdown-item py-2 text-danger fw-bold" href="@Url.Action("Logout", "Account")"><i class="fa-solid fa-right-from-bracket me-2"></i> Đăng xuất</a></li>
                             </ul>
@@ -381,10 +418,11 @@
                 <div class="col-md-4 mb-4">
                     <h5>Liên Kết Nhanh</h5>
                     <div class="footer-links mt-3">
-                        <a href="#"><i class="fa-solid fa-angle-right"></i> Tính năng hệ thống</a>
-                        <a href="#"><i class="fa-solid fa-angle-right"></i> Thiết bị cảm biến</a>
-                        <a href="#"><i class="fa-solid fa-angle-right"></i> Hướng dẫn lắp đặt</a>
-                        <a href="#"><i class="fa-solid fa-angle-right"></i> Quy định phòng cháy</a>
+
+                        <a href="@Url.Action("Features", "Home")"><i class="fa-solid fa-angle-right"></i> Tính năng hệ thống</a>
+                        <a href="@Url.Action("Devices", "Home")"><i class="fa-solid fa-angle-right"></i> Thiết bị cảm biến</a>
+                        <a href="@Url.Action("Benefits", "Home")"><i class="fa-solid fa-angle-right"></i> Lợi Ích</a>
+                        <a href="@Url.Action("SafetyRegulations", "Home")"><i class="fa-solid fa-angle-right"></i> Quy định phòng cháy</a>
                     </div>
                 </div>
                 <div class="col-md-4 mb-4">
@@ -400,6 +438,7 @@
             </div>
         </div>
     </footer>
+
 
     <div id="chat-fab" onclick="toggleChat()">
         <i class="fa-solid fa-robot"></i>
@@ -420,6 +459,33 @@
             </button>
         </div>
     </div>
+
+    /* Nút back to top */
+    <button type="button" class="btn btn-danger btn-floating btn-lg" id="btn-back-to-top">
+        <i class="fas fa-arrow-up"></i>
+    </button>
+
+    <script>
+        let mybutton = document.getElementById("btn-back-to-top");
+
+        window.onscroll = function () {
+            if (document.body.scrollTop > 300 || document.documentElement.scrollTop > 300) {
+                mybutton.style.opacity = "1";
+                mybutton.style.display = "block";
+            } else {
+                mybutton.style.opacity = "0";
+                setTimeout(() => {
+                    if (mybutton.style.opacity === "0") mybutton.style.display = "none";
+                }, 300);
+            }
+        };
+
+        mybutton.addEventListener("click", () => {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+    </script>
+
+
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script>
         function toggleChat() {

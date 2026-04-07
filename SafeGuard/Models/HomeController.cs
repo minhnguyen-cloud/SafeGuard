@@ -39,6 +39,11 @@ namespace SafeGuard.Models
         {
             return View();
         }
+        public ActionResult SafetyRegulations()
+        {
+            ViewBag.Message = "Quy định Phòng cháy Chữa cháy tại Nhà trọ SafeGuard";
+            return View();
+        }
     }
 
 }

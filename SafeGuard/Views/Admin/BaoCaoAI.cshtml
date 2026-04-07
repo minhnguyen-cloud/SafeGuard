@@ -1,0 +1,65 @@
+﻿@{
+    ViewBag.Title = "Báo Cáo AI & Thống Kê";
+    Layout = "~/Views/Shared/_DashboardLayout.cshtml";
+}
+
+<div class="container-fluid p-0">
+    <div class="row g-4 mb-4">
+        <div class="col-md-8 anim-fade-up">
+            <div class="custom-card p-4">
+                <h6 class="card-title-custom mb-1">Biểu Đồ Biến Thiên Nhiệt Độ (7 Ngày Qua)</h6>
+                <p class="text-muted small mb-4">Hệ thống AI tự động thu thập và vẽ lại dải nhiệt độ trung bình của toàn khu trọ.</p>
+                <div style="height: 300px;">
+                    <canvas id="tempHistoryChart"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 anim-fade-up delay-1">
+            <div class="custom-card p-4 bg-primary text-white border-0 shadow" style="background: linear-gradient(135deg, #0d6efd 0%, #0a58ca 100%);">
+                <div class="d-flex align-items-center mb-3">
+                    <i class="fa-solid fa-wand-magic-sparkles fs-3 me-3 text-warning"></i>
+                    <h6 class="fw-bold mb-0 text-uppercase">AI Đánh Giá An Toàn</h6>
+                </div>
+                <hr class="border-light opacity-25">
+                <ul class="list-unstyled mt-3 mb-0">
+                    <li class="mb-3 d-flex"><i class="fa-solid fa-circle-check text-success bg-white rounded-circle fs-5 me-3"></i> Tình trạng toàn khu ổn định (Điểm an toàn: 95/100).</li>
+                    <li class="mb-3 d-flex"><i class="fa-solid fa-circle-exclamation text-warning bg-white rounded-circle fs-5 me-3"></i> AI nhận thấy Phòng 103 thường xuyên có mức nhiệt cao vào buổi trưa. Khuyến nghị kiểm tra thiết bị sinh nhiệt.</li>
+                    <li class="d-flex"><i class="fa-solid fa-circle-info text-info bg-white rounded-circle fs-5 me-3"></i> Hệ thống cảm biến hoạt động tốt, không có độ trễ mạng.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        const ctx2 = document.getElementById('tempHistoryChart').getContext('2d');
+        const gradientLine = ctx2.createLinearGradient(0, 0, 0, 300);
+        gradientLine.addColorStop(0, 'rgba(255, 99, 132, 0.5)');
+        gradientLine.addColorStop(1, 'rgba(255, 99, 132, 0.0)');
+
+        new Chart(ctx2, {
+            type: 'line',
+            data: {
+                labels: ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'CN'],
+                datasets: [{
+                    label: 'Nhiệt độ cao nhất (°C)',
+                    data: [32, 33, 31, 35, 48, 32, 31],
+                    borderColor: '#dc3545',
+                    backgroundColor: gradientLine,
+                    borderWidth: 3,
+                    fill: true,
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: { beginAtZero: false, min: 25, max: 55 }
+                }
+            }
+        });
+    </script>
+}

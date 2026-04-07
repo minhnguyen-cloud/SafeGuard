@@ -132,6 +132,9 @@
     <Content Include="Content\images\LoiIt1.jpg" />
     <Content Include="Content\images\LoiIt2.jpg" />
     <Content Include="Content\images\LoiIt3.png" />
+    <Content Include="Content\images\Tintuc1.jpg" />
+    <Content Include="Content\images\Tintuc2.jpg" />
+    <Content Include="Content\images\Tintuc3.jpg" />
     <Content Include="Content\images\TV1.jpg" />
     <Content Include="Content\images\TV2.jpg" />
     <Content Include="Content\images\TV3.jpg" />
@@ -142,7 +145,10 @@
   <ItemGroup>
     <Compile Include="App_Start\RouteConfig.cs" />
     <Compile Include="Controllers\AccountController.cs" />
+    <Compile Include="Controllers\AdminController.cs" />
     <Compile Include="Controllers\ApiController.cs" />
+    <Compile Include="Controllers\TenantController.cs" />
+    <Compile Include="Filters\RoleAuthorizeAttribute.cs" />
     <Compile Include="Global.asax.cs">
       <DependentUpon>Global.asax</DependentUpon>
     </Compile>
@@ -171,6 +177,20 @@
     <Content Include="Views\Account\ForgotPassword.cshtml" />
     <Content Include="Views\Account\ConfirmSignUp.cshtml" />
     <Content Include="Views\Account\ResetPassword.cshtml" />
+    <Content Include="Views\Admin\Index.cshtml" />
+    <Content Include="Views\Tenant\Index.cshtml" />
+    <Content Include="Views\Shared\_DashboardLayout.cshtml" />
+    <Content Include="Views\Admin\QuanLyDayTro.cshtml" />
+    <Content Include="Views\Admin\QuanLyPhong.cshtml" />
+    <Content Include="Views\Admin\TaoMaKichHoat.cshtml" />
+    <Content Include="Views\Admin\LichSuCanhBao.cshtml" />
+    <Content Include="Views\Admin\BaoCaoAI.cshtml" />
+    <Content Include="Views\Tenant\LichSuCanhBao.cshtml" />
+    <Content Include="Views\Tenant\PhanTichAI.cshtml" />
+    <Content Include="Views\Tenant\QuanLyPhong.cshtml" />
+    <Content Include="Views\Tenant\ThongTinCaNhan.cshtml" />
+    <Content Include="Views\Tenant\NoiQuy.cshtml" />
+    <Content Include="Views\Home\SafetyRegulations.cshtml" />
     <None Include="Web.Debug.config">
       <DependentUpon>Web.config</DependentUpon>
     </None>
