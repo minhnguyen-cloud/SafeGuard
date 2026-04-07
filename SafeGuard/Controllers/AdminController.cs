@@ -6,12 +6,15 @@ using Amazon.DynamoDBv2;
 using Amazon.DynamoDBv2.DocumentModel;
 using System.Linq;
 using System.Collections.Generic;
+using SafeGuard.Models;
 
 namespace SafeGuard.Controllers
 {
-    [RoleAuthorize(Role = "ADMIN")] // CHỈ ADMIN MỚI ĐƯỢC VÀO CONTROLLER NÀY
+    [RoleAuthorize(Role = "ADMIN")]
     public class AdminController : Controller
     {
+        private AmazonDynamoDBClient GetClient() => new AmazonDynamoDBClient(Amazon.RegionEndpoint.APSoutheast1);
+
         // ==========================================
         // 1. TỔNG QUAN (DASHBOARD)
         // ==========================================
@@ -20,146 +23,269 @@ namespace SafeGuard.Controllers
         {
             try
             {
-                var client = new AmazonDynamoDBClient(Amazon.RegionEndpoint.APSoutheast1);
+                var client = GetClient();
                 var table = Table.LoadTable(client, "Facilities");
+                ViewBag.Blocks = await table.Query(new QueryFilter("PK", QueryOperator.Equal, "BLOCK")).GetRemainingAsync();
+            }
+            catch (Exception ex) { TempData["ErrorMessage"] = "Lỗi Dashboard: " + ex.Message; }
+            return View();
+        }
 
-                // Lấy tất cả các dòng là DÃY TRỌ (PK = BLOCK) để đổ vào Dropdown tạo mã
-                var filter = new QueryFilter("PK", QueryOperator.Equal, "BLOCK");
-                var search = table.Query(filter);
-                var blocks = await search.GetRemainingAsync();
+        // ==========================================
+        // 2. QUẢN LÝ PHÒNG (Đọc dữ liệu từ bảng Rooms)
+        // ==========================================
+        [HttpGet]
+        public async Task<ActionResult> QuanLyPhong()
+        {
+            try
+            {
+                var client = GetClient();
 
-                ViewBag.Blocks = blocks;
+                // Lấy Dãy
+                var tableFacilities = Table.LoadTable(client, "Facilities");
+                ViewBag.Blocks = await tableFacilities.Query(new QueryFilter("PK", QueryOperator.Equal, "BLOCK")).GetRemainingAsync();
+
+                // Lấy Phòng Thực Tế
+                var tableRooms = Table.LoadTable(client, "Rooms");
+                var allRooms = await tableRooms.Scan(new ScanFilter()).GetRemainingAsync();
+
+                // Lấy Users để xét Online/Offline
+                var tableUsers = Table.LoadTable(client, "Users");
+                var allUsers = await tableUsers.Scan(new ScanFilter()).GetRemainingAsync();
+
+                var roomList = new List<RoomDisplayViewModel>();
+                foreach (var r in allRooms)
+                {
+                    string bId = r["BlockId"].AsString();
+                    string rId = r["RoomId"].AsString();
+                    string fullId = $"{bId}-{rId}";
+
+                    var owner = allUsers.FirstOrDefault(u => u.ContainsKey("AssignedRoom") && u["AssignedRoom"].AsString() == fullId);
+
+                    roomList.Add(new RoomDisplayViewModel
+                    {
+                        RoomName = "Phòng " + bId + "-" + rId,
+                        BlockName = bId,
+                        RoomId = rId,
+                        OwnerEmail = owner != null ? owner["userID"].AsString() : "Chưa có người thuê",
+                        IsOnline = owner != null
+                    });
+                }
+
+                // Sắp xếp danh sách phòng cho đẹp
+                ViewBag.Rooms = roomList.OrderBy(r => r.BlockName).ThenBy(r => r.RoomId).ToList();
             }
             catch (Exception ex)
             {
-                TempData["ErrorMessage"] = "Lỗi tải danh sách dãy tại Dashboard: " + ex.Message;
+                TempData["ErrorMessage"] = "Lỗi lấy dữ liệu: Vui lòng kiểm tra đã tạo bảng Rooms trên AWS chưa. Lỗi chi tiết: " + ex.Message;
             }
             return View();
         }
 
-        public ActionResult QuanLyPhong() => View();
-        public ActionResult LichSuCanhBao() => View();
-        public ActionResult BaoCaoAI() => View();
+        // ==========================================
+        // THÊM VÀ XÓA PHÒNG LẺ
+        // ==========================================
+        [HttpPost]
+        public async Task<ActionResult> ThemPhongMoi(string blockId, string roomNumber)
+        {
+            try
+            {
+                // Loại bỏ khoảng trắng thừa để AWS không bị lỗi
+                blockId = blockId?.Trim();
+                roomNumber = roomNumber?.Trim();
+
+                // Bắt lỗi nếu Form gửi lên bị thiếu dữ liệu
+                if (string.IsNullOrEmpty(blockId) || string.IsNullOrEmpty(roomNumber))
+                {
+                    TempData["ErrorMessage"] = "Dữ liệu bị trống, vui lòng nhập đầy đủ thông tin dãy và số phòng!";
+                    return RedirectToAction("QuanLyPhong");
+                }
+
+                var client = GetClient();
+                var table = Table.LoadTable(client, "Rooms");
+
+                // 1. KIỂM TRA XEM PHÒNG ĐÃ TỒN TẠI HAY CHƯA
+                var existingRoom = await table.GetItemAsync(blockId, roomNumber);
+                if (existingRoom != null)
+                {
+                    // Nếu tìm thấy phòng rồi -> Báo lỗi đỏ và chặn lại luôn
+                    TempData["ErrorMessage"] = $"Lỗi: Phòng {roomNumber} đã tồn tại trong Dãy {blockId} rồi! Không thể thêm trùng.";
+                    return RedirectToAction("QuanLyPhong");
+                }
+
+                // 2. NẾU CHƯA CÓ THÌ MỚI TIẾN HÀNH THÊM MỚI
+                var item = new Document();
+                item["BlockId"] = blockId; // Phải khớp 100% với Partition Key
+                item["RoomId"] = roomNumber; // Phải khớp 100% với Sort Key
+                item["CreatedAt"] = DateTime.Now.ToString("O");
+
+                await table.PutItemAsync(item);
+
+                TempData["SuccessMessage"] = $"Đã thêm phòng {roomNumber} vào dãy {blockId} thành công!";
+            }
+            catch (Exception ex)
+            {
+                // Nếu AWS từ chối, sẽ hiện lỗi đỏ chi tiết
+                TempData["ErrorMessage"] = "Lỗi từ hệ thống AWS: " + ex.Message;
+            }
+
+            return RedirectToAction("QuanLyPhong");
+        }
+
+        [HttpPost]
+        public async Task<ActionResult> XoaPhong(string blockId, string roomId)
+        {
+            try
+            {
+                var client = GetClient();
+                var table = Table.LoadTable(client, "Rooms");
+                await table.DeleteItemAsync(blockId, roomId);
+                TempData["SuccessMessage"] = $"Đã xóa phòng {roomId} thành công!";
+            }
+            catch (Exception ex) { TempData["ErrorMessage"] = "Lỗi xóa phòng: " + ex.Message; }
+            return RedirectToAction("QuanLyPhong");
+        }
 
         // ==========================================
-        // 2. QUẢN LÝ DÃY TRỌ (Hiển thị & Tự động đếm phòng đang thuê)
+        // 3. QUẢN LÝ DÃY TRỌ
         // ==========================================
         [HttpGet]
         public async Task<ActionResult> QuanLyDayTro()
         {
             try
             {
-                var client = new AmazonDynamoDBClient(Amazon.RegionEndpoint.APSoutheast1);
+                var client = GetClient();
 
-                // Lấy dữ liệu các Dãy từ bảng Facilities
+                // 1. Lấy tất cả các dãy từ bảng Facilities
                 var tableFacilities = Table.LoadTable(client, "Facilities");
-                var filter = new QueryFilter("PK", QueryOperator.Equal, "BLOCK");
-                var blocks = await tableFacilities.Query(filter).GetRemainingAsync();
+                var blocks = await tableFacilities.Query(new QueryFilter("PK", QueryOperator.Equal, "BLOCK")).GetRemainingAsync();
 
-                // Lấy toàn bộ mã đã tạo từ bảng RoomInvites để đếm số lượng "Đang thuê"
-                var tableInvites = Table.LoadTable(client, "RoomInvites");
-                var allInvites = await tableInvites.Scan(new ScanFilter()).GetRemainingAsync();
+                // 2. Lấy tất cả phòng và user để đếm số liệu Real-time
+                var tableRooms = Table.LoadTable(client, "Rooms");
+                var allRooms = await tableRooms.Scan(new ScanFilter()).GetRemainingAsync();
 
+                var tableUsers = Table.LoadTable(client, "Users");
+                var allUsers = await tableUsers.Scan(new ScanFilter()).GetRemainingAsync();
+
+                // 3. Quét từng dãy và tính toán lại con số thực tế
                 foreach (var block in blocks)
                 {
-                    string blockId = block["BlockId"].AsString();
+                    string bId = block["BlockId"].AsString();
 
-                    // Đếm các mã đã dùng (IsUsed = true) thuộc về dãy này (dựa vào tiền tố RoomId)
-                    int rentedCount = allInvites.Count(i =>
-                        i.ContainsKey("IsUsed") && i["IsUsed"].AsBoolean() == true &&
-                        i.ContainsKey("RoomId") && i["RoomId"].AsString().StartsWith(blockId)
-                    );
+                    // Lọc ra các phòng thuộc dãy này
+                    var roomsInBlock = allRooms.Where(r => r.ContainsKey("BlockId") && r["BlockId"].AsString() == bId).ToList();
 
-                    // Cập nhật con số đang thuê động vào dữ liệu hiển thị
-                    block["ActiveRooms"] = rentedCount;
+                    // Cập nhật Tổng số phòng thực tế
+                    int realTotalRooms = roomsInBlock.Count;
+
+                    // Đếm xem trong dãy này có bao nhiêu phòng có người ở
+                    int realActiveRooms = 0;
+                    foreach (var room in roomsInBlock)
+                    {
+                        string fullRoomId = $"{bId}-{room["RoomId"].AsString()}";
+                        bool isOccupied = allUsers.Any(u => u.ContainsKey("AssignedRoom") && u["AssignedRoom"].AsString() == fullRoomId);
+                        if (isOccupied)
+                        {
+                            realActiveRooms++;
+                        }
+                    }
+
+                    // Gán dữ liệu Real-time ngược lại vào block để View hiển thị
+                    // (Thao tác này chỉ thay đổi trên RAM để hiển thị, không làm đổi dữ liệu gốc trên AWS)
+                    block["TotalRooms"] = realTotalRooms;
+                    block["ActiveRooms"] = realActiveRooms;
                 }
 
-                ViewBag.Blocks = blocks;
+                ViewBag.Blocks = blocks.OrderBy(b => b["BlockName"].AsString()).ToList();
             }
-            catch (Exception ex)
-            {
-                TempData["ErrorMessage"] = "Lỗi tải dữ liệu dãy trọ: " + ex.Message;
-            }
+            catch (Exception ex) { TempData["ErrorMessage"] = "Lỗi: " + ex.Message; }
+
             return View();
         }
 
-        // ==========================================
-        // 3. THÊM DÃY MỚI (Lưu thông tin dãy vào DynamoDB)
-        // ==========================================
         [HttpPost]
         public async Task<ActionResult> ThemDayMoi(string blockName, string address, int numberOfRooms)
         {
             try
             {
-                var client = new AmazonDynamoDBClient(Amazon.RegionEndpoint.APSoutheast1);
-                var table = Table.LoadTable(client, "Facilities");
+                var client = GetClient();
 
-                // LẤY TÊN DÃY LÀM ID LUÔN (Ví dụ nhập "Dãy SS" thì lấy "SS")
-                // Nếu tên quá dài thì lấy 3 ký tự đầu, viết hoa hết.
                 string blockId = blockName.Trim().ToUpper();
-                if (blockId.Contains(" "))
-                    blockId = blockId.Split(' ').Last(); // Lấy chữ cuối cùng nếu có dấu cách
+                if (blockId.Contains(" ")) blockId = blockId.Split(' ').Last();
 
+                // 1. Lưu Dãy vào Facilities
+                var tableFacilities = Table.LoadTable(client, "Facilities");
                 var blockItem = new Document();
                 blockItem["PK"] = "BLOCK";
-                blockItem["SK"] = $"BLOCK#{Guid.NewGuid().ToString().Substring(0, 5)}"; // SK vẫn giữ ngẫu nhiên để tránh trùng
-                blockItem["BlockId"] = blockId; // Đây là cái sẽ hiện trên mã: SS, A, B...
+                blockItem["SK"] = $"BLOCK#{Guid.NewGuid().ToString().Substring(0, 5)}";
+                blockItem["BlockId"] = blockId;
                 blockItem["BlockName"] = blockName;
                 blockItem["Address"] = address;
                 blockItem["TotalRooms"] = numberOfRooms;
                 blockItem["ActiveRooms"] = 0;
+                await tableFacilities.PutItemAsync(blockItem);
 
-                await table.PutItemAsync(blockItem);
-                TempData["SuccessMessage"] = $"Đã thêm {blockName} thành công!";
+                // 2. TỰ ĐỘNG SINH 5 PHÒNG (101->105) VÀO BẢNG ROOMS
+                var tableRooms = Table.LoadTable(client, "Rooms");
+                for (int i = 1; i <= numberOfRooms; i++)
+                {
+                    var roomItem = new Document();
+                    roomItem["BlockId"] = blockId;
+                    roomItem["RoomId"] = $"10{i}";
+                    roomItem["CreatedAt"] = DateTime.Now.ToString("O");
+                    await tableRooms.PutItemAsync(roomItem);
+                }
+
+                TempData["SuccessMessage"] = $"Đã thêm {blockName} và tự động tạo {numberOfRooms} phòng thành công!";
             }
-            catch (Exception ex)
-            {
-                TempData["ErrorMessage"] = "Lỗi: " + ex.Message;
-            }
+            catch (Exception ex) { TempData["ErrorMessage"] = "Lỗi: " + ex.Message; }
             return RedirectToAction("QuanLyDayTro");
         }
 
         // ==========================================
-        // 4. TẠO MÃ KÍCH HOẠT (HÀM GET - Load danh sách mã)
+        // 4. TẠO MÃ KÍCH HOẠT
         // ==========================================
         [HttpGet]
         public async Task<ActionResult> TaoMaKichHoat()
         {
             try
             {
-                var client = new AmazonDynamoDBClient(Amazon.RegionEndpoint.APSoutheast1);
+                var client = GetClient();
 
-                // 1. Lấy danh sách mã mời (giữ nguyên code cũ)
                 var tableInvites = Table.LoadTable(client, "RoomInvites");
-                var invites = await tableInvites.Scan(new ScanFilter()).GetRemainingAsync();
-                ViewBag.InviteList = invites;
+                ViewBag.InviteList = await tableInvites.Scan(new ScanFilter()).GetRemainingAsync();
 
-                // 2. THÊM ĐOẠN NÀY: Lấy danh sách Dãy trọ thực tế từ DynamoDB
-                var tableFacilities = Table.LoadTable(client, "Facilities");
-                var filter = new QueryFilter("PK", QueryOperator.Equal, "BLOCK");
-                var blocks = await tableFacilities.Query(filter).GetRemainingAsync();
-                ViewBag.Blocks = blocks;
+                // Lấy phòng thực tế để bỏ vào Dropdown tạo mã
+                var tableRooms = Table.LoadTable(client, "Rooms");
+                var allRooms = await tableRooms.Scan(new ScanFilter()).GetRemainingAsync();
+
+                var roomList = new List<RoomDisplayViewModel>();
+                foreach (var r in allRooms)
+                {
+                    string bId = r["BlockId"].AsString();
+                    string rId = r["RoomId"].AsString();
+                    roomList.Add(new RoomDisplayViewModel
+                    {
+                        RoomName = "Phòng " + bId + "-" + rId,
+                        BlockName = bId,
+                        RoomId = rId
+                    });
+                }
+                ViewBag.Rooms = roomList.OrderBy(r => r.BlockName).ThenBy(r => r.RoomId).ToList();
             }
-            catch (Exception ex)
-            {
-                TempData["ErrorMessage"] = "Lỗi tải dữ liệu: " + ex.Message;
-            }
+            catch (Exception ex) { TempData["ErrorMessage"] = "Lỗi: " + ex.Message; }
             return View();
         }
 
-        // ==========================================
-        // 5. PHÁT SINH MÃ MỚI (HÀM POST)
-        // ==========================================
         [HttpPost]
         public async Task<ActionResult> TaoMaMoi(string selectedRoom, int expireHours)
         {
             try
             {
-                // Sinh mã ngẫu nhiên: [Phòng]-[6 ký tự]
                 string randomString = Guid.NewGuid().ToString().Substring(0, 6).ToUpper();
                 string newInviteCode = $"{selectedRoom}-{randomString}";
 
-                var client = new AmazonDynamoDBClient(Amazon.RegionEndpoint.APSoutheast1);
+                var client = GetClient();
                 var table = Table.LoadTable(client, "RoomInvites");
 
                 var item = new Document();
@@ -170,22 +296,16 @@ namespace SafeGuard.Controllers
                 item["CreatedAt"] = DateTime.UtcNow.ToString("O");
 
                 await table.PutItemAsync(item);
+                TempData["SuccessMessage"] = $"Tạo mã thành công: {newInviteCode}";
 
-                TempData["SuccessMessage"] = $"Tạo mã thành công: {newInviteCode} cho {selectedRoom}";
-
-                // Nếu tạo từ trang Index thì trả về Index, nếu từ trang TaoMa thì trả về TaoMa
                 string referer = Request.UrlReferrer?.AbsolutePath;
-                if (referer != null && referer.Contains("Admin/Index"))
-                {
-                    return RedirectToAction("Index");
-                }
+                if (referer != null && referer.Contains("Admin/Index")) return RedirectToAction("Index");
                 return RedirectToAction("TaoMaKichHoat");
             }
-            catch (Exception ex)
-            {
-                TempData["ErrorMessage"] = "Lỗi khi lưu lên AWS: " + ex.Message;
-                return RedirectToAction("TaoMaKichHoat");
-            }
+            catch (Exception ex) { TempData["ErrorMessage"] = "Lỗi: " + ex.Message; return RedirectToAction("TaoMaKichHoat"); }
         }
+
+        public ActionResult LichSuCanhBao() => View();
+        public ActionResult BaoCaoAI() => View();
     }
 }

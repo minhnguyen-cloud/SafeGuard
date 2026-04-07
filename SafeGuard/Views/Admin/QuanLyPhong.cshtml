@@ -1,66 +1,242 @@
 ﻿@{
-    ViewBag.Title = "Quản Lý Phòng & Cảm Biến";
+    ViewBag.Title = "Quản Lý Phòng";
     Layout = "~/Views/Shared/_DashboardLayout.cshtml";
 }
 
 <div class="container-fluid p-0">
+
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show mb-4" role="alert">
+            <strong>Thành công!</strong> @TempData["SuccessMessage"]
+            <button type="button" class="btn-close close" data-dismiss="alert" data-bs-dismiss="alert" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+            </button>
+        </div>
+    }
+    @if (TempData["ErrorMessage"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show mb-4" role="alert">
+            <strong>Lỗi!</strong> @TempData["ErrorMessage"]
+            <button type="button" class="btn-close close" data-dismiss="alert" data-bs-dismiss="alert" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+            </button>
+        </div>
+    }
+
     <div class="custom-card p-4 anim-fade-up">
         <div class="row align-items-center mb-4">
             <div class="col-md-4">
-                <div class="input-group">
-                    <span class="input-group-text bg-light border-end-0"><i class="fa-solid fa-magnifying-glass text-muted"></i></span>
-                    <input type="text" class="form-control border-start-0 bg-light" placeholder="Tìm kiếm phòng...">
+                <div class="input-group shadow-sm rounded">
+                    <span class="input-group-text bg-white border-end-0"><i class="fa-solid fa-magnifying-glass text-muted"></i></span>
+                    <input type="text" id="txtSearch" class="form-control border-start-0" placeholder="Tìm tên phòng hoặc người quản lý...">
                 </div>
             </div>
             <div class="col-md-3">
-                <select class="form-select">
-                    <option selected>Tất cả dãy trọ</option>
-                    <option>Dãy A</option>
-                    <option>Dãy B</option>
+                <select id="ddlBlock" class="form-select border-0 shadow-sm">
+                    <option value="">Tất cả dãy trọ</option>
+                    @if (ViewBag.Blocks != null)
+                    {
+                        foreach (var block in ViewBag.Blocks)
+                        {
+                            <option value="@block["BlockId"].AsString()">Dãy @block["BlockId"].AsString()</option>
+                        }
+                    }
                 </select>
             </div>
             <div class="col-md-5 text-end">
-                <button class="btn btn-primary fw-bold"><i class="fa-solid fa-plus me-2"></i>Thêm Phòng</button>
+                <button type="button" class="btn btn-primary fw-bold px-4 shadow-sm" onclick="forceOpenModal('addRoomModal')">
+                    <i class="fa-solid fa-plus me-2"></i>Thêm Phòng
+                </button>
             </div>
         </div>
 
         <div class="table-responsive">
-            <table class="table table-hover align-middle">
+            <table id="roomTable" class="table table-hover align-middle border-top">
                 <thead class="table-light">
-                    <tr>
+                    <tr class="text-muted small text-uppercase">
                         <th>Tên Phòng</th>
                         <th>Khu Vực</th>
-                        <th>Người Thuê</th>
-                        <th>ID Thiết Bị (Cảm Biến)</th>
-                        <th>Trạng Thái Thiết Bị</th>
-                        <th class="text-end">Thao Tác</th>
+                        <th>Chủ Trọ (Admin)</th>
+                        <th>ID Phòng</th>
+                        <th>Trạng Thái</th>
+                        <th class="text-center">Thao Tác</th>
                     </tr>
                 </thead>
                 <tbody>
-                    <tr>
-                        <td class="fw-bold">Phòng 101</td>
-                        <td>Dãy A</td>
-                        <td>nguyenvana@gmail.com</td>
-                        <td><code class="text-primary">DEV-101-TH</code></td>
-                        <td><span class="badge bg-success">Online</span></td>
-                        <td class="text-end">
-                            <button class="btn btn-sm btn-light text-primary"><i class="fa-solid fa-pen-to-square"></i></button>
-                            <button class="btn btn-sm btn-light text-danger"><i class="fa-solid fa-trash"></i></button>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td class="fw-bold">Phòng 102</td>
-                        <td>Dãy A</td>
-                        <td class="text-muted fst-italic">Trống</td>
-                        <td><code class="text-muted">Chưa gắn</code></td>
-                        <td><span class="badge bg-secondary">Offline</span></td>
-                        <td class="text-end">
-                            <button class="btn btn-sm btn-light text-primary"><i class="fa-solid fa-pen-to-square"></i></button>
-                            <button class="btn btn-sm btn-light text-danger"><i class="fa-solid fa-trash"></i></button>
-                        </td>
-                    </tr>
+                    @if (ViewBag.Rooms != null)
+                    {
+                        foreach (SafeGuard.Models.RoomDisplayViewModel room in (IEnumerable<SafeGuard.Models.RoomDisplayViewModel>)ViewBag.Rooms)
+                        {
+                            <tr class="room-row">
+                                <td class="fw-bold">@room.RoomName</td>
+                                <td class="block-column">@room.BlockName</td>
+                                <td><span class="text-primary small">@room.OwnerEmail</span></td>
+                                <td><code class="text-secondary small">ID-@room.RoomId</code></td>
+                                <td>
+                                    <span class="badge rounded-pill @(room.IsOnline ? "bg-success" : "bg-secondary") bg-opacity-10 @(room.IsOnline ? "text-success" : "text-muted") border">
+                                        <i class="fa-solid @(room.IsOnline ? "fa-circle-check" : "fa-circle-minus") me-1 small"></i>
+                                        @(room.IsOnline ? "Online" : "Offline")
+                                    </span>
+                                </td>
+                                <td class="text-center">
+                                    <button type="button" class="btn btn-sm btn-outline-primary border-0 me-1" onclick="viewMembers('@room.RoomId'); forceOpenModal('memberModal');" title="Xem người thuê">
+                                        <i class="fa-solid fa-users-viewfinder"></i>
+                                    </button>
+
+                                    <form action="@Url.Action("XoaPhong", "Admin")" method="post" style="display:inline;" onsubmit="return confirm('Xóa phòng này?')">
+                                        <input type="hidden" name="blockId" value="@room.BlockName" />
+                                        <input type="hidden" name="roomId" value="@room.RoomId" />
+                                        <button type="submit" class="btn btn-sm btn-outline-danger border-0"><i class="fa-solid fa-trash-can"></i></button>
+                                    </form>
+                                </td>
+                            </tr>
+                        }
+                    }
                 </tbody>
             </table>
         </div>
     </div>
 </div>
+
+<div class="modal fade" id="addRoomModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold">Thêm Phòng Mới</h5>
+                <button type="button" class="btn-close close" data-dismiss="modal" data-bs-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <form action="@Url.Action("ThemPhongMoi", "Admin")" method="post">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Chọn Dãy Trọ</label>
+                        <select name="blockId" class="form-select" required>
+                            @if (ViewBag.Blocks != null)
+                            {
+                                foreach (var block in ViewBag.Blocks)
+                                {
+                                    <option value="@block["BlockId"].AsString()">@block["BlockName"].AsString()</option>
+                                }
+                            }
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Số Thứ Tự Phòng (VD: 101, 102)</label>
+                        <input type="number" name="roomNumber" class="form-control" required placeholder="101">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" data-dismiss="modal" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-primary fw-bold">Lưu Phòng</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade shadow" id="memberModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header border-bottom-0 pb-0">
+                <h5 class="modal-title fw-bold">Thành viên trong phòng</h5>
+                <button type="button" class="btn-close close" data-dismiss="modal" data-bs-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body py-4">
+                <p class="text-muted text-center italic">Đang đồng bộ danh sách từ tài khoản sinh viên...</p>
+            </div>
+            <div class="modal-footer border-top-0 pt-0">
+                <button type="button" class="btn btn-light fw-bold" data-dismiss="modal" data-bs-dismiss="modal">Đóng</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // --- HÀM ÉP MỞ MODAL BẤT CHẤP PHIÊN BẢN ---
+        function forceOpenModal(modalId) {
+            var modalEl = document.getElementById(modalId);
+            if (!modalEl) return;
+
+            // 1. Thử dùng jQuery (Bootstrap 3/4)
+            if (typeof jQuery !== 'undefined' && typeof jQuery.fn.modal !== 'undefined') {
+                $('#' + modalId).modal('show');
+                return;
+            }
+
+            // 2. Thử dùng Vanilla JS (Bootstrap 5)
+            if (typeof bootstrap !== 'undefined') {
+                var bsModal = bootstrap.Modal.getInstance(modalEl);
+                if (!bsModal) {
+                    bsModal = new bootstrap.Modal(modalEl);
+                }
+                bsModal.show();
+                return;
+            }
+
+            // 3. Báo lỗi nếu Layout thiếu Javascript
+            alert("Hệ thống phát hiện file _DashboardLayout.cshtml của bạn chưa được liên kết với thư viện Bootstrap Javascript (bootstrap.min.js). Vui lòng thêm thư viện để chức năng Popup hoạt động!");
+        }
+
+        // --- HÀM LỌC TÌM KIẾM ---
+        document.addEventListener("DOMContentLoaded", function () {
+            const txtSearch = document.getElementById("txtSearch");
+            const ddlBlock = document.getElementById("ddlBlock");
+            const tableRows = document.querySelectorAll("#roomTable tbody tr");
+
+            function applyFilters() {
+                const searchText = txtSearch.value.toLowerCase().trim();
+                const selectedValue = ddlBlock.value.toLowerCase().trim();
+
+                tableRows.forEach(row => {
+                    const rowText = row.innerText.toLowerCase();
+                    const blockColumn = row.querySelector(".block-column");
+                    const blockText = blockColumn ? blockColumn.innerText.toLowerCase().trim() : "";
+
+                    const matchesSearch = rowText.includes(searchText);
+                    const matchesBlock = (selectedValue === "" || blockText === selectedValue);
+
+                    if (matchesSearch && matchesBlock) {
+                        row.style.display = "";
+                    } else {
+                        row.style.display = "none";
+                    }
+                });
+            }
+
+            if (ddlBlock) ddlBlock.addEventListener("change", applyFilters);
+            if (txtSearch) txtSearch.addEventListener("input", applyFilters);
+        });
+
+        function viewMembers(roomId) {
+            // Hàm tạm để test click nút Xem thành viên
+            console.log("Đang xem thành viên phòng: " + roomId);
+        }
+    </script>
+}
+
+<style>
+    .badge {
+        font-weight: 600;
+        padding: 0.5em 1em;
+    }
+
+    .bg-opacity-10 {
+        --bs-bg-opacity: 0.1;
+    }
+
+    .modal-content {
+        border-radius: 15px;
+    }
+
+    .custom-card {
+        border-radius: 12px;
+        border: none;
+        box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+        background: #fff;
+    }
+</style>
