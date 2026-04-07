@@ -95,71 +95,71 @@
                 var currentUserGroup = Session["UserGroup"]?.ToString();
             }
 
-        <ul class="menu-list">
-            <li>
-                <a href="@(currentUserGroup == "ADMIN" ? Url.Action("Index", "Admin") : Url.Action("Index", "Tenant"))"
-                   class="@(currentAction == "Index" ? "active" : "")">
-                    <i class="fa-solid fa-house"></i> Tổng Quan
-                </a>
-            </li>
+            <ul class="menu-list">
+                <li>
+                    <a href="@(currentUserGroup == "ADMIN" ? Url.Action("Index", "Admin") : Url.Action("Index", "Tenant"))"
+                       class="@(currentAction == "Index" ? "active" : "")">
+                        <i class="fa-solid fa-house"></i> Tổng Quan
+                    </a>
+                </li>
 
-            @if (currentUserGroup == "ADMIN")
-            {
-                <li>
-                    <a href="@Url.Action("QuanLyDayTro", "Admin")" class="@(currentAction == "QuanLyDayTro" ? "active" : "")">
-                        <i class="fa-solid fa-building-user"></i> Quản Lý Dãy Trọ
-                    </a>
-                </li>
-                <li>
-                    <a href="@Url.Action("QuanLyPhong", "Admin")" class="@(currentAction == "QuanLyPhong" ? "active" : "")">
-                        <i class="fa-solid fa-border-all"></i> Quản Lý Phòng & Cảm Biến
-                    </a>
-                </li>
-                <li>
-                    <a href="@Url.Action("TaoMaKichHoat", "Admin")" class="@(currentAction == "TaoMaKichHoat" ? "active" : "")">
-                        <i class="fa-solid fa-link"></i> Tạo Mã Kích Hoạt
-                    </a>
-                </li>
-                <li>
-                    <a href="@Url.Action("LichSuCanhBao", "Admin")" class="@(currentAction == "LichSuCanhBao" ? "active" : "")">
-                        <i class="fa-solid fa-clock-rotate-left"></i> Lịch Sử Cảnh Báo
-                    </a>
-                </li>
-                <li>
-                    <a href="@Url.Action("BaoCaoAI", "Admin")" class="@(currentAction == "BaoCaoAI" ? "active" : "")">
-                        <i class="fa-solid fa-file-invoice"></i> Báo Cáo AI & Thống Kê
-                    </a>
-                </li>
-            }
-            else
-            {
-                <li>
-                    <a href="@Url.Action("LichSuCanhBao", "Tenant")" class="@(currentAction == "LichSuCanhBao" ? "active" : "")">
-                        <i class="fa-solid fa-clock-rotate-left"></i> Lịch Sử Cảnh Báo
-                    </a>
-                </li>
-                <li>
-                    <a href="@Url.Action("QuanLyPhong", "Tenant")" class="@(currentAction == "QuanLyPhong" ? "active" : "")">
-                        <i class="fa-solid fa-door-open"></i> Quản Lý Phòng Của Tôi
-                    </a>
-                </li>
-                <li>
-                    <a href="@Url.Action("PhanTichAI", "Tenant")" class="@(currentAction == "PhanTichAI" ? "active" : "")">
-                        <i class="fa-solid fa-microchip"></i> Phân Tích AI
-                    </a>
-                </li>
-                <li>
-                    <a href="@Url.Action("ThongTinCaNhan", "Tenant")" class="@(currentAction == "ThongTinCaNhan" ? "active" : "")">
-                        <i class="fa-solid fa-user-pen"></i> Thông Tin Cá Nhân
-                    </a>
-                </li>
-                <li>
-                    <a href="@Url.Action("NoiQuy", "Tenant")" class="@(currentAction == "NoiQuy" ? "active" : "")">
-                        <i class="fa-solid fa-book-open"></i> Nội Quy PCCC
-                    </a>
-                </li>
-            }
-        </ul>
+                @if (currentUserGroup == "ADMIN")
+                {
+                    <li>
+                        <a href="@Url.Action("QuanLyDayTro", "Admin")" class="@(currentAction == "QuanLyDayTro" ? "active" : "")">
+                            <i class="fa-solid fa-building-user"></i> Quản Lý Dãy Trọ
+                        </a>
+                    </li>
+                    <li>
+                        <a href="@Url.Action("QuanLyPhong", "Admin")" class="@(currentAction == "QuanLyPhong" ? "active" : "")">
+                            <i class="fa-solid fa-border-all"></i> Quản Lý Phòng & Cảm Biến
+                        </a>
+                    </li>
+                    <li>
+                        <a href="@Url.Action("TaoMaKichHoat", "Admin")" class="@(currentAction == "TaoMaKichHoat" ? "active" : "")">
+                            <i class="fa-solid fa-link"></i> Tạo Mã Kích Hoạt
+                        </a>
+                    </li>
+                    <li>
+                        <a href="@Url.Action("LichSuCanhBao", "Admin")" class="@(currentAction == "LichSuCanhBao" ? "active" : "")">
+                            <i class="fa-solid fa-clock-rotate-left"></i> Lịch Sử Cảnh Báo
+                        </a>
+                    </li>
+                    <li>
+                        <a href="@Url.Action("BaoCaoAI", "Admin")" class="@(currentAction == "BaoCaoAI" ? "active" : "")">
+                            <i class="fa-solid fa-file-invoice"></i> Báo Cáo AI & Thống Kê
+                        </a>
+                    </li>
+                }
+                else
+                {
+                    <li>
+                        <a href="@Url.Action("LichSuCanhBao", "Tenant")" class="@(currentAction == "LichSuCanhBao" ? "active" : "")">
+                            <i class="fa-solid fa-clock-rotate-left"></i> Lịch Sử Cảnh Báo
+                        </a>
+                    </li>
+                    <li>
+                        <a href="@Url.Action("QuanLyPhong", "Tenant")" class="@(currentAction == "QuanLyPhong" ? "active" : "")">
+                            <i class="fa-solid fa-door-open"></i> Quản Lý Phòng Của Tôi
+                        </a>
+                    </li>
+                    <li>
+                        <a href="@Url.Action("PhanTichAI", "Tenant")" class="@(currentAction == "PhanTichAI" ? "active" : "")">
+                            <i class="fa-solid fa-microchip"></i> Phân Tích AI
+                        </a>
+                    </li>
+                    <li>
+                        <a href="@Url.Action("ThongTinCaNhan", "Tenant")" class="@(currentAction == "ThongTinCaNhan" ? "active" : "")">
+                            <i class="fa-solid fa-user-pen"></i> Thông Tin Cá Nhân
+                        </a>
+                    </li>
+                    <li>
+                        <a href="@Url.Action("NoiQuy", "Tenant")" class="@(currentAction == "NoiQuy" ? "active" : "")">
+                            <i class="fa-solid fa-book-open"></i> Nội Quy PCCC
+                        </a>
+                    </li>
+                }
+            </ul>
         </nav>
 
         <div class="main-content">
@@ -186,5 +186,216 @@
     </div>
 
     @RenderSection("Scripts", required: false)
+    <style>
+        /* 1. NÚT NỔI HOTLINE GÓC TRÁI (114) */
+        .floating-hotline-114 {
+            position: fixed;
+            bottom: 30px;
+            left: 30px;
+            background: linear-gradient(135deg, #dc3545, #b02a37);
+            color: white;
+            padding: 12px 25px;
+            border-radius: 50px;
+            font-size: 1.2rem;
+            font-weight: 900;
+            box-shadow: 0 10px 25px rgba(220, 53, 69, 0.5);
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            text-decoration: none;
+            transition: all 0.3s;
+        }
+
+            .floating-hotline-114:hover {
+                color: white;
+                transform: scale(1.1) !important;
+                text-decoration: none;
+            }
+
+            .floating-hotline-114 i {
+                font-size: 1.4rem;
+                animation: shake 1s infinite;
+            }
+
+        @@keyframes shake {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            25% {
+                transform: rotate(-15deg);
+            }
+
+            50% {
+                transform: rotate(15deg);
+            }
+
+            75% {
+                transform: rotate(-15deg);
+            }
+
+            100% {
+                transform: rotate(0deg);
+            }
+        }
+
+        /* 2. CẤU TRÚC NÚT NỔI TRÒN VÀ POPUP BQL */
+        .bql-fab-wrapper {
+            position: fixed;
+            bottom: 100px;
+            left: 30px;
+            z-index: 9998;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .bql-fab {
+            width: 55px;
+            height: 55px;
+            border-radius: 50%;
+            background-color: #0d6efd;
+            color: white;
+            font-size: 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid white;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.15);
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            animation: pulse-blue-fab 2s infinite;
+        }
+
+            .bql-fab:hover {
+                background-color: #0a58ca;
+                transform: scale(1.1);
+            }
+
+            .bql-fab.active {
+                background-color: #6c757d;
+                transform: rotate(45deg);
+            }
+
+        @@keyframes pulse-blue-fab {
+            0% {
+                transform: scale(1);
+                box-shadow: 0 0 0 0 rgba(13, 110, 253, 0.6);
+            }
+
+            70% {
+                transform: scale(1.05);
+                box-shadow: 0 0 0 12px rgba(13, 110, 253, 0);
+            }
+
+            100% {
+                transform: scale(1);
+                box-shadow: 0 0 0 0 rgba(13, 110, 253, 0);
+            }
+        }
+
+        .bql-popup {
+            display: none;
+            width: 280px;
+            background-color: white;
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+            margin-top: -310px;
+            transform: translateY(10px);
+            opacity: 0;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            border: 1px solid rgba(0,0,0,0.05);
+        }
+
+            .bql-popup.show {
+                display: block;
+                transform: translateY(0);
+                opacity: 1;
+            }
+
+        .bql-popup-header {
+            border-bottom: 1px solid rgba(0,0,0,0.05);
+            padding-bottom: 15px;
+            margin-bottom: 15px;
+        }
+
+        .transition-hover {
+            transition: all 0.3s ease;
+        }
+
+            .transition-hover:hover {
+                background-color: #e9ecef !important;
+                transform: translateX(5px);
+            }
+    </style>
+
+    <div class="bql-fab-wrapper">
+        <div class="bql-popup shadow-lg" id="globalBqlPopup">
+            <div class="bql-popup-header d-flex align-items-center">
+                <div class="bg-primary text-primary bg-opacity-10 rounded-3 d-flex align-items-center justify-content-center flex-shrink-0" style="width: 45px; height: 45px;">
+                    <i class="fa-solid fa-headset fs-4"></i>
+                </div>
+                <div class="ms-3">
+                    <span class="badge bg-primary mb-1">HỖ TRỢ 24/7</span>
+                    <h6 class="fw-bold text-dark mb-0">BQL SAFEGUARD</h6>
+                </div>
+                <button type="button" class="btn-close ms-auto small" id="closeGlobalBqlPopup" aria-label="Close" style="font-size: 0.7rem;"></button>
+            </div>
+
+            <div class="bg-light rounded-3 p-3 mb-2 transition-hover" style="border-left: 3px solid #0d6efd;">
+                <p class="small text-muted mb-0"><i class="fa-solid fa-walkie-talkie me-1"></i> Trực ban tòa nhà:</p>
+                <h6 class="fw-bold text-primary mb-0">090.XXX.XXXX</h6>
+            </div>
+
+            <div class="bg-light rounded-3 p-3 transition-hover" style="border-left: 3px solid #6c757d;">
+                <p class="small text-muted mb-0"><i class="fa-solid fa-screwdriver-wrench me-1"></i> Kỹ thuật NTTU:</p>
+                <h6 class="fw-bold text-dark mb-0">028.XXX.XXXX</h6>
+            </div>
+        </div>
+
+        <button type="button" class="bql-fab" id="globalBqlFabBtn" title="Hỗ trợ BQL SafeGuard">
+            <i class="fa-solid fa-headset"></i>
+        </button>
+    </div>
+
+    <a href="tel:114" class="floating-hotline-114" title="Gọi cứu hỏa khẩn cấp">
+        <i class="fa-solid fa-phone"></i>
+        <span>GỌI 114</span>
+    </a>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const fabBtn = document.getElementById('globalBqlFabBtn');
+            const popup = document.getElementById('globalBqlPopup');
+            const closeBtn = document.getElementById('closeGlobalBqlPopup');
+
+            if (fabBtn && popup && closeBtn) {
+                function togglePopup() {
+                    if (popup.classList.contains('show')) {
+                        popup.classList.remove('show');
+                        fabBtn.classList.remove('active');
+                        fabBtn.innerHTML = '<i class="fa-solid fa-headset"></i>';
+                    } else {
+                        popup.classList.add('show');
+                        fabBtn.classList.add('active');
+                        fabBtn.innerHTML = '<i class="fa-solid fa-xmark"></i>';
+                    }
+                }
+
+                fabBtn.addEventListener('click', togglePopup);
+                closeBtn.addEventListener('click', togglePopup);
+
+                window.addEventListener('click', function (event) {
+                    if (!popup.contains(event.target) && !fabBtn.contains(event.target) && event.target !== fabBtn) {
+                        popup.classList.remove('show');
+                        fabBtn.classList.remove('active');
+                        fabBtn.innerHTML = '<i class="fa-solid fa-headset"></i>';
+                    }
+                });
+            }
+        });
+    </script>
 </body>
 </html>

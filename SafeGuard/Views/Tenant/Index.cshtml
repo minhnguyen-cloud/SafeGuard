@@ -3,40 +3,158 @@
     Layout = "~/Views/Shared/_DashboardLayout.cshtml";
 }
 
-<div class="container-fluid p-0">
-    <div class="alert alert-success border-0 shadow-sm anim-fade-up d-flex align-items-center mb-4">
-        <i class="fa-solid fa-shield-check fs-4 me-3"></i>
-        <div>
-            <strong>Trạng thái an toàn!</strong> Hệ thống báo cháy tại phòng bạn đang hoạt động bình thường.
+<style>
+    /* Hiệu ứng xuất hiện mượt mà */
+    .anim-fade-up {
+        animation: fadeInUp 0.6s ease-out forwards;
+        opacity: 0;
+    }
+
+    .delay-1 {
+        animation-delay: 0.1s;
+    }
+
+    .delay-2 {
+        animation-delay: 0.2s;
+    }
+
+    @@keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    /* Thiết kế thẻ Card hiện đại (Đồng bộ toàn hệ thống) */
+    .premium-card {
+        background: #fff;
+        border-radius: 16px;
+        border: 1px solid rgba(0,0,0,0.05);
+        box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+        transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        position: relative;
+        overflow: hidden;
+    }
+
+        .premium-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 30px rgba(0,0,0,0.08);
+        }
+
+    .card-top-accent {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 4px;
+    }
+
+    .card-bg-icon {
+        position: absolute;
+        right: -15px;
+        bottom: -15px;
+        font-size: 8rem;
+        z-index: 0;
+        transform: rotate(-15deg);
+        transition: all 0.3s;
+    }
+
+    .premium-card:hover .card-bg-icon {
+        transform: rotate(0deg) scale(1.1);
+    }
+
+    /* Vòng tròn nhiệt độ Smart Home */
+    .temp-circle {
+        width: 160px;
+        height: 160px;
+        border-radius: 50%;
+        background: #fff;
+        border: 8px solid rgba(13, 110, 253, 0.1);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: inset 0 4px 10px rgba(0,0,0,0.05), 0 10px 20px rgba(13, 110, 253, 0.15);
+        transition: all 0.4s ease;
+    }
+
+    .premium-card:hover .temp-circle {
+        border-color: rgba(13, 110, 253, 0.3);
+        transform: scale(1.05);
+    }
+
+    /* Banner an toàn */
+    .safety-banner {
+        background: linear-gradient(135deg, #d1e7dd 0%, #a3cfbb 100%);
+        border: 1px solid #86b7fe;
+    }
+</style>
+
+<div class="container-fluid py-4 p-0">
+
+    <div class="alert safety-banner border-0 shadow-sm rounded-4 anim-fade-up d-flex align-items-center mb-4 p-4 position-relative overflow-hidden">
+        <div class="bg-white rounded-circle p-3 d-flex align-items-center justify-content-center position-relative z-1 me-4 shadow-sm" style="width: 65px; height: 65px;">
+            <i class="fa-solid fa-shield-halved text-success fs-2 fa-beat-fade" style="--fa-animation-duration: 2s;"></i>
         </div>
+        <div class="position-relative z-1">
+            <h5 class="fw-bold text-success mb-1 letter-spacing-1">TRẠNG THÁI AN TOÀN!</h5>
+            <span class="text-dark">Hệ thống cảm biến nhiệt độ tại phòng bạn đang hoạt động bình thường và ổn định.</span>
+        </div>
+        <i class="fa-solid fa-leaf position-absolute text-success opacity-25" style="font-size: 8rem; right: -20px; top: -30px; transform: rotate(15deg);"></i>
     </div>
 
     <div class="row g-4 mb-4">
+
         <div class="col-md-6 anim-fade-up delay-1">
-            <div class="custom-card p-4 text-center d-flex flex-column justify-content-center h-100">
-                <h6 class="card-title-custom mb-4">Trạng Thái Cảm Biến Phòng Bạn</h6>
-                <i class="fa-solid fa-temperature-half fa-4x text-primary mb-3"></i>
-                <h2 class="fw-bold mb-0">26°C</h2>
-                <p class="text-muted mt-2">Nhiệt độ hiện tại (Real-time)</p>
+            <div class="premium-card p-4 text-center d-flex flex-column justify-content-center h-100 z-1">
+                <div class="card-top-accent bg-primary"></div>
+                <i class="fa-solid fa-temperature-three-quarters card-bg-icon text-primary opacity-10"></i>
+
+                <h6 class="fw-bold text-muted mb-4 text-uppercase" style="letter-spacing: 1px;">Trạng Thái Nhiệt Độ Phòng</h6>
+
+                <div class="temp-circle mx-auto mb-4 position-relative z-1">
+                    <h1 class="display-3 fw-black text-primary mb-0">26<span class="fs-3 text-muted">°C</span></h1>
+                </div>
+
+                <div class="position-relative z-1">
+                    <span class="badge bg-primary bg-opacity-10 text-primary border border-primary rounded-pill px-4 py-2 shadow-sm">
+                        <i class="fa-solid fa-satellite-dish fa-fade me-2"></i>Đang giám sát (Real-time)
+                    </span>
+                </div>
             </div>
         </div>
 
         <div class="col-md-6 anim-fade-up delay-2">
-            <div class="custom-card p-4 h-100">
-                <h6 class="card-title-custom">Thông Tin Liên Kết</h6>
-                <ul class="list-unstyled mt-3 mb-0">
-                    <li class="mb-3 border-bottom pb-2">
-                        <span class="text-muted">Phòng đang thuê:</span> <strong class="float-end text-primary">Phòng 102 - Dãy A</strong>
+            <div class="premium-card p-4 h-100 z-1">
+                <div class="card-top-accent bg-info"></div>
+                <i class="fa-solid fa-server card-bg-icon text-info opacity-10"></i>
+
+                <h6 class="fw-bold text-muted mb-4 text-uppercase" style="letter-spacing: 1px;">Thông Tin Liên Kết Hệ Thống</h6>
+
+                <ul class="list-unstyled mt-3 mb-0 position-relative z-1">
+                    <li class="d-flex justify-content-between align-items-center mb-3 bg-light p-3 rounded-3 border-start border-4 border-secondary transition-hover">
+                        <span class="text-muted fw-semibold"><i class="fa-solid fa-door-open me-2 text-secondary"></i>Phòng đang thuê:</span>
+                        <strong class="text-dark fs-6">Phòng 102 - Dãy A</strong>
                     </li>
-                    <li class="mb-3 border-bottom pb-2">
-                        <span class="text-muted">Tình trạng kết nối:</span> <strong class="float-end text-success">Đã đồng bộ cảm biến</strong>
+                    <li class="d-flex justify-content-between align-items-center mb-3 bg-light p-3 rounded-3 border-start border-4 border-success transition-hover">
+                        <span class="text-muted fw-semibold"><i class="fa-solid fa-wifi me-2 text-success"></i>Tình trạng kết nối:</span>
+                        <strong class="text-success fs-6"><i class="fa-solid fa-check me-1"></i>Đã đồng bộ</strong>
                     </li>
-                    <li>
-                        <span class="text-muted">Cập nhật lần cuối:</span> <strong class="float-end">Vừa xong</strong>
+                    <li class="d-flex justify-content-between align-items-center bg-light p-3 rounded-3 border-start border-4 border-info transition-hover">
+                        <span class="text-muted fw-semibold"><i class="fa-solid fa-clock-rotate-left me-2 text-info"></i>Cập nhật lần cuối:</span>
+                        <strong class="text-dark fs-6">Vừa xong</strong>
                     </li>
                 </ul>
-                <a href="@Url.Action("QuanLyPhong", "Tenant")" class="btn btn-outline-primary w-100 mt-4">Xem chi tiết phòng</a>
+
+                <a href="@Url.Action("QuanLyPhong", "Tenant")" class="btn btn-outline-primary w-100 mt-4 fw-bold rounded-pill position-relative z-1 shadow-sm">
+                    Xem chi tiết phòng <i class="fa-solid fa-arrow-right ms-1"></i>
+                </a>
             </div>
         </div>
+
     </div>
 </div>
