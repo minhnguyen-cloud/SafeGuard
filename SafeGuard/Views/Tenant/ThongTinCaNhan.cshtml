@@ -1,11 +1,249 @@
-﻿@{ ViewBag.Title = "Thông Tin Cá Nhân"; Layout = "~/Views/Shared/_DashboardLayout.cshtml"; }
-<div class="container-fluid p-0">
-    <div class="col-md-6 anim-fade-up">
-        <div class="custom-card p-4">
-            <h6 class="card-title-custom">Đổi Mật Khẩu</h6>
-            <input type="password" class="form-control mb-3" placeholder="Mật khẩu cũ">
-            <input type="password" class="form-control mb-3" placeholder="Mật khẩu mới">
-            <button class="btn btn-dark w-100">Cập nhật thông tin</button>
+﻿@{
+    ViewBag.Title = "Thông Tin Cá Nhân";
+    Layout = "~/Views/Shared/_DashboardLayout.cshtml";
+}
+
+<style>
+    /* CSS cho khu vực Avatar chuyên nghiệp */
+    .avatar-wrapper {
+        position: relative;
+        width: 140px;
+        height: 140px;
+        margin: 0 auto;
+    }
+
+    .avatar-preview {
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
+        border: 4px solid #fff;
+        box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+        object-fit: cover;
+        transition: all 0.3s ease;
+    }
+
+    .avatar-edit-btn {
+        position: absolute;
+        right: 5px;
+        bottom: 5px;
+        background-color: #dc3545; /* Màu đỏ SafeGuard */
+        color: white;
+        border-radius: 50%;
+        width: 38px;
+        height: 38px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 3px solid #fff;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        box-shadow: 0 4px 10px rgba(220, 53, 69, 0.3);
+    }
+
+        .avatar-edit-btn:hover {
+            background-color: #b02a37;
+            transform: scale(1.1);
+        }
+
+    /* CSS cho Card chung */
+    .profile-card {
+        background: #fff;
+        border-radius: 16px;
+        border: none;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.05);
+        margin-bottom: 25px;
+    }
+
+    .card-header-custom {
+        background-color: transparent;
+        border-bottom: 1px solid rgba(0,0,0,0.05);
+        padding: 20px 25px;
+        font-weight: 700;
+        color: #333;
+    }
+
+    .form-control-custom {
+        border-radius: 8px;
+        padding: 12px 15px;
+        border: 1px solid #dee2e6;
+        transition: all 0.3s;
+    }
+
+        .form-control-custom:focus {
+            border-color: #dc3545;
+            box-shadow: 0 0 0 0.25rem rgba(220, 53, 69, 0.25);
+        }
+
+        .form-control-custom[readonly] {
+            background-color: #f8f9fa;
+            cursor: not-allowed;
+        }
+
+    .anim-fade-up {
+        animation: fadeInUp 0.6s ease-out forwards;
+        opacity: 0;
+    }
+
+    .delay-1 {
+        animation-delay: 0.1s;
+    }
+
+    .delay-2 {
+        animation-delay: 0.2s;
+    }
+
+    @@keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+</style>
+
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-lg-4 anim-fade-up">
+            <div class="profile-card p-4 text-center">
+
+                <div class="avatar-wrapper mb-4">
+                    <img id="avatarImage" src="https://ui-avatars.com/api/?name=Tri+Nguyen&background=dc3545&color=fff&size=200" alt="Avatar" class="avatar-preview">
+
+                    <label for="avatarUpload" class="avatar-edit-btn" title="Thay đổi ảnh đại diện">
+                        <i class="fa-solid fa-camera"></i>
+                    </label>
+                    <input type="file" id="avatarUpload" accept=".png, .jpg, .jpeg" style="display: none;">
+                </div>
+
+                <h4 class="fw-bold text-dark mb-1">Nguyễn Văn Trí</h4>
+                <p class="text-muted mb-3"><i class="fa-solid fa-user-check me-1 text-success"></i> Khách thuê (Tenant)</p>
+
+                <div class="d-flex justify-content-center gap-2 mb-3">
+                    <span class="badge bg-danger bg-opacity-10 text-danger border border-danger px-3 py-2 rounded-pill">
+                        <i class="fa-solid fa-house-chimney me-1"></i> Phòng 302
+                    </span>
+                    <span class="badge bg-primary bg-opacity-10 text-primary border border-primary px-3 py-2 rounded-pill">
+                        <i class="fa-solid fa-location-dot me-1"></i> Cơ sở Quận 4
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-8">
+
+            <div class="profile-card anim-fade-up delay-1">
+                <div class="card-header-custom d-flex align-items-center">
+                    <i class="fa-solid fa-address-card text-danger fs-4 me-2"></i> THÔNG TIN CÁ NHÂN
+                </div>
+                <div class="card-body p-4">
+                    <form>
+                        <div class="row g-4">
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold text-muted small">Tên đăng nhập</label>
+                                <input type="text" class="form-control form-control-custom" value="mh_tri2026" readonly title="Tên đăng nhập không thể thay đổi">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold text-muted small">Họ và tên</label>
+                                <input type="text" class="form-control form-control-custom" value="Nguyễn Văn Trí">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold text-muted small">Địa chỉ Email</label>
+                                <input type="email" class="form-control form-control-custom" value="tri@student.ntt.edu.vn">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold text-muted small">Số điện thoại</label>
+                                <input type="text" class="form-control form-control-custom" value="0912345678">
+                            </div>
+
+                            <div class="col-12 mt-4">
+                                <h6 class="fw-bold border-bottom pb-2 mb-3">Thông tin hợp đồng (Chỉ đọc)</h6>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold text-muted small">Khu trọ</label>
+                                <input type="text" class="form-control form-control-custom" value="SafeGuard Quận 4 (NTTU)" readonly>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold text-muted small">Số phòng</label>
+                                <input type="text" class="form-control form-control-custom" value="Phòng 302" readonly>
+                            </div>
+                        </div>
+
+                        <div class="text-end mt-4 pt-3 border-top">
+                            <button type="button" class="btn btn-danger px-4 rounded-pill fw-bold shadow-sm">
+                                <i class="fa-solid fa-floppy-disk me-1"></i> Lưu Thông Tin
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="profile-card anim-fade-up delay-2">
+                <div class="card-header-custom d-flex align-items-center">
+                    <i class="fa-solid fa-shield-halved text-dark fs-4 me-2"></i> ĐỔI MẬT KHẨU
+                </div>
+                <div class="card-body p-4">
+                    <form>
+                        <div class="row g-4">
+                            <div class="col-12">
+                                <label class="form-label fw-bold text-muted small">Mật khẩu cũ</label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-light border-end-0"><i class="fa-solid fa-lock text-muted"></i></span>
+                                    <input type="password" class="form-control form-control-custom border-start-0 ps-0" placeholder="Nhập mật khẩu hiện tại">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold text-muted small">Mật khẩu mới</label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-light border-end-0"><i class="fa-solid fa-key text-danger"></i></span>
+                                    <input type="password" class="form-control form-control-custom border-start-0 ps-0" placeholder="Nhập mật khẩu mới">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold text-muted small">Xác nhận mật khẩu mới</label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-light border-end-0"><i class="fa-solid fa-check-double text-success"></i></span>
+                                    <input type="password" class="form-control form-control-custom border-start-0 ps-0" placeholder="Nhập lại mật khẩu mới">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="text-end mt-4 pt-3 border-top">
+                            <button type="button" class="btn btn-dark px-4 rounded-pill fw-bold shadow-sm">
+                                <i class="fa-solid fa-arrows-rotate me-1"></i> Cập Nhật Mật Khẩu
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
         </div>
     </div>
 </div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const avatarUpload = document.getElementById('avatarUpload');
+        const avatarImage = document.getElementById('avatarImage');
+
+        avatarUpload.addEventListener('change', function (e) {
+            const file = e.target.files[0];
+            if (file) {
+                // Kiểm tra nếu là file ảnh
+                if (file.type.startsWith('image/')) {
+                    const reader = new FileReader();
+                    reader.onload = function (e) {
+                        // Cập nhật thẻ src của hình ảnh
+                        avatarImage.src = e.target.result;
+                    }
+                    reader.readAsDataURL(file);
+                } else {
+                    alert("Vui lòng chọn một file hình ảnh hợp lệ (.jpg, .png)");
+                }
+            }
+        });
+    });
+</script>

@@ -3,34 +3,160 @@
     Layout = "~/Views/Shared/_DashboardLayout.cshtml";
 }
 
-<div class="container-fluid p-0">
-
-    @if (TempData["SuccessMessage"] != null)
-    {
-        <div class="alert alert-success alert-dismissible fade show" role="alert">
-            <strong>Thành công!</strong> @TempData["SuccessMessage"]
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-            <button type="button" class="close" data-dismiss="alert" aria-label="Close" style="background:none;border:none;float:right;font-size:1.5rem;">
-                <span aria-hidden="true">&times;</span>
-            </button>
-        </div>
-    }
-    @if (TempData["ErrorMessage"] != null)
-    {
-        <div class="alert alert-danger alert-dismissible fade show" role="alert">
-            <strong>Lỗi!</strong> @TempData["ErrorMessage"]
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-            <button type="button" class="close" data-dismiss="alert" aria-label="Close" style="background:none;border:none;float:right;font-size:1.5rem;">
-                <span aria-hidden="true">&times;</span>
-            </button>
-        </div>
+<style>
+    /* Hiệu ứng xuất hiện mượt mà */
+    .anim-fade-up {
+        animation: fadeInUp 0.6s ease-out forwards;
+        opacity: 0;
     }
 
-    <div class="d-flex justify-content-between align-items-center mb-4 anim-fade-up">
-        <h5 class="fw-bold text-dark mb-0">Danh sách các dãy trọ</h5>
+    .delay-1 {
+        animation-delay: 0.1s;
+    }
 
-        <button id="btnOpenModal" type="button" class="btn btn-primary fw-bold" data-bs-toggle="modal" data-bs-target="#addBlockModal" data-toggle="modal" data-target="#addBlockModal">
-            <i class="fa-solid fa-plus me-2"></i>Thêm Dãy Mới
+    .delay-2 {
+        animation-delay: 0.2s;
+    }
+
+    .delay-3 {
+        animation-delay: 0.3s;
+    }
+
+    @@keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    /* Thiết kế thẻ Card hiện đại */
+    .premium-card {
+        background: #fff;
+        border-radius: 16px;
+        border: 1px solid rgba(0,0,0,0.05);
+        box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+        transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        position: relative;
+        overflow: hidden;
+    }
+
+        .premium-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 15px 30px rgba(0,0,0,0.08);
+            border-color: rgba(13, 110, 253, 0.3);
+        }
+
+    /* Đường viền trang trí trên cùng của Card */
+    .card-top-accent {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 5px;
+        background: linear-gradient(90deg, #0d6efd, #0dcaf0);
+    }
+
+    /* Icon mờ làm background */
+    .card-bg-icon {
+        position: absolute;
+        right: -20px;
+        bottom: -20px;
+        font-size: 8rem;
+        color: rgba(0,0,0,0.02);
+        z-index: 0;
+        transform: rotate(-15deg);
+        transition: all 0.3s;
+    }
+
+    .premium-card:hover .card-bg-icon {
+        color: rgba(13, 110, 253, 0.05);
+        transform: rotate(0deg) scale(1.1);
+    }
+
+    /* Nút bấm Gradient */
+    .btn-gradient {
+        background: linear-gradient(135deg, #0d6efd, #0053ce);
+        color: white;
+        border: none;
+        transition: all 0.3s;
+    }
+
+        .btn-gradient:hover {
+            background: linear-gradient(135deg, #0053ce, #0d6efd);
+            transform: scale(1.05);
+            color: white;
+            box-shadow: 0 8px 20px rgba(13, 110, 253, 0.3);
+        }
+
+    /* Custom Modal */
+    .custom-modal .modal-content {
+        border-radius: 20px;
+        border: none;
+        box-shadow: 0 20px 50px rgba(0,0,0,0.15);
+    }
+
+    .custom-modal .modal-header {
+        background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+        border-radius: 20px 20px 0 0;
+        border-bottom: 1px solid rgba(0,0,0,0.05);
+    }
+
+    /* Input field xịn xò */
+    .form-control-modern {
+        border-radius: 10px;
+        padding: 12px 15px;
+        border: 1px solid #dee2e6;
+        background-color: #f8f9fa;
+        transition: all 0.3s;
+    }
+
+        .form-control-modern:focus {
+            background-color: #fff;
+            border-color: #0d6efd;
+            box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.15);
+        }
+</style>
+
+<div class="container-fluid py-4 p-0">
+
+    <div class="anim-fade-up">
+        @if (TempData["SuccessMessage"] != null)
+        {
+            <div class="alert alert-success border-0 shadow-sm rounded-3 d-flex align-items-center alert-dismissible fade show" role="alert">
+                <i class="fa-solid fa-circle-check fs-4 me-3 text-success"></i>
+                <div>
+                    <strong class="d-block mb-1">Thành công!</strong>
+                    <span class="text-muted small">@TempData["SuccessMessage"]</span>
+                </div>
+                <button type="button" class="btn-close m-auto" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        }
+        @if (TempData["ErrorMessage"] != null)
+        {
+            <div class="alert alert-danger border-0 shadow-sm rounded-3 d-flex align-items-center alert-dismissible fade show" role="alert">
+                <i class="fa-solid fa-triangle-exclamation fs-4 me-3 text-danger"></i>
+                <div>
+                    <strong class="d-block mb-1">Đã có lỗi xảy ra!</strong>
+                    <span class="text-muted small">@TempData["ErrorMessage"]</span>
+                </div>
+                <button type="button" class="btn-close m-auto" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        }
+    </div>
+
+    <div class="d-flex justify-content-between align-items-center mb-5 anim-fade-up">
+        <div>
+            <h4 class="fw-bold text-dark mb-1">Danh sách phòng trọ</h4>
+            <p class="text-muted small mb-0">Quản lý và xem trạng thái các khu vực bạn đang tham gia</p>
+        </div>
+
+        <button id="btnOpenModal" type="button" class="btn btn-gradient fw-bold px-4 py-2 rounded-pill shadow-sm" data-bs-toggle="modal" data-bs-target="#addBlockModal">
+            <i class="fa-solid fa-right-to-bracket me-2"></i>Tham gia phòng trọ
         </button>
     </div>
 
@@ -40,63 +166,95 @@
             int delay = 1;
             foreach (var block in ViewBag.Blocks)
             {
-                <div class="col-md-4 anim-fade-up delay-@delay">
-                    <div class="custom-card p-4 position-relative overflow-hidden h-100">
-                        <div class="position-absolute top-0 start-0 w-100" style="height: 4px; background-color: var(--primary-blue);"></div>
+                <div class="col-md-6 col-xl-4 anim-fade-up delay-@delay">
+                    <div class="premium-card p-4 h-100 d-flex flex-column z-1">
+                        <div class="card-top-accent"></div>
+                        <i class="fa-solid fa-building card-bg-icon"></i>
 
-                        <div class="d-flex justify-content-between align-items-start mb-3 mt-2">
-                            <h5 class="fw-bold mb-0 text-dark">@block["BlockName"].AsString()</h5>
-                            <span class="badge bg-success bg-opacity-10 text-success border border-success">Hoạt động</span>
-                        </div>
-                        <p class="text-muted small mb-4"><i class="fa-solid fa-location-dot me-2"></i>@block["Address"].AsString()</p>
+                        <div class="position-relative z-2">
+                            <div class="d-flex justify-content-between align-items-start mb-3 mt-1">
+                                <h5 class="fw-bold mb-0 text-dark">@block["BlockName"].AsString()</h5>
+                                <span class="badge bg-success bg-opacity-10 text-success border border-success rounded-pill px-3 py-1">
+                                    <i class="fa-solid fa-circle-dot fa-fade small me-1"></i> Đang hoạt động
+                                </span>
+                            </div>
 
-                        <div class="row text-center mb-3">
-                            <div class="col-6 border-end">
-                                <h4 class="fw-bold mb-0 text-dark">@block["TotalRooms"].AsInt()</h4>
-                                <small class="text-muted">Tổng Phòng</small>
-                            </div>
-                            <div class="col-6">
-                                <h4 class="fw-bold mb-0 text-primary">@block["ActiveRooms"].AsInt()</h4>
-                                <small class="text-muted">Đang Thuê</small>
+                            <p class="text-muted small mb-4">
+                                <i class="fa-solid fa-location-dot me-2 text-primary"></i>@block["Address"].AsString()
+                            </p>
+
+                            <div class="row text-center mb-4 bg-light rounded-3 py-3 mx-0">
+                                <div class="col-6 border-end border-secondary border-opacity-25">
+                                    <h3 class="fw-black mb-0 text-dark">@block["TotalRooms"].AsInt()</h3>
+                                    <small class="text-muted fw-semibold">Tổng Phòng</small>
+                                </div>
+                                <div class="col-6">
+                                    <h3 class="fw-black mb-0 text-primary">@block["ActiveRooms"].AsInt()</h3>
+                                    <small class="text-muted fw-semibold">Đang Thuê</small>
+                                </div>
                             </div>
                         </div>
-                        <button class="btn btn-outline-secondary w-100 btn-sm mt-auto">Xem chi tiết</button>
+
+                        <button class="btn btn-outline-primary w-100 fw-bold rounded-3 mt-auto position-relative z-2">
+                            Xem chi tiết khu vực <i class="fa-solid fa-arrow-right ms-1"></i>
+                        </button>
                     </div>
                 </div>
                 delay++;
             }
         }
+        else
+        {
+            <div class="col-12 text-center py-5 anim-fade-up delay-1">
+                <i class="fa-solid fa-house-circle-xmark text-muted opacity-25" style="font-size: 6rem;"></i>
+                <h5 class="fw-bold text-dark mt-4">Chưa có dữ liệu phòng trọ</h5>
+                <p class="text-muted">Bạn chưa tham gia vào khu trọ nào. Hãy bấm nút "Tham gia phòng trọ" để bắt đầu.</p>
+            </div>
+        }
     </div>
 </div>
 
-<div class="modal fade" id="addBlockModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade custom-modal" id="addBlockModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content border-0 shadow">
-            <div class="modal-header border-bottom-0 pb-0">
-                <h5 class="modal-title fw-bold text-dark">Thêm Dãy Trọ Mới</h5>
+        <div class="modal-content">
+
+            <div class="modal-header px-4 py-3">
+                <div class="d-flex align-items-center">
+                    <div class="bg-primary bg-opacity-10 text-primary p-2 rounded-circle me-3">
+                        <i class="fa-solid fa-right-to-bracket fs-5"></i>
+                    </div>
+                    <h5 class="modal-title fw-bold text-dark mb-0">Tham gia phòng trọ</h5>
+                </div>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                <button type="button" class="close d-none" data-dismiss="modal" aria-label="Close" style="background:none;border:none;font-size:1.5rem;">
-                    <span aria-hidden="true">&times;</span>
-                </button>
             </div>
+
             <form method="post" action="@Url.Action("ThemDayMoi", "Admin")">
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label class="form-label fw-bold small text-muted">Tên Dãy Trọ</label>
-                        <input type="text" name="blockName" class="form-control" placeholder="Ví dụ: Dãy C (Khu Đông)" required>
+                <div class="modal-body p-4">
+                    <div class="alert alert-info bg-opacity-10 border-info border-opacity-25 rounded-3 small mb-4">
+                        <i class="fa-solid fa-circle-info me-2"></i> Điền thông tin bên dưới để gửi yêu cầu tham gia vào hệ thống.
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label fw-bold small text-muted">Địa chỉ</label>
-                        <input type="text" name="address" class="form-control" placeholder="Nhập địa chỉ cụ thể..." required>
+
+                    <div class="mb-4">
+                        <label class="form-label fw-bold small text-dark mb-2">Tên Dãy Trọ / Mã Khu</label>
+                        <input type="text" name="blockName" class="form-control form-control-modern" placeholder="Ví dụ: Dãy C (Khu Đông)" required>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label fw-bold small text-muted">Số lượng phòng (Tối đa 5)</label>
-                        <input type="number" name="numberOfRooms" class="form-control" value="5" min="1" max="5" required>
+
+                    <div class="mb-4">
+                        <label class="form-label fw-bold small text-dark mb-2">Địa chỉ khu trọ</label>
+                        <input type="text" name="address" class="form-control form-control-modern" placeholder="Nhập địa chỉ cụ thể..." required>
+                    </div>
+
+                    <div class="mb-2">
+                        <label class="form-label fw-bold small text-dark mb-2">Số lượng phòng mong muốn (Tối đa 5)</label>
+                        <input type="number" name="numberOfRooms" class="form-control form-control-modern" value="1" min="1" max="5" required>
                     </div>
                 </div>
-                <div class="modal-footer border-top-0 pt-0">
-                    <button type="button" class="btn btn-light fw-bold" data-bs-dismiss="modal" data-dismiss="modal">Hủy</button>
-                    <button type="submit" class="btn btn-primary fw-bold px-4">Lưu Dãy Mới</button>
+
+                <div class="modal-footer px-4 py-3 border-top-0 bg-light rounded-bottom-4">
+                    <button type="button" class="btn btn-secondary bg-transparent text-dark border-0 fw-bold" data-bs-dismiss="modal">Hủy bỏ</button>
+                    <button type="submit" class="btn btn-gradient fw-bold px-4 rounded-pill shadow-sm">
+                        <i class="fa-solid fa-paper-plane me-2"></i>Gửi Yêu Cầu
+                    </button>
                 </div>
             </form>
         </div>
@@ -106,14 +264,13 @@
 @section Scripts {
     <script>
         $(document).ready(function () {
-            // Lắng nghe sự kiện click vào nút Thêm Dãy Mới
+            // Lắng nghe sự kiện click vào nút
             $("#btnOpenModal").click(function () {
-                // Ép hiển thị Modal
                 $("#addBlockModal").modal('show');
             });
 
-            // Xử lý nút tắt Modal nếu dùng Bootstrap bản cũ
-            $(".btn-close, .close, [data-dismiss='modal']").click(function(){
+            // Xử lý nút tắt Modal tương thích đa phiên bản Bootstrap
+            $(".btn-close, .close, [data-dismiss='modal']").click(function () {
                 $("#addBlockModal").modal('hide');
             });
         });
