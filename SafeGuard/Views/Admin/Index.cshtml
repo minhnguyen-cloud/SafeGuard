@@ -4,15 +4,23 @@
 }
 
 <div class="container-fluid p-0">
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show mb-4" role="alert">
+            <strong>Thành công!</strong> @TempData["SuccessMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
     <div class="row g-4 mb-4">
         <div class="col-md-7 anim-fade-up">
             <div class="custom-card p-4">
                 <h6 class="card-title-custom">Tóm Tắt Hệ Thống</h6>
                 <div class="row mt-3">
-                    <div class="col-6 mb-2"><span class="text-muted">Tổng Số Phòng:</span> <strong class="fs-5 ms-2">50</strong></div>
-                    <div class="col-6 mb-2"><span class="text-muted">Cảnh Báo Hiện Tại:</span> <strong class="fs-5 ms-2 text-danger">0</strong></div>
-                    <div class="col-6"><span class="text-muted">Phòng Đang Hoạt Động:</span> <strong class="fs-5 ms-2">48</strong></div>
-                    <div class="col-6"><span class="text-muted">Thiết Bị Online:</span> <strong class="fs-5 ms-2 text-success">48/50</strong></div>
+                    <div class="col-6 mb-2"><span class="text-muted small">Tổng Số Phòng:</span> <strong class="fs-5 ms-2">50</strong></div>
+                    <div class="col-6 mb-2"><span class="text-muted small">Cảnh Báo Hiện Tại:</span> <strong class="fs-5 ms-2 text-danger">0</strong></div>
+                    <div class="col-6"><span class="text-muted small">Đang Hoạt Động:</span> <strong class="fs-5 ms-2">48</strong></div>
+                    <div class="col-6"><span class="text-muted small">Thiết Bị Online:</span> <strong class="fs-5 ms-2 text-success">48/50</strong></div>
                 </div>
             </div>
         </div>
@@ -22,11 +30,11 @@
                 <ul class="list-unstyled mb-0 mt-3">
                     <li class="mb-3 d-flex align-items-center">
                         <span class="status-dot bg-green me-3"></span>
-                        <span class="text-muted">Phòng 102: Sinh Viên B đã đăng ký mới (10:30 AM)</span>
+                        <span class="text-muted small">Phòng 102: Sinh Viên B đã đăng ký (10:30 AM)</span>
                     </li>
                     <li class="d-flex align-items-center">
                         <span class="status-dot bg-gray me-3"></span>
-                        <span class="text-muted">Phòng 205: Đã Reset cảnh báo khói giả (10:15 AM)</span>
+                        <span class="text-muted small">Phòng 205: Reset cảm biến (10:15 AM)</span>
                     </li>
                 </ul>
             </div>
@@ -36,55 +44,51 @@
     <div class="row g-4 mb-4">
         <div class="col-md-8 anim-fade-up delay-2">
             <div class="custom-card p-4">
-                <h6 class="card-title-custom">Quản Lý Cảm Biến Theo Phòng</h6>
+                <h6 class="card-title-custom text-primary mb-3">Quản Lý Cảm Biến Theo Phòng</h6>
                 <div class="table-responsive">
                     <table class="table table-borderless table-hover align-middle">
-                        <thead style="background-color: #f8f9fa; border-radius: 8px;">
-                            <tr>
-                                <th>Số Phòng</th>
+                        <thead style="background-color: #f8f9fa;">
+                            <tr class="small text-muted text-uppercase">
+                                <th>Phòng</th>
                                 <th>Trạng Thái</th>
-                                <th>Nhiệt Độ (Real-time)</th>
-                                <th>Cập Nhật Lần Cuối</th>
+                                <th>Nhiệt Độ</th>
+                                <th>Cập Nhật</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <tr>
-                                <td class="fw-bold">101</td>
-                                <td><span class="status-dot bg-green"></span></td>
-                                <td>30°C</td>
-                                <td class="text-muted small">10/05/2023 10:30 AM</td>
-                            </tr>
-                            <tr>
-                                <td class="fw-bold">102</td>
-                                <td><span class="status-dot bg-green"></span></td>
-                                <td>25°C</td>
-                                <td class="text-muted small">10/05/2023 10:15 AM</td>
-                            </tr>
-                            <tr style="background-color: #fff5f5;">
-                                <td class="fw-bold text-danger">103</td>
-                                <td><span class="status-dot bg-red pulse"></span></td>
-                                <td class="text-danger fw-bold">45°C</td>
-                                <td class="text-muted small">10/05/2023 10:15 AM</td>
-                            </tr>
+                            <tr><td class="fw-bold">101</td><td><span class="status-dot bg-green"></span></td><td>30°C</td><td class="small">10:30 AM</td></tr>
+                            <tr><td class="fw-bold text-danger">103</td><td><span class="status-dot bg-red pulse"></span></td><td class="text-danger fw-bold">45°C</td><td class="small">10:15 AM</td></tr>
                         </tbody>
                     </table>
                 </div>
             </div>
         </div>
+
         <div class="col-md-4 anim-fade-up delay-2">
             <div class="custom-card p-4">
                 <h6 class="card-title-custom">Tạo Mã Kích Hoạt (Mã Mời)</h6>
-                <select class="form-select mb-3 mt-3">
-                    <option selected>Chọn Phòng</option>
-                    <option value="101">Phòng 101</option>
-                    <option value="104">Phòng 104</option>
-                </select>
-                <button class="btn btn-primary w-100 mb-4 fw-bold">Tạo Mã</button>
-                <hr>
-                <div class="small text-muted mt-3">
-                    <p class="mb-2 text-dark">Phòng 102: <strong>PRO-KT-A1-102</strong> (Còn hạn 24h)</p>
-                    <p class="mb-0 text-dark">Phòng 304: <strong>PRO-KT-A2-304</strong> (Còn hạn 6h)</p>
-                </div>
+                <form method="post" action="@Url.Action("TaoMaMoi", "Admin")">
+                    <select name="selectedRoom" class="form-select mb-3 mt-3 shadow-sm" required>
+                        <option value="" selected disabled>-- Chọn Phòng --</option>
+                        @if (ViewBag.Blocks != null)
+                        {
+                            foreach (var block in ViewBag.Blocks)
+                            {
+                                var bId = block["BlockId"].AsString();
+                                <optgroup label="Dãy @bId">
+                                    @for (int i = 1; i <= 5; i++)
+                                    {
+                                        var room = $"{bId}-10{i}";
+                                        <option value="@room">Phòng @room</option>
+                                    }
+                                </optgroup>
+                            }
+                        }
+                    </select>
+                    <div class="mb-2 text-muted small fw-bold">Thời hạn (Giờ)</div>
+                    <input type="number" name="expireHours" class="form-control mb-3" value="24">
+                    <button type="submit" class="btn btn-primary w-100 mb-2 fw-bold shadow-sm">TẠO MÃ</button>
+                </form>
             </div>
         </div>
     </div>
@@ -93,34 +97,31 @@
         <div class="col-md-5 anim-fade-up delay-3">
             <div class="custom-card p-4">
                 <h6 class="card-title-custom mb-0">Phân Tích AI Tổng Quan</h6>
-                <small class="text-muted">Nhiệt độ trends cảnh báo chủ liệu managed</small>
                 <div class="mt-3" style="height: 150px;">
                     <canvas id="aiChart"></canvas>
                 </div>
             </div>
         </div>
         <div class="col-md-3 anim-fade-up delay-3">
-            <div class="custom-card p-4">
-                <h6 class="card-title-custom">Hồ Sơ & Bảo Mật</h6>
-                <p class="mt-2 mb-4"><strong>Chủ Trọ Nguyễn Văn A</strong></p>
-                <h6 class="card-title-custom" style="font-size: 0.8rem;">Cập Nhật Mật Khẩu</h6>
-                <input type="password" class="form-control mb-2" placeholder="Mật khẩu mới">
-                <button class="btn btn-sm btn-outline-dark w-100">Cập nhật</button>
+            <div class="custom-card p-4 text-center">
+                <h6 class="card-title-custom">Chủ Trọ</h6>
+                <p class="mt-2 mb-3 fw-bold text-primary">@Session["UserName"]</p>
+                <button class="btn btn-sm btn-outline-dark w-100">Bảo mật hồ sơ</button>
             </div>
         </div>
         <div class="col-md-4 anim-fade-up delay-3">
-            <div class="custom-card p-4 text-center d-flex flex-column justify-content-center">
+            <div class="custom-card p-4 text-center">
                 <h6 class="card-title-custom">Thông Tin Hệ Thống</h6>
-                <p class="text-muted mt-3 mb-1"><i class="fa-brands fa-aws fs-3 text-warning mb-2 d-block"></i> Cấu trúc MVC & AWS Serverless</p>
-                <p class="text-muted">Dữ liệu: RDS (SQL) & DynamoDB</p>
+                <i class="fa-brands fa-aws fs-2 text-warning my-2"></i>
+                <p class="text-muted small mb-0">Powered by AWS Serverless</p>
             </div>
         </div>
     </div>
 </div>
 
 @section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
-        // Vẽ biểu đồ y hệt trong ảnh bằng Chart.js
         const ctx = document.getElementById('aiChart').getContext('2d');
         const gradient = ctx.createLinearGradient(0, 0, 0, 150);
         gradient.addColorStop(0, 'rgba(13, 110, 253, 0.2)');
@@ -131,7 +132,6 @@
             data: {
                 labels: ['1', '2', '3', '4', '5', '6', '7', '8'],
                 datasets: [{
-                    label: 'Nhiệt độ',
                     data: [25, 26, 25, 28, 29, 23, 24, 27],
                     borderColor: '#0d6efd',
                     backgroundColor: gradient,

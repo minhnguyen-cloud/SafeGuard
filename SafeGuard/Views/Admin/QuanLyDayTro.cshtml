@@ -4,54 +4,127 @@
 }
 
 <div class="container-fluid p-0">
+
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <strong>Thành công!</strong> @TempData["SuccessMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            <button type="button" class="close" data-dismiss="alert" aria-label="Close" style="background:none;border:none;float:right;font-size:1.5rem;">
+                <span aria-hidden="true">&times;</span>
+            </button>
+        </div>
+    }
+    @if (TempData["ErrorMessage"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <strong>Lỗi!</strong> @TempData["ErrorMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            <button type="button" class="close" data-dismiss="alert" aria-label="Close" style="background:none;border:none;float:right;font-size:1.5rem;">
+                <span aria-hidden="true">&times;</span>
+            </button>
+        </div>
+    }
+
     <div class="d-flex justify-content-between align-items-center mb-4 anim-fade-up">
         <h5 class="fw-bold text-dark mb-0">Danh sách các dãy trọ</h5>
-        <button class="btn btn-primary fw-bold"><i class="fa-solid fa-plus me-2"></i>Thêm Dãy Mới</button>
+
+        <button id="btnOpenModal" type="button" class="btn btn-primary fw-bold">
+            <i class="fa-solid fa-plus me-2"></i>Thêm Dãy Mới
+        </button>
     </div>
 
     <div class="row g-4">
-        <div class="col-md-4 anim-fade-up delay-1">
-            <div class="custom-card p-4 position-relative overflow-hidden">
-                <div class="position-absolute top-0 start-0 w-100" style="height: 4px; background-color: var(--primary-blue);"></div>
-                <div class="d-flex justify-content-between align-items-start mb-3 mt-2">
-                    <h5 class="fw-bold mb-0">Dãy A (Khu Nam)</h5>
-                    <span class="badge bg-success bg-opacity-10 text-success border border-success">Hoạt động</span>
-                </div>
-                <p class="text-muted small mb-4"><i class="fa-solid fa-location-dot me-2"></i>123 Đường ABC, Quận 1</p>
-                <div class="row text-center mb-3">
-                    <div class="col-6 border-end">
-                        <h4 class="fw-bold mb-0 text-dark">20</h4>
-                        <small class="text-muted">Tổng Phòng</small>
-                    </div>
-                    <div class="col-6">
-                        <h4 class="fw-bold mb-0 text-primary">18</h4>
-                        <small class="text-muted">Đang Thuê</small>
-                    </div>
-                </div>
-                <button class="btn btn-outline-secondary w-100 btn-sm mt-2">Xem chi tiết</button>
-            </div>
-        </div>
+        @if (ViewBag.Blocks != null)
+        {
+            int delay = 1;
+            foreach (var block in ViewBag.Blocks)
+            {
+                <div class="col-md-4 anim-fade-up delay-@delay">
+                    <div class="custom-card p-4 position-relative overflow-hidden h-100">
+                        <div class="position-absolute top-0 start-0 w-100" style="height: 4px; background-color: var(--primary-blue);"></div>
 
-        <div class="col-md-4 anim-fade-up delay-2">
-            <div class="custom-card p-4 position-relative overflow-hidden">
-                <div class="position-absolute top-0 start-0 w-100" style="height: 4px; background-color: var(--primary-blue);"></div>
-                <div class="d-flex justify-content-between align-items-start mb-3 mt-2">
-                    <h5 class="fw-bold mb-0">Dãy B (Khu Bắc)</h5>
-                    <span class="badge bg-success bg-opacity-10 text-success border border-success">Hoạt động</span>
-                </div>
-                <p class="text-muted small mb-4"><i class="fa-solid fa-location-dot me-2"></i>456 Đường XYZ, Quận 3</p>
-                <div class="row text-center mb-3">
-                    <div class="col-6 border-end">
-                        <h4 class="fw-bold mb-0 text-dark">30</h4>
-                        <small class="text-muted">Tổng Phòng</small>
+                        <div class="d-flex justify-content-between align-items-start mb-3 mt-2">
+                            <h5 class="fw-bold mb-0 text-dark">@block["BlockName"].AsString()</h5>
+                            <span class="badge bg-success bg-opacity-10 text-success border border-success">Hoạt động</span>
+                        </div>
+                        <p class="text-muted small mb-4"><i class="fa-solid fa-location-dot me-2"></i>@block["Address"].AsString()</p>
+
+                        <div class="row text-center mb-3">
+                            <div class="col-6 border-end">
+                                <h4 class="fw-bold mb-0 text-dark">@block["TotalRooms"].AsInt()</h4>
+                                <small class="text-muted">Tổng Phòng</small>
+                            </div>
+                            <div class="col-6">
+                                <h4 class="fw-bold mb-0 text-primary">@block["ActiveRooms"].AsInt()</h4>
+                                <small class="text-muted">Đang Thuê</small>
+                            </div>
+                        </div>
+                        <button class="btn btn-outline-secondary w-100 btn-sm mt-auto">Xem chi tiết</button>
                     </div>
-                    <div class="col-6">
-                        <h4 class="fw-bold mb-0 text-primary">30</h4>
-                        <small class="text-muted">Đang Thuê</small>
-                    </div>
                 </div>
-                <button class="btn btn-outline-secondary w-100 btn-sm mt-2">Xem chi tiết</button>
+                delay++;
+            }
+        }
+    </div>
+</div>
+
+<div class="modal fade" id="addBlockModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header border-bottom-0 pb-0">
+                <h5 class="modal-title fw-bold text-dark">Thêm Dãy Trọ Mới</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                <button type="button" class="close d-none" data-dismiss="modal" aria-label="Close" style="background:none;border:none;font-size:1.5rem;">
+                    <span aria-hidden="true">&times;</span>
+                </button>
             </div>
+            <form method="post" action="@Url.Action("ThemDayMoi", "Admin")">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small text-muted">Tên Dãy (Ví dụ: A, B, SS - Đây sẽ là tiền tố mã mời)</label>
+                        <input type="text" name="blockName" class="form-control" placeholder="Nhập tên viết tắt ngắn gọn..." required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small text-muted">Địa chỉ dãy trọ</label>
+                        <input type="text" name="address" class="form-control" placeholder="Nhập địa chỉ cụ thể..." required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small text-muted">Số lượng phòng dự kiến</label>
+                        <input type="number" name="numberOfRooms" class="form-control" value="5" min="1" max="100" required>
+                    </div>
+                </div>
+                <div class="modal-footer border-top-0 pt-0">
+                    <button type="button" class="btn btn-light fw-bold" data-bs-dismiss="modal" data-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-primary fw-bold px-4">Lưu Dãy Mới</button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
+
+@section Scripts {
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            var btnOpen = document.getElementById("btnOpenModal");
+            var modal = document.getElementById("addBlockModal");
+            var closeBtns = document.querySelectorAll(".btn-close, .close, [data-dismiss='modal']");
+
+            if (btnOpen) {
+                btnOpen.addEventListener("click", function (e) {
+                    e.preventDefault();
+                    modal.classList.add("show");
+                    modal.style.display = "block";
+                    modal.style.backgroundColor = "rgba(0,0,0,0.5)";
+                });
+            }
+
+            closeBtns.forEach(function (btn) {
+                btn.addEventListener("click", function () {
+                    modal.classList.remove("show");
+                    modal.style.display = "none";
+                });
+            });
+        });
+    </script>
+}

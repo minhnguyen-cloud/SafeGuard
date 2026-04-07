@@ -37,7 +37,15 @@ namespace SafeGuard.Controllers
                     string userGroup = ExtractGroupFromToken(authResult.AuthenticationResult.IdToken);
                     Session["UserGroup"] = userGroup;
 
-                    return RedirectToAction("Index", "Home");
+                    // Điều hướng theo đúng chức vụ
+                    if (userGroup == "ADMIN")
+                    {
+                        return RedirectToAction("Index", "Admin"); // Trả về Dashboard tổng quan của chủ trọ
+                    }
+                    else
+                    {
+                        return RedirectToAction("QuanLyPhong", "Tenant"); // Trả về trang nhập mã của người thuê
+                    }
                 }
                 ModelState.AddModelError("", "Đăng nhập thất bại.");
                 return View(model);
