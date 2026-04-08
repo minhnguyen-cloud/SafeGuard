@@ -21,19 +21,16 @@
                         <span class="text-muted small">Tổng Số Phòng:</span>
                         <strong class="fs-5 ms-2">@(ViewBag.TotalRooms ?? 0)</strong>
                     </div>
-
                     <div class="col-6 mb-2">
                         <span class="text-muted small">Cảnh Báo Hiện Tại:</span>
                         <strong class="fs-5 ms-2 @(ViewBag.CurrentAlerts > 0 ? "text-danger" : "text-success")">
                             @(ViewBag.CurrentAlerts ?? 0)
                         </strong>
                     </div>
-
                     <div class="col-6">
                         <span class="text-muted small">Đang Hoạt Động:</span>
                         <strong class="fs-5 ms-2">@(ViewBag.ActiveRooms ?? 0)</strong>
                     </div>
-
                     <div class="col-6">
                         <span class="text-muted small">Thiết Bị Online:</span>
                         <strong class="fs-5 ms-2 @(ViewBag.OnlineDevices == ViewBag.TotalRooms && ViewBag.TotalRooms > 0 ? "text-success" : "text-warning")">
@@ -48,9 +45,10 @@
             <div class="custom-card p-4 h-100">
                 <h6 class="card-title-custom">Trạng Thái Gần Đây</h6>
                 <ul class="list-unstyled mb-0 mt-3">
-                    @if (ViewBag.RecentActivities != null && ViewBag.RecentActivities.Count > 0)
+                    @{ var recentActs = ViewBag.RecentActivities as List<SafeGuard.Controllers.ViewModels.RecentActivityVM>; }
+                    @if (recentActs != null && recentActs.Count > 0)
                     {
-                        foreach (var activity in ViewBag.RecentActivities)
+                        foreach (var activity in recentActs)
                         {
                             <li class="mb-3 d-flex align-items-center">
                                 <span class="status-dot bg-green me-3"></span>
@@ -87,8 +85,26 @@
                             </tr>
                         </thead>
                         <tbody>
-                            <tr><td class="fw-bold">101</td><td><span class="status-dot bg-green"></span></td><td>30°C</td><td class="small">10:30 AM</td></tr>
-                            <tr><td class="fw-bold text-danger">103</td><td><span class="status-dot bg-red pulse"></span></td><td class="text-danger fw-bold">45°C</td><td class="small">10:15 AM</td></tr>
+                            @{ var sensorList = ViewBag.SensorList as List<SafeGuard.Controllers.ViewModels.SensorDataVM>; }
+                            @if (sensorList != null && sensorList.Count > 0)
+                            {
+                                foreach (var sensor in sensorList)
+                                {
+                                    bool isAlert = sensor.Temp >= 38;
+                                    <tr>
+                                        <td class="fw-bold @(isAlert ? "text-danger" : "")">@sensor.RoomId</td>
+                                        <td><span class="status-dot @(isAlert ? "bg-red pulse" : "bg-green")"></span></td>
+                                        <td class="@(isAlert ? "text-danger fw-bold" : "")">@sensor.Temp°C</td>
+                                        <td class="small text-muted">@sensor.Time</td>
+                                    </tr>
+                                }
+                            }
+                            else
+                            {
+                                <tr>
+                                    <td colspan="4" class="text-center text-muted small py-3">Không có cảm biến nào gửi dữ liệu</td>
+                                </tr>
+                            }
                         </tbody>
                     </table>
                 </div>
@@ -103,9 +119,8 @@
                         <option value="" selected disabled>-- Chọn Phòng --</option>
                         @if (ViewBag.Blocks != null)
                         {
-                            foreach (var block in ViewBag.Blocks)
+                            foreach (var bId in ViewBag.Blocks as List<string>)
                             {
-                                var bId = block["BlockId"].AsString();
                                 <optgroup label="Dãy @bId">
                                     @for (int i = 1; i <= 5; i++)
                                     {
