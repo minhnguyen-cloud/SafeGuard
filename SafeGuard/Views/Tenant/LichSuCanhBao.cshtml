@@ -1,4 +1,6 @@
-﻿@{
+﻿@model IEnumerable<SafeGuard.Controllers.TenantController.TenantAlertVM>
+
+@{
     ViewBag.Title = "Lịch Sử Cảnh Báo";
     Layout = "~/Views/Shared/_DashboardLayout.cshtml";
 }
@@ -14,18 +16,6 @@
         animation-delay: 0.1s;
     }
 
-    .delay-2 {
-        animation-delay: 0.2s;
-    }
-
-    .delay-3 {
-        animation-delay: 0.3s;
-    }
-
-    .delay-4 {
-        animation-delay: 0.4s;
-    }
-
     @@keyframes fadeInUp {
         from {
             opacity: 0;
@@ -35,20 +25,6 @@
         to {
             opacity: 1;
             transform: translateY(0);
-        }
-    }
-
-    /* Hiệu ứng cho từng dòng trong bảng */
-    .row-anim {
-        animation: slideIn 0.5s ease-out forwards;
-        opacity: 0;
-        transform: translateX(-20px);
-    }
-
-    @@keyframes slideIn {
-        to {
-            opacity: 1;
-            transform: translateX(0);
         }
     }
 
@@ -74,17 +50,15 @@
     /* Bảng dữ liệu xịn xò */
     .table-modern {
         border-collapse: separate;
-        border-spacing: 0 10px; /* Tạo khoảng cách giữa các dòng */
+        border-spacing: 0 10px;
     }
 
         .table-modern thead th {
             border: none;
-            background-color: transparent;
             color: #6c757d;
             font-weight: 600;
             text-transform: uppercase;
             font-size: 0.85rem;
-            letter-spacing: 0.5px;
             padding-bottom: 10px;
         }
 
@@ -96,7 +70,7 @@
         }
 
             .table-modern tbody tr:hover {
-                transform: translateY(-3px) scale(1.01);
+                transform: translateY(-3px);
                 box-shadow: 0 8px 20px rgba(220, 53, 69, 0.08);
                 background-color: #fffafb;
             }
@@ -116,7 +90,6 @@
                 border-radius: 0 12px 12px 0;
             }
 
-        /* Hover viền trái */
         .table-modern tbody tr:hover td:first-child {
             border-left-color: #dc3545;
         }
@@ -138,10 +111,9 @@
 </style>
 
 <div class="container-fluid py-4 p-0">
-
     <div class="mb-4 anim-fade-up">
         <h4 class="fw-bold text-dark mb-1"><i class="fa-solid fa-clock-rotate-left text-danger me-2"></i>Lịch Sử Cảnh Báo</h4>
-        <p class="text-muted small">Theo dõi lịch sử ghi nhận nhiệt độ và cảnh báo cháy từ hệ thống SafeGuard trong phòng bạn.</p>
+        <p class="text-muted small">Dữ liệu ghi nhận từ cảm biến tại <strong>Phòng 101</strong>.</p>
     </div>
 
     <div class="premium-card p-4 anim-fade-up delay-1">
@@ -149,14 +121,14 @@
 
         <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
             <div class="d-flex gap-2">
-                <button class="btn btn-dark btn-sm rounded-pill px-3 fw-bold shadow-sm">Tất cả</button>
-                <button class="btn btn-outline-warning btn-sm rounded-pill px-3 fw-semibold">Nhiệt độ cao</button>
-                <button class="btn btn-outline-danger btn-sm rounded-pill px-3 fw-semibold">Phát hiện cháy</button>
+                <button class="btn btn-dark btn-sm rounded-pill px-3 fw-bold filter-btn" data-filter="all">Tất cả</button>
+                <button class="btn btn-outline-warning btn-sm rounded-pill px-3 fw-semibold filter-btn" data-filter="high_temp">Nhiệt độ cao</button>
+                <button class="btn btn-outline-danger btn-sm rounded-pill px-3 fw-semibold filter-btn" data-filter="fire">Phát hiện cháy</button>
             </div>
 
             <div class="search-box d-flex align-items-center" style="width: 250px;">
                 <i class="fa-solid fa-magnifying-glass text-muted me-2"></i>
-                <input type="text" class="form-control form-control-sm" placeholder="Tìm theo ngày tháng...">
+                <input type="text" id="searchInput" class="form-control form-control-sm" placeholder="Tìm theo ngày tháng...">
             </div>
         </div>
 
@@ -164,108 +136,93 @@
             <table class="table table-modern align-middle mb-0">
                 <thead>
                     <tr>
-                        <th style="width: 20%;">Thời Gian</th>
-                        <th style="width: 15%;">Nhiệt Độ</th>
-                        <th style="width: 30%;">Mô Tả Sự Cố</th>
-                        <th style="width: 20%;">Phản Hồi Chủ Trọ</th>
-                        <th style="width: 15%; text-align: center;">Hành Động</th>
+                        <th style="width: 25%;">Thời Gian</th>
+                        <th style="width: 20%;">Nhiệt Độ</th>
+                        <th style="width: 55%;">Mô Tả Sự Cố Hệ Thống</th>
                     </tr>
                 </thead>
-                <tbody>
-                    <tr class="row-anim" style="animation-delay: 0.2s;">
-                        <td>
-                            <div class="fw-bold text-dark mb-1">12/05/2026</div>
-                            <div class="text-muted small"><i class="fa-regular fa-clock me-1"></i>14:30:45</div>
-                        </td>
-                        <td>
-                            <div class="d-flex align-items-center">
-                                <i class="fa-solid fa-temperature-arrow-up text-warning fs-4 me-2"></i>
-                                <h5 class="fw-black text-warning mb-0">48°C</h5>
-                            </div>
-                        </td>
-                        <td>
-                            <span class="fw-bold text-dark">Nhiệt độ tăng cao bất thường</span>
-                            <div class="text-muted small mt-1">Cảm biến nhiệt độ báo mức nhiệt vượt ngưỡng an toàn (40°C).</div>
-                        </td>
-                        <td>
-                            <span class="badge bg-success bg-opacity-10 text-success border border-success px-3 py-2 rounded-pill">
-                                <i class="fa-solid fa-check-circle me-1"></i> Đã kiểm tra an toàn
-                            </span>
-                        </td>
-                        <td class="text-center">
-                            <button class="btn btn-light btn-sm text-primary rounded-circle" title="Xem chi tiết" style="width: 35px; height: 35px;">
-                                <i class="fa-solid fa-eye"></i>
-                            </button>
-                        </td>
-                    </tr>
-
-                    <tr class="row-anim" style="animation-delay: 0.3s;">
-                        <td>
-                            <div class="fw-bold text-dark mb-1">10/05/2026</div>
-                            <div class="text-muted small"><i class="fa-regular fa-clock me-1"></i>02:15:00</div>
-                        </td>
-                        <td>
-                            <div class="d-flex align-items-center">
-                                <i class="fa-solid fa-fire text-danger fs-4 me-2 fa-fade"></i>
-                                <h5 class="fw-black text-danger mb-0">65°C</h5>
-                            </div>
-                        </td>
-                        <td>
-                            <span class="fw-bold text-dark">Cảnh báo nguy cơ cháy</span>
-                            <div class="text-muted small mt-1">Nhiệt độ tăng đột biến. Cảm biến nghi ngờ có phát sinh ngọn lửa.</div>
-                        </td>
-                        <td>
-                            <span class="badge bg-warning bg-opacity-10 text-warning border border-warning px-3 py-2 rounded-pill fa-fade">
-                                <i class="fa-solid fa-hourglass-half me-1"></i> Chờ chủ trọ xác nhận
-                            </span>
-                        </td>
-                        <td class="text-center">
-                            <button class="btn btn-light btn-sm text-primary rounded-circle" title="Xem chi tiết" style="width: 35px; height: 35px;">
-                                <i class="fa-solid fa-eye"></i>
-                            </button>
-                        </td>
-                    </tr>
-
-                    <tr class="row-anim" style="animation-delay: 0.4s;">
-                        <td>
-                            <div class="fw-bold text-dark mb-1">01/05/2026</div>
-                            <div class="text-muted small"><i class="fa-regular fa-clock me-1"></i>08:00:00</div>
-                        </td>
-                        <td>
-                            <div class="d-flex align-items-center">
-                                <i class="fa-solid fa-temperature-half text-info fs-4 me-2"></i>
-                                <h5 class="fw-bold text-info mb-0">32°C</h5>
-                            </div>
-                        </td>
-                        <td>
-                            <span class="fw-bold text-dark">Báo cáo định kỳ</span>
-                            <div class="text-muted small mt-1">Mức nhiệt độ phòng ổn định, cảm biến hoạt động tốt.</div>
-                        </td>
-                        <td>
-                            <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary px-3 py-2 rounded-pill">
-                                <i class="fa-solid fa-minus me-1"></i> Không có sự cố
-                            </span>
-                        </td>
-                        <td class="text-center">
-                            <button class="btn btn-light btn-sm text-primary rounded-circle" title="Xem chi tiết" style="width: 35px; height: 35px;">
-                                <i class="fa-solid fa-eye"></i>
-                            </button>
-                        </td>
-                    </tr>
+                <tbody id="alertTableBody">
+                    @if (Model != null && Model.Any())
+                    {
+                        foreach (var item in Model)
+                        {
+                            <tr class="alert-row" data-type="@item.AlertType">
+                                <td>
+                                    <div class="fw-bold text-dark mb-1">@item.TimeStamp.ToString("dd/MM/yyyy")</div>
+                                    <div class="text-muted small"><i class="fa-regular fa-clock me-1"></i>@item.TimeStamp.ToString("HH:mm:ss")</div>
+                                </td>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        @if (item.AlertType == "fire")
+                                        {
+                                            <i class="fa-solid fa-fire text-danger fs-4 me-2 fa-fade"></i>
+                                            <h5 class="fw-black text-danger mb-0">@item.Temperature°C</h5>
+                                        }
+                                        else if (item.AlertType == "high_temp")
+                                        {
+                                            <i class="fa-solid fa-temperature-arrow-up text-warning fs-4 me-2"></i>
+                                            <h5 class="fw-black text-warning mb-0">@item.Temperature°C</h5>
+                                        }
+                                        else
+                                        {
+                                            <i class="fa-solid fa-temperature-half text-info fs-4 me-2"></i>
+                                            <h5 class="fw-bold text-info mb-0">@item.Temperature°C</h5>
+                                        }
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="fw-bold text-dark">
+                                        @(item.AlertType == "fire" ? "Cảnh báo nguy cơ cháy" : (item.AlertType == "high_temp" ? "Nhiệt độ cao bất thường" : "Báo cáo định kỳ"))
+                                    </span>
+                                    <div class="text-muted small mt-1">@item.Description</div>
+                                </td>
+                            </tr>
+                        }
+                    }
+                    else
+                    {
+                        <tr><td colspan="3" class="text-center py-4 text-muted">Chưa có dữ liệu lịch sử.</td></tr>
+                    }
                 </tbody>
             </table>
         </div>
-
-        <div class="d-flex justify-content-between align-items-center mt-4 pt-3 border-top">
-            <span class="text-muted small">Hiển thị 1 - 3 trong tổng số 24 cảnh báo</span>
-            <ul class="pagination pagination-sm mb-0">
-                <li class="page-item disabled"><a class="page-link" href="#">Trước</a></li>
-                <li class="page-item active"><a class="page-link bg-danger border-danger" href="#">1</a></li>
-                <li class="page-item"><a class="page-link text-dark" href="#">2</a></li>
-                <li class="page-item"><a class="page-link text-dark" href="#">3</a></li>
-                <li class="page-item"><a class="page-link text-dark" href="#">Sau</a></li>
-            </ul>
-        </div>
-
     </div>
 </div>
+
+@section Scripts {
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const filterBtns = document.querySelectorAll('.filter-btn');
+            const rows = document.querySelectorAll('.alert-row');
+            const searchInput = document.getElementById('searchInput');
+
+            // Logic lọc theo nút
+            filterBtns.forEach(btn => {
+                btn.addEventListener('click', function () {
+                    const filter = this.getAttribute('data-filter');
+
+                    // Toggle class active
+                    filterBtns.forEach(b => b.classList.replace('btn-dark', 'btn-outline-dark'));
+                    this.classList.replace('btn-outline-dark', 'btn-dark');
+
+                    rows.forEach(row => {
+                        const type = row.getAttribute('data-type');
+                        if (filter === 'all' || type === filter) {
+                            row.style.display = '';
+                        } else {
+                            row.style.display = 'none';
+                        }
+                    });
+                });
+            });
+
+            // Logic tìm kiếm cơ bản
+            searchInput.addEventListener('keyup', function () {
+                const value = this.value.toLowerCase();
+                rows.forEach(row => {
+                    row.style.display = row.innerText.toLowerCase().indexOf(value) > -1 ? '' : 'none';
+                });
+            });
+        });
+    </script>
+}

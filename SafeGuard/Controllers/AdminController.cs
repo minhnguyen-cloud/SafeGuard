@@ -328,6 +328,36 @@ namespace SafeGuard.Controllers
             }
             return File(Encoding.UTF8.GetPreamble().Concat(Encoding.UTF8.GetBytes(builder.ToString())).ToArray(), "text/csv", $"LichSuCanhBao_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
         }
+        // ==========================================
+        // LẤY DANH SÁCH THÀNH VIÊN TRONG PHÒNG (DÙNG CHO POPUP AJAX)
+        // ==========================================
+        [HttpGet]
+        public async Task<JsonResult> GetRoomMembers(string roomId)
+        {
+            try
+            {
+                var client = GetClient();
+                var usersTable = Table.LoadTable(client, "Users");
+
+                // Quét bảng Users tìm người có AssignedRoom khớp với mã phòng truyền vào (VD: C-107)
+                var scanFilter = new ScanFilter();
+                scanFilter.AddCondition("AssignedRoom", ScanOperator.Equal, roomId);
+                var search = usersTable.Scan(scanFilter);
+                var documentList = await search.GetRemainingAsync();
+
+                // Lọc lấy Tên và Email để hiển thị
+                var members = documentList.Select(doc => new {
+                    FullName = doc.ContainsKey("fullName") ? doc["fullName"].AsString() : "Chưa cập nhật",
+                    Email = doc.ContainsKey("email") ? doc["email"].AsString() : (doc.ContainsKey("userID") ? doc["userID"].AsString() : "N/A")
+                }).ToList();
+
+                return Json(new { success = true, data = members }, JsonRequestBehavior.AllowGet);
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = ex.Message }, JsonRequestBehavior.AllowGet);
+            }
+        }
 
         public ActionResult BaoCaoAI() => View();
     }

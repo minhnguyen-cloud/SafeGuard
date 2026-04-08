@@ -6,7 +6,7 @@
     <title>@ViewBag.Title - SafeGuard Dashboard</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
     <style>
         :root {
@@ -54,7 +54,6 @@
             animation-delay: 0.3s;
         }
 
-        /* Layout Flexbox */
         .wrapper {
             display: flex;
             width: 100%;
@@ -88,6 +87,8 @@
             list-style: none;
             padding: 15px 10px;
             margin: 0;
+            flex-grow: 1;
+            overflow-y: auto;
         }
 
             .menu-list li a {
@@ -118,7 +119,22 @@
                     font-weight: 600;
                 }
 
-        /* Nội dung chính */
+        /* Nút nguồn tải lại hệ thống */
+        .nav-reboot {
+            border-top: 1px solid #eee;
+            margin-top: 15px;
+            padding-top: 15px;
+        }
+
+            .nav-reboot a {
+                color: #dc3545 !important;
+            }
+
+                .nav-reboot a:hover {
+                    background: #fff1f2 !important;
+                }
+
+        /* Main content */
         .main-content {
             flex: 1;
             margin-left: 260px;
@@ -180,118 +196,26 @@
         .bg-gray {
             background-color: #6c757d;
         }
-    </style>
-</head>
-<body>
 
-    <div class="wrapper">
-        <nav class="sidebar">
-            <div class="sidebar-header">
-                <a href="@Url.Action("Index", "Home")" style="text-decoration: none; color: inherit; display: block;">
-                    <i class="fa-solid fa-fire-flame-curved"></i> SafeGuard
-                </a>
-            </div>
-            @{
-                // Lấy tên trang (Action) hiện tại đang đứng để tự động bôi xanh menu
-                var currentAction = ViewContext.RouteData.Values["action"]?.ToString();
-                var currentUserGroup = Session["UserGroup"]?.ToString();
+        .pulse {
+            animation: pulse-red 2s infinite;
+        }
+
+        @@keyframes pulse-red {
+            0% {
+                box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.7);
             }
 
-            <ul class="menu-list">
-                <li>
-                    <a href="@(currentUserGroup == "ADMIN" ? Url.Action("Index", "Admin") : Url.Action("Index", "Tenant"))"
-                       class="@(currentAction == "Index" ? "active" : "")">
-                        <i class="fa-solid fa-house"></i> Tổng Quan
-                    </a>
-                </li>
+            70% {
+                box-shadow: 0 0 0 10px rgba(220, 53, 69, 0);
+            }
 
-                @if (currentUserGroup == "ADMIN")
-                {
-                    <li>
-                        <a href="@Url.Action("QuanLyDayTro", "Admin")" class="@(currentAction == "QuanLyDayTro" ? "active" : "")">
-                            <i class="fa-solid fa-building-user"></i> Quản Lý Dãy Trọ
-                        </a>
-                    </li>
-                    <li>
-                        <a href="@Url.Action("QuanLyPhong", "Admin")" class="@(currentAction == "QuanLyPhong" ? "active" : "")">
-                            <i class="fa-solid fa-border-all"></i> Quản Lý Phòng & Cảm Biến
-                        </a>
-                    </li>
-                    <li>
-                        <a href="@Url.Action("TaoMaKichHoat", "Admin")" class="@(currentAction == "TaoMaKichHoat" ? "active" : "")">
-                            <i class="fa-solid fa-link"></i> Tạo Mã Kích Hoạt
-                        </a>
-                    </li>
-                    <li>
-                        <a href="@Url.Action("LichSuCanhBao", "Admin")" class="@(currentAction == "LichSuCanhBao" ? "active" : "")">
-                            <i class="fa-solid fa-clock-rotate-left"></i> Lịch Sử Cảnh Báo
-                        </a>
-                    </li>
-                    <li>
-                        <a href="@Url.Action("BaoCaoAI", "Admin")" class="@(currentAction == "BaoCaoAI" ? "active" : "")">
-                            <i class="fa-solid fa-file-invoice"></i> Báo Cáo AI & Thống Kê
-                        </a>
-                    </li>
-                }
-                else
-                {
-                    <li>
-                        <a href="@Url.Action("LichSuCanhBao", "Tenant")" class="@(currentAction == "LichSuCanhBao" ? "active" : "")">
-                            <i class="fa-solid fa-clock-rotate-left"></i> Lịch Sử Cảnh Báo
-                        </a>
-                    </li>
-                    <li>
-                        <a href="@Url.Action("QuanLyPhong", "Tenant")" class="@(currentAction == "QuanLyPhong" ? "active" : "")">
-                            <i class="fa-solid fa-door-open"></i> Quản Lý Phòng Của Tôi
-                        </a>
-                    </li>
-                    <li>
-                        <a href="@Url.Action("PhanTichAI", "Tenant")" class="@(currentAction == "PhanTichAI" ? "active" : "")">
-                            <i class="fa-solid fa-microchip"></i> Phân Tích AI
-                        </a>
-                    </li>
-                    <li>
-                        <a href="@Url.Action("ThongTinCaNhan", "Tenant")" class="@(currentAction == "ThongTinCaNhan" ? "active" : "")">
-                            <i class="fa-solid fa-user-pen"></i> Thông Tin Cá Nhân
-                        </a>
-                    </li>
-                    <li>
-                        <a href="@Url.Action("NoiQuy", "Tenant")" class="@(currentAction == "NoiQuy" ? "active" : "")">
-                            <i class="fa-solid fa-book-open"></i> Nội Quy PCCC
-                        </a>
-                    </li>
-                }
-            </ul>
-        </nav>
+            100% {
+                box-shadow: 0 0 0 0 rgba(220, 53, 69, 0);
+            }
+        }
 
-        <div class="main-content">
-            <div class="topbar">
-                <div class="fw-bold text-muted">@ViewBag.Title</div>
-                <div class="d-flex align-items-center">
-                    <div class="user-profile d-flex align-items-center me-3">
-                        <img src="https://ui-avatars.com/api/?name=@Session["UserEmail"]&background=random" alt="Avatar">
-                        <div>
-                            <span class="d-block fw-bold" style="font-size: 0.9rem;">
-                                @(Session["UserGroup"]?.ToString() == "ADMIN" ? "Chủ Trọ" : "Người Thuê")
-                            </span>
-                            <small class="text-muted">@Session["UserEmail"]</small>
-                        </div>
-                    </div>
-                    <a href="@Url.Action("Logout", "Account")" class="btn btn-outline-secondary btn-sm">Đăng xuất</a>
-                </div>
-            </div>
-
-            <div class="p-4">
-                @RenderBody()
-            </div>
-        </div>
-    </div>
-
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-
-    @RenderSection("Scripts", required: false)
-    <style>
-        /* 1. NÚT NỔI HOTLINE GÓC TRÁI (114) */
+        /* Nút nổi 114 */
         .floating-hotline-114 {
             position: fixed;
             bottom: 30px;
@@ -313,17 +237,15 @@
 
             .floating-hotline-114:hover {
                 color: white;
-                transform: scale(1.1) !important;
-                text-decoration: none;
+                transform: scale(1.1);
             }
 
             .floating-hotline-114 i {
-                font-size: 1.4rem;
                 animation: shake 1s infinite;
             }
 
         @@keyframes shake {
-            0% {
+            0%, 100% {
                 transform: rotate(0deg);
             }
 
@@ -338,13 +260,9 @@
             75% {
                 transform: rotate(-15deg);
             }
-
-            100% {
-                transform: rotate(0deg);
-            }
         }
 
-        /* 2. CẤU TRÚC NÚT NỔI TRÒN VÀ POPUP BQL */
+        /* Nút nổi BQL */
         .bql-fab-wrapper {
             position: fixed;
             bottom: 100px;
@@ -352,7 +270,6 @@
             z-index: 9998;
             display: flex;
             flex-direction: column;
-            align-items: flex-start;
         }
 
         .bql-fab {
@@ -361,42 +278,13 @@
             border-radius: 50%;
             background-color: #0d6efd;
             color: white;
-            font-size: 1.5rem;
             display: flex;
             align-items: center;
             justify-content: center;
             border: 2px solid white;
             box-shadow: 0 10px 20px rgba(0,0,0,0.15);
             cursor: pointer;
-            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            animation: pulse-blue-fab 2s infinite;
-        }
-
-            .bql-fab:hover {
-                background-color: #0a58ca;
-                transform: scale(1.1);
-            }
-
-            .bql-fab.active {
-                background-color: #6c757d;
-                transform: rotate(45deg);
-            }
-
-        @@keyframes pulse-blue-fab {
-            0% {
-                transform: scale(1);
-                box-shadow: 0 0 0 0 rgba(13, 110, 253, 0.6);
-            }
-
-            70% {
-                transform: scale(1.05);
-                box-shadow: 0 0 0 12px rgba(13, 110, 253, 0);
-            }
-
-            100% {
-                transform: scale(1);
-                box-shadow: 0 0 0 0 rgba(13, 110, 253, 0);
-            }
+            transition: 0.3s;
         }
 
         .bql-popup {
@@ -406,100 +294,138 @@
             border-radius: 16px;
             padding: 20px;
             box-shadow: 0 15px 35px rgba(0,0,0,0.1);
-            margin-top: -310px;
-            transform: translateY(10px);
-            opacity: 0;
-            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            margin-bottom: 15px;
             border: 1px solid rgba(0,0,0,0.05);
         }
 
             .bql-popup.show {
                 display: block;
-                transform: translateY(0);
-                opacity: 1;
-            }
-
-        .bql-popup-header {
-            border-bottom: 1px solid rgba(0,0,0,0.05);
-            padding-bottom: 15px;
-            margin-bottom: 15px;
-        }
-
-        .transition-hover {
-            transition: all 0.3s ease;
-        }
-
-            .transition-hover:hover {
-                background-color: #e9ecef !important;
-                transform: translateX(5px);
+                animation: fadeInUp 0.4s ease;
             }
     </style>
+</head>
+<body>
+
+    <div class="wrapper">
+        <nav class="sidebar">
+            <div class="sidebar-header">
+                <a href="@Url.Action("Index", "Admin")" style="text-decoration: none; color: inherit; display: block;">
+                    <i class="fa-solid fa-fire-flame-curved"></i> SafeGuard
+                </a>
+            </div>
+
+            @{
+                var currentAction = ViewContext.RouteData.Values["action"]?.ToString();
+                var currentUserGroup = Session["UserGroup"]?.ToString();
+            }
+
+            <ul class="menu-list">
+                <li>
+                    <a href="@(currentUserGroup == "ADMIN" ? Url.Action("Index", "Admin") : Url.Action("Index", "Tenant"))"
+                       class="@(currentAction == "Index" ? "active" : "")">
+                        <i class="fa-solid fa-house"></i> Tổng Quan
+                    </a>
+                </li>
+
+                @if (currentUserGroup == "ADMIN")
+                {
+                    <li><a href="@Url.Action("QuanLyDayTro", "Admin")" class="@(currentAction == "QuanLyDayTro" ? "active" : "")"><i class="fa-solid fa-building-user"></i> Quản Lý Dãy Trọ</a></li>
+                    <li><a href="@Url.Action("QuanLyPhong", "Admin")" class="@(currentAction == "QuanLyPhong" ? "active" : "")"><i class="fa-solid fa-border-all"></i> Quản Lý Phòng</a></li>
+                    <li><a href="@Url.Action("TaoMaKichHoat", "Admin")" class="@(currentAction == "TaoMaKichHoat" ? "active" : "")"><i class="fa-solid fa-link"></i> Tạo Mã Kích Hoạt</a></li>
+                    <li><a href="@Url.Action("LichSuCanhBao", "Admin")" class="@(currentAction == "LichSuCanhBao" ? "active" : "")"><i class="fa-solid fa-clock-rotate-left"></i> Lịch Sử Cảnh Báo</a></li>
+                    <li><a href="@Url.Action("BaoCaoAI", "Admin")" class="@(currentAction == "BaoCaoAI" ? "active" : "")"><i class="fa-solid fa-file-invoice"></i> Báo Cáo AI & Thống Kê</a></li>
+
+                    <li class="nav-reboot">
+                        <a href="javascript:void(0)" onclick="location.reload()">
+                            <i class="fa-solid fa-power-off"></i> Tải lại hệ thống
+                        </a>
+                    </li>
+                }
+                else
+                {
+                    <li><a href="@Url.Action("LichSuCanhBao", "Tenant")" class="@(currentAction == "LichSuCanhBao" ? "active" : "")"><i class="fa-solid fa-clock-rotate-left"></i> Lịch Sử Cảnh Báo</a></li>
+                    <li><a href="@Url.Action("QuanLyPhong", "Tenant")" class="@(currentAction == "QuanLyPhong" ? "active" : "")"><i class="fa-solid fa-door-open"></i> Quản Lý Phòng</a></li>
+                    <li><a href="@Url.Action("PhanTichAI", "Tenant")" class="@(currentAction == "PhanTichAI" ? "active" : "")"><i class="fa-solid fa-microchip"></i> Phân Tích AI</a></li>
+                    <li><a href="@Url.Action("ThongTinCaNhan", "Tenant")" class="@(currentAction == "ThongTinCaNhan" ? "active" : "")"><i class="fa-solid fa-user-pen"></i> Thông Tin Cá Nhân</a></li>
+
+                    <li class="nav-reboot">
+                        <a href="javascript:void(0)" onclick="location.reload()">
+                            <i class="fa-solid fa-power-off"></i> Tải lại hệ thống
+                        </a>
+                    </li>
+                }
+            </ul>
+        </nav>
+
+        <div class="main-content">
+            <div class="topbar">
+                <div class="fw-bold text-muted">@ViewBag.Title</div>
+                <div class="d-flex align-items-center">
+                    <div class="user-profile d-flex align-items-center me-3">
+                        @{
+                            // Logic lấy 2 chữ cái đầu của Username
+                            string fullName = Session["UserName"]?.ToString() ?? "Admin";
+                            string initials = "";
+                            var names = fullName.Split(' ');
+                            if (names.Length >= 2)
+                            {
+                                initials = names[0].Substring(0, 1) + names[names.Length - 1].Substring(0, 1);
+                            }
+                            else
+                            {
+                                initials = fullName.Substring(0, Math.Min(2, fullName.Length));
+                            }
+                            initials = initials.ToUpper();
+                        }
+
+                        <div class="avatar-circle me-2">
+                            <span class="initials">@initials</span>
+                        </div>
+
+                        <div>
+                            <span class="d-block fw-bold" style="font-size: 0.9rem;">@fullName</span>
+                            <small class="text-muted">@(Session["UserGroup"]?.ToString() == "ADMIN" ? "Chủ Trọ" : "Người Thuê")</small>
+                        </div>
+                    </div>
+                    <a href="@Url.Action("Logout", "Account")" class="btn btn-outline-secondary btn-sm rounded-pill">Đăng xuất</a>
+                </div>
+            </div>
+
+            <div class="p-4">
+                @RenderBody()
+            </div>
+        </div>
+    </div>
 
     <div class="bql-fab-wrapper">
         <div class="bql-popup shadow-lg" id="globalBqlPopup">
-            <div class="bql-popup-header d-flex align-items-center">
-                <div class="bg-primary text-primary bg-opacity-10 rounded-3 d-flex align-items-center justify-content-center flex-shrink-0" style="width: 45px; height: 45px;">
-                    <i class="fa-solid fa-headset fs-4"></i>
-                </div>
-                <div class="ms-3">
-                    <span class="badge bg-primary mb-1">HỖ TRỢ 24/7</span>
-                    <h6 class="fw-bold text-dark mb-0">BQL SAFEGUARD</h6>
-                </div>
-                <button type="button" class="btn-close ms-auto small" id="closeGlobalBqlPopup" aria-label="Close" style="font-size: 0.7rem;"></button>
+            <div class="d-flex align-items-center mb-3">
+                <div class="bg-primary text-white p-2 rounded-circle me-3"><i class="fa-solid fa-headset"></i></div>
+                <h6 class="fw-bold mb-0">HỖ TRỢ 24/7</h6>
             </div>
-
-            <div class="bg-light rounded-3 p-3 mb-2 transition-hover" style="border-left: 3px solid #0d6efd;">
-                <p class="small text-muted mb-0"><i class="fa-solid fa-walkie-talkie me-1"></i> Trực ban tòa nhà:</p>
-                <h6 class="fw-bold text-primary mb-0">090.XXX.XXXX</h6>
+            <div class="bg-light p-2 rounded mb-2 small border-start border-primary border-3">
+                Trực ban: <strong>090.XXX.XXXX</strong>
             </div>
-
-            <div class="bg-light rounded-3 p-3 transition-hover" style="border-left: 3px solid #6c757d;">
-                <p class="small text-muted mb-0"><i class="fa-solid fa-screwdriver-wrench me-1"></i> Kỹ thuật NTTU:</p>
-                <h6 class="fw-bold text-dark mb-0">028.XXX.XXXX</h6>
+            <div class="bg-light p-2 rounded small border-start border-secondary border-3">
+                Kỹ thuật: <strong>028.XXX.XXXX</strong>
             </div>
         </div>
-
-        <button type="button" class="bql-fab" id="globalBqlFabBtn" title="Hỗ trợ BQL SafeGuard">
-            <i class="fa-solid fa-headset"></i>
-        </button>
+        <button type="button" class="bql-fab" id="globalBqlFabBtn"><i class="fa-solid fa-headset"></i></button>
     </div>
 
-    <a href="tel:114" class="floating-hotline-114" title="Gọi cứu hỏa khẩn cấp">
-        <i class="fa-solid fa-phone"></i>
-        <span>GỌI 114</span>
-    </a>
+    <a href="tel:114" class="floating-hotline-114"><i class="fa-solid fa-phone"></i> <span>GỌI 114</span></a>
 
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        document.addEventListener("DOMContentLoaded", function () {
-            const fabBtn = document.getElementById('globalBqlFabBtn');
-            const popup = document.getElementById('globalBqlPopup');
-            const closeBtn = document.getElementById('closeGlobalBqlPopup');
-
-            if (fabBtn && popup && closeBtn) {
-                function togglePopup() {
-                    if (popup.classList.contains('show')) {
-                        popup.classList.remove('show');
-                        fabBtn.classList.remove('active');
-                        fabBtn.innerHTML = '<i class="fa-solid fa-headset"></i>';
-                    } else {
-                        popup.classList.add('show');
-                        fabBtn.classList.add('active');
-                        fabBtn.innerHTML = '<i class="fa-solid fa-xmark"></i>';
-                    }
-                }
-
-                fabBtn.addEventListener('click', togglePopup);
-                closeBtn.addEventListener('click', togglePopup);
-
-                window.addEventListener('click', function (event) {
-                    if (!popup.contains(event.target) && !fabBtn.contains(event.target) && event.target !== fabBtn) {
-                        popup.classList.remove('show');
-                        fabBtn.classList.remove('active');
-                        fabBtn.innerHTML = '<i class="fa-solid fa-headset"></i>';
-                    }
-                });
-            }
+        $(document).ready(function () {
+            $('#globalBqlFabBtn').click(function () {
+                $('#globalBqlPopup').toggleClass('show');
+            });
+            $(document).click(function (e) {
+                if (!$(e.target).closest('.bql-fab-wrapper').length) $('#globalBqlPopup').removeClass('show');
+            });
         });
     </script>
+    @RenderSection("Scripts", required: false)
 </body>
 </html>

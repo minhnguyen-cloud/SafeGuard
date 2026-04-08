@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using System.Web.Mvc;
 using SafeGuard.Filters;
@@ -7,22 +9,85 @@ using Amazon.DynamoDBv2.DocumentModel;
 
 namespace SafeGuard.Controllers
 {
-    [RoleAuthorize(Role = "TENANT")] // CHỈ NGƯỜI THUÊ MỚI VÀO ĐƯỢC
+    [RoleAuthorize(Role = "TENANT")]
     public class TenantController : Controller
     {
-        // Các trang giao diện cơ bản
+        // View Model để truyền dữ liệu ra bảng
+        public class TenantAlertVM
+        {
+            public DateTime TimeStamp { get; set; }
+            public double Temperature { get; set; }
+            public string Description { get; set; }
+            public string AlertType { get; set; } // "fire", "high_temp", "normal"
+        }
+
         public ActionResult Index() => View();
-        public ActionResult LichSuCanhBao() => View();
         public ActionResult NoiQuy() => View();
         public ActionResult ThongTinCaNhan() => View();
         public ActionResult QuanLyPhong() => View();
         public ActionResult PhanTichAI() => View();
 
-        // Hàm xử lý logic khi người thuê bấm XÁC NHẬN MÃ
+        // ==========================================
+        // LẤY LỊCH SỬ CẢNH BÁO TỪ DYNAMODB
+        // ==========================================
+        public async Task<ActionResult> LichSuCanhBao()
+        {
+            var alertList = new List<TenantAlertVM>();
+            string myRoomId = "101"; // Gắn cứng phòng 101 theo yêu cầu
+
+            try
+            {
+                var client = new AmazonDynamoDBClient(Amazon.RegionEndpoint.APSoutheast1);
+                var table = Table.LoadTable(client, "SafeDorm_History");
+
+                // Lọc lấy dữ liệu của phòng 101
+                var queryFilter = new QueryFilter("room_id", QueryOperator.Equal, myRoomId);
+                var search = table.Query(queryFilter);
+                var documentList = await search.GetNextSetAsync();
+
+                foreach (var doc in documentList)
+                {
+                    double temp = doc["temperature"].AsDouble();
+                    long unixTimestamp = doc["timestamp"].AsLong();
+                    DateTime timeStamp = DateTimeOffset.FromUnixTimeSeconds(unixTimestamp).ToLocalTime().DateTime;
+
+                    // Phân loại logic cảnh báo
+                    string type = "normal";
+                    string desc = "Mức nhiệt độ phòng ổn định, cảm biến hoạt động tốt.";
+
+                    if (temp >= 50)
+                    {
+                        type = "fire";
+                        desc = "Cảnh báo nguy cơ cháy: Nhiệt độ tăng đột biến cực cao!";
+                    }
+                    else if (temp >= 38)
+                    {
+                        type = "high_temp";
+                        desc = $"Nhiệt độ tăng cao bất thường ({temp}°C).";
+                    }
+
+                    alertList.Add(new TenantAlertVM
+                    {
+                        TimeStamp = timeStamp,
+                        Temperature = temp,
+                        Description = desc,
+                        AlertType = type
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine("Lỗi lấy dữ liệu Tenant: " + ex.Message);
+            }
+
+            // Sắp xếp mới nhất lên đầu
+            var sortedList = alertList.OrderByDescending(x => x.TimeStamp).ToList();
+            return View(sortedList);
+        }
+
         [HttpPost]
         public async Task<ActionResult> XacNhanMaPhong(string inviteCode)
         {
-            // 1. Kiểm tra xem có nhập mã chưa
             if (string.IsNullOrEmpty(inviteCode))
             {
                 TempData["ErrorMessage"] = "Vui lòng nhập mã phòng!";
@@ -33,8 +98,6 @@ namespace SafeGuard.Controllers
             {
                 var client = new AmazonDynamoDBClient(Amazon.RegionEndpoint.APSoutheast1);
                 var inviteTable = Table.LoadTable(client, "RoomInvites");
-
-                // 2. Tìm mã trong bảng RoomInvites trên AWS
                 var inviteItem = await inviteTable.GetItemAsync(inviteCode.Trim().ToUpper());
 
                 if (inviteItem == null)
@@ -49,50 +112,35 @@ namespace SafeGuard.Controllers
                     return RedirectToAction("QuanLyPhong");
                 }
 
-                // ==========================================
-                // 3. KIỂM TRA THỜI HẠN (HẠN SỬ DỤNG)
-                // ==========================================
                 if (inviteItem.ContainsKey("CreatedAt") && inviteItem.ContainsKey("ExpireHours"))
                 {
                     DateTime createdAt = DateTime.Parse(inviteItem["CreatedAt"].AsString());
                     int expireHours = inviteItem["ExpireHours"].AsInt();
-
-                    // Nếu thời gian hiện tại (UTC) lớn hơn thời gian tạo + số giờ cho phép -> Đã hết hạn
                     if (DateTime.UtcNow > createdAt.AddHours(expireHours))
                     {
-                        TempData["ErrorMessage"] = "Mã kích hoạt này đã hết hạn sử dụng. Vui lòng xin mã mới từ Chủ trọ!";
+                        TempData["ErrorMessage"] = "Mã kích hoạt này đã hết hạn sử dụng!";
                         return RedirectToAction("QuanLyPhong");
                     }
                 }
 
-                // 4. Nếu mã đúng, chưa dùng và còn hạn: Cập nhật mã này thành ĐÃ SỬ DỤNG
                 string roomId = inviteItem["RoomId"].AsString();
                 inviteItem["IsUsed"] = true;
                 await inviteTable.UpdateItemAsync(inviteItem);
 
-                // 5. Gán phòng cho User hiện tại (Lưu vào bảng Users)
                 if (Session["UserEmail"] != null)
                 {
                     string userEmail = Session["UserEmail"].ToString();
                     var usersTable = Table.LoadTable(client, "Users");
-
                     var userDoc = new Document();
-                    userDoc["userID"] = userEmail; // Tùy vào Partition Key bảng Users của bạn
-                    userDoc["AssignedRoom"] = roomId; // Cập nhật cột AssignedRoom
-
+                    userDoc["userID"] = userEmail;
+                    userDoc["AssignedRoom"] = roomId;
                     await usersTable.UpdateItemAsync(userDoc);
-
-                    // Lưu vào Session để các trang khác lấy ra dùng nhanh mà không cần gọi DB
                     Session["AssignedRoom"] = roomId;
                 }
 
-                // Báo cáo thành công!
-                TempData["SuccessMessage"] = $"Chúc mừng! Bạn đã gia nhập phòng {roomId} thành công. Hệ thống cảnh báo đã được kích hoạt.";
+                TempData["SuccessMessage"] = $"Chúc mừng! Bạn đã gia nhập phòng {roomId} thành công.";
             }
-            catch (Exception ex)
-            {
-                TempData["ErrorMessage"] = "Lỗi hệ thống khi kết nối AWS: " + ex.Message;
-            }
+            catch (Exception ex) { TempData["ErrorMessage"] = "Lỗi hệ thống: " + ex.Message; }
 
             return RedirectToAction("QuanLyPhong");
         }

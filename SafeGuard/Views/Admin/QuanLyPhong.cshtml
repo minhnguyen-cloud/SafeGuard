@@ -80,7 +80,7 @@
                                     </span>
                                 </td>
                                 <td class="text-center">
-                                    <button type="button" class="btn btn-sm btn-outline-primary border-0 me-1" onclick="viewMembers('@room.RoomId'); forceOpenModal('memberModal');" title="Xem người thuê">
+                                    <button type="button" class="btn btn-sm btn-outline-primary border-0 me-1 view-members-btn" data-room-id="@room.BlockName-@room.RoomId" title="Xem người thuê">
                                         <i class="fa-solid fa-users-viewfinder"></i>
                                     </button>
 
@@ -136,20 +136,25 @@
     </div>
 </div>
 
-<div class="modal fade shadow" id="memberModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade" id="roomMembersModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content border-0 shadow">
-            <div class="modal-header border-bottom-0 pb-0">
-                <h5 class="modal-title fw-bold">Thành viên trong phòng</h5>
-                <button type="button" class="btn-close close" data-dismiss="modal" data-bs-dismiss="modal" aria-label="Close">
-                    <span aria-hidden="true">&times;</span>
-                </button>
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 20px;">
+            <div class="modal-header border-0 pb-0 px-4 pt-4">
+                <h5 class="modal-title fw-bold text-dark">
+                    <i class="fa-solid fa-house-user text-primary me-2"></i>Thành viên <span id="modalRoomName" class="text-primary"></span>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body py-4">
-                <p class="text-muted text-center italic">Đang đồng bộ danh sách từ tài khoản sinh viên...</p>
-            </div>
-            <div class="modal-footer border-top-0 pt-0">
-                <button type="button" class="btn btn-light fw-bold" data-dismiss="modal" data-bs-dismiss="modal">Đóng</button>
+            <div class="modal-body p-4">
+                <div id="membersLoading" class="text-center py-4">
+                    <div class="spinner-border text-primary" role="status"></div>
+                    <p class="text-muted mt-2 small">Đang tải dữ liệu từ máy chủ AWS...</p>
+                </div>
+
+                <div id="membersContent" style="display: none;">
+                    <ul class="list-group list-group-flush" id="membersList">
+                    </ul>
+                </div>
             </div>
         </div>
     </div>
@@ -157,18 +162,16 @@
 
 @section Scripts {
     <script>
-        // --- HÀM ÉP MỞ MODAL BẤT CHẤP PHIÊN BẢN ---
+        // --- HÀM ÉP MỞ MODAL BẤT CHẤP PHIÊN BẢN (Dành cho nút Thêm Phòng) ---
         function forceOpenModal(modalId) {
             var modalEl = document.getElementById(modalId);
             if (!modalEl) return;
 
-            // 1. Thử dùng jQuery (Bootstrap 3/4)
             if (typeof jQuery !== 'undefined' && typeof jQuery.fn.modal !== 'undefined') {
                 $('#' + modalId).modal('show');
                 return;
             }
 
-            // 2. Thử dùng Vanilla JS (Bootstrap 5)
             if (typeof bootstrap !== 'undefined') {
                 var bsModal = bootstrap.Modal.getInstance(modalEl);
                 if (!bsModal) {
@@ -178,8 +181,7 @@
                 return;
             }
 
-            // 3. Báo lỗi nếu Layout thiếu Javascript
-            alert("Hệ thống phát hiện file _DashboardLayout.cshtml của bạn chưa được liên kết với thư viện Bootstrap Javascript (bootstrap.min.js). Vui lòng thêm thư viện để chức năng Popup hoạt động!");
+            alert("Thiếu thư viện Bootstrap Javascript!");
         }
 
         // --- HÀM LỌC TÌM KIẾM ---
@@ -212,10 +214,65 @@
             if (txtSearch) txtSearch.addEventListener("input", applyFilters);
         });
 
-        function viewMembers(roomId) {
-            // Hàm tạm để test click nút Xem thành viên
-            console.log("Đang xem thành viên phòng: " + roomId);
-        }
+        // --- AJAX XỬ LÝ NÚT XEM THÀNH VIÊN ---
+        $(document).ready(function () {
+            $('.view-members-btn').on('click', function (e) {
+                e.preventDefault();
+
+                var roomId = $(this).data('room-id');
+
+                // Cập nhật giao diện chờ
+                $('#modalRoomName').text('Phòng ' + roomId);
+                $('#membersContent').hide();
+                $('#membersLoading').show();
+                $('#membersList').empty();
+
+                // Bật Modal
+                forceOpenModal('roomMembersModal');
+
+                // Gọi API
+                $.get('@Url.Action("GetRoomMembers", "Admin")', { roomId: roomId }, function (res) {
+                    $('#membersLoading').hide();
+                    $('#membersContent').show();
+
+                    if (res.success && res.data && res.data.length > 0) {
+                        let html = '';
+                        res.data.forEach(user => {
+                            // Tạo avatar 2 chữ cái
+                            let names = user.FullName.split(' ');
+                            let initials = names.length >= 2
+                                ? (names[0].charAt(0) + names[names.length - 1].charAt(0)).toUpperCase()
+                                : user.FullName.substring(0, 2).toUpperCase();
+
+                            html += `
+                                <li class="list-group-item px-0 py-3 border-bottom d-flex align-items-center">
+                                    <div class="bg-primary bg-opacity-10 text-primary rounded-circle d-flex justify-content-center align-items-center fw-bold me-3 flex-shrink-0" style="width: 45px; height: 45px; border: 2px solid #0d6efd;">
+                                        ${initials}
+                                    </div>
+                                    <div>
+                                        <h6 class="mb-1 fw-bold text-dark">${user.FullName}</h6>
+                                        <small class="text-muted"><i class="fa-regular fa-envelope me-1"></i>${user.Email}</small>
+                                    </div>
+                                    <span class="badge bg-success bg-opacity-10 text-success rounded-pill ms-auto px-3 py-2 border border-success">Đang thuê</span>
+                                </li>
+                            `;
+                        });
+                        $('#membersList').html(html);
+                    } else {
+                        $('#membersList').html(`
+                            <div class="text-center py-4">
+                                <i class="fa-solid fa-user-xmark text-muted opacity-25" style="font-size: 3rem;"></i>
+                                <p class="text-muted mt-3 mb-0">Phòng này hiện chưa có người thuê.</p>
+                            </div>
+                        `);
+                    }
+                }).fail(function () {
+                    $('#membersLoading').hide();
+                    $('#membersContent').show();
+                    $('#membersList').html('<div class="text-center text-danger py-3"><i class="fa-solid fa-triangle-exclamation me-2"></i> Lỗi kết nối đến máy chủ.</div>');
+                });
+            });
+        });
     </script>
 }
 
