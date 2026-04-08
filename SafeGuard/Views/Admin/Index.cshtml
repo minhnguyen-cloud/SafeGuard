@@ -14,28 +14,59 @@
 
     <div class="row g-4 mb-4">
         <div class="col-md-7 anim-fade-up">
-            <div class="custom-card p-4">
+            <div class="custom-card p-4 h-100">
                 <h6 class="card-title-custom">Tóm Tắt Hệ Thống</h6>
                 <div class="row mt-3">
-                    <div class="col-6 mb-2"><span class="text-muted small">Tổng Số Phòng:</span> <strong class="fs-5 ms-2">50</strong></div>
-                    <div class="col-6 mb-2"><span class="text-muted small">Cảnh Báo Hiện Tại:</span> <strong class="fs-5 ms-2 text-danger">0</strong></div>
-                    <div class="col-6"><span class="text-muted small">Đang Hoạt Động:</span> <strong class="fs-5 ms-2">48</strong></div>
-                    <div class="col-6"><span class="text-muted small">Thiết Bị Online:</span> <strong class="fs-5 ms-2 text-success">48/50</strong></div>
+                    <div class="col-6 mb-2">
+                        <span class="text-muted small">Tổng Số Phòng:</span>
+                        <strong class="fs-5 ms-2">@(ViewBag.TotalRooms ?? 0)</strong>
+                    </div>
+
+                    <div class="col-6 mb-2">
+                        <span class="text-muted small">Cảnh Báo Hiện Tại:</span>
+                        <strong class="fs-5 ms-2 @(ViewBag.CurrentAlerts > 0 ? "text-danger" : "text-success")">
+                            @(ViewBag.CurrentAlerts ?? 0)
+                        </strong>
+                    </div>
+
+                    <div class="col-6">
+                        <span class="text-muted small">Đang Hoạt Động:</span>
+                        <strong class="fs-5 ms-2">@(ViewBag.ActiveRooms ?? 0)</strong>
+                    </div>
+
+                    <div class="col-6">
+                        <span class="text-muted small">Thiết Bị Online:</span>
+                        <strong class="fs-5 ms-2 @(ViewBag.OnlineDevices == ViewBag.TotalRooms && ViewBag.TotalRooms > 0 ? "text-success" : "text-warning")">
+                            @(ViewBag.OnlineDevices ?? 0)/@(ViewBag.TotalRooms ?? 0)
+                        </strong>
+                    </div>
                 </div>
             </div>
         </div>
+
         <div class="col-md-5 anim-fade-up delay-1">
-            <div class="custom-card p-4">
+            <div class="custom-card p-4 h-100">
                 <h6 class="card-title-custom">Trạng Thái Gần Đây</h6>
                 <ul class="list-unstyled mb-0 mt-3">
-                    <li class="mb-3 d-flex align-items-center">
-                        <span class="status-dot bg-green me-3"></span>
-                        <span class="text-muted small">Phòng 102: Sinh Viên B đã đăng ký (10:30 AM)</span>
-                    </li>
-                    <li class="d-flex align-items-center">
-                        <span class="status-dot bg-gray me-3"></span>
-                        <span class="text-muted small">Phòng 205: Reset cảm biến (10:15 AM)</span>
-                    </li>
+                    @if (ViewBag.RecentActivities != null && ViewBag.RecentActivities.Count > 0)
+                    {
+                        foreach (var activity in ViewBag.RecentActivities)
+                        {
+                            <li class="mb-3 d-flex align-items-center">
+                                <span class="status-dot bg-green me-3"></span>
+                                <span class="text-muted small">
+                                    <strong>@activity.Name</strong> đã tham gia <strong>Phòng @activity.Room</strong>
+                                    <span style="font-size: 0.85em; opacity: 0.8;">(@activity.Time)</span>
+                                </span>
+                            </li>
+                        }
+                    }
+                    else
+                    {
+                        <li class="text-muted small d-flex align-items-center">
+                            <i class="fa-solid fa-clock-rotate-left me-2"></i> Chưa có sinh viên nào đăng ký phòng mới.
+                        </li>
+                    }
                 </ul>
             </div>
         </div>
@@ -43,7 +74,7 @@
 
     <div class="row g-4 mb-4">
         <div class="col-md-8 anim-fade-up delay-2">
-            <div class="custom-card p-4">
+            <div class="custom-card p-4 h-100">
                 <h6 class="card-title-custom text-primary mb-3">Quản Lý Cảm Biến Theo Phòng</h6>
                 <div class="table-responsive">
                     <table class="table table-borderless table-hover align-middle">
@@ -65,7 +96,7 @@
         </div>
 
         <div class="col-md-4 anim-fade-up delay-2">
-            <div class="custom-card p-4">
+            <div class="custom-card p-4 h-100">
                 <h6 class="card-title-custom">Tạo Mã Kích Hoạt (Mã Mời)</h6>
                 <form method="post" action="@Url.Action("TaoMaMoi", "Admin")">
                     <select name="selectedRoom" class="form-select mb-3 mt-3 shadow-sm" required>
@@ -103,14 +134,14 @@
             </div>
         </div>
         <div class="col-md-3 anim-fade-up delay-3">
-            <div class="custom-card p-4 text-center">
+            <div class="custom-card p-4 text-center h-100 d-flex flex-column justify-content-center">
                 <h6 class="card-title-custom">Chủ Trọ</h6>
                 <p class="mt-2 mb-3 fw-bold text-primary">@Session["UserName"]</p>
                 <button class="btn btn-sm btn-outline-dark w-100">Bảo mật hồ sơ</button>
             </div>
         </div>
         <div class="col-md-4 anim-fade-up delay-3">
-            <div class="custom-card p-4 text-center">
+            <div class="custom-card p-4 text-center h-100 d-flex flex-column justify-content-center">
                 <h6 class="card-title-custom">Thông Tin Hệ Thống</h6>
                 <i class="fa-brands fa-aws fs-2 text-warning my-2"></i>
                 <p class="text-muted small mb-0">Powered by AWS Serverless</p>

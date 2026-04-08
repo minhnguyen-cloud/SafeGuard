@@ -1,55 +1,110 @@
 ﻿@{
-    ViewBag.Title = "Báo Cáo AI & Thống Kê";
+    ViewBag.Title = "Dashboard SafeDorm AI";
     Layout = "~/Views/Shared/_DashboardLayout.cshtml";
 }
 
+<style>
+    .room-card {
+        transition: 0.3s;
+        cursor: pointer;
+        min-width: 110px;
+        border: 2px solid transparent;
+    }
+
+        .room-card:hover {
+            transform: translateY(-3px);
+            filter: brightness(1.1);
+        }
+
+    .room-active {
+        border-color: #212529 !important;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        scale: 1.05;
+    }
+
+    .bg-danger-alert {
+        background-color: #dc3545 !important;
+        animation: pulse-red 2s infinite;
+    }
+
+    @@keyframes pulse-red {
+        0% {
+            box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.7);
+        }
+
+        70% {
+            box-shadow: 0 0 0 10px rgba(220, 53, 69, 0);
+        }
+
+        100% {
+            box-shadow: 0 0 0 0 rgba(220, 53, 69, 0);
+        }
+    }
+</style>
+
 <div class="container-fluid p-0">
-    <div class="row g-4 mb-4">
-        <div class="col-md-8 anim-fade-up">
-            <div class="custom-card p-4">
-                <h6 class="card-title-custom mb-1">Biểu Đồ Biến Thiên Nhiệt Độ (7 Ngày Qua)</h6>
-                <p class="text-muted small mb-4">Hệ thống AI tự động thu thập và vẽ lại dải nhiệt độ trung bình của toàn khu trọ.</p>
-                <div style="height: 300px;">
-                    <canvas id="tempHistoryChart"></canvas>
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="custom-card p-4 shadow-sm border-0">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h6 class="fw-bold mb-0"><i class="fa-solid fa-layer-group me-2 text-primary"></i>Sơ Đồ Nhiệt Độ Dãy Trọ</h6>
+                    <span class="badge bg-light text-dark border">Real-time Data</span>
+                </div>
+                <div id="roomHeatmap" class="d-flex flex-wrap gap-3">
+                    <div class="text-muted small italic">Đang kết nối hệ thống AWS IoT...</div>
                 </div>
             </div>
         </div>
-        <div class="col-md-4 anim-fade-up delay-1">
-            <div class="custom-card p-4 bg-primary text-white border-0 shadow" style="background: linear-gradient(135deg, #0d6efd 0%, #0a58ca 100%);">
-                <div class="d-flex align-items-center mb-3">
-                    <i class="fa-solid fa-wand-magic-sparkles fs-3 me-3 text-warning"></i>
-                    <h6 class="fw-bold mb-0 text-uppercase">AI Đánh Giá An Toàn</h6>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-md-8">
+            <div class="custom-card p-4 border-0 shadow-sm">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h6 id="chartTitle" class="fw-bold mb-0 text-primary">Lịch sử nhiệt độ Phòng 101</h6>
+                    <button class="btn btn-primary btn-sm rounded-pill px-3 shadow-sm" onclick="loadData(true)">
+                        <i class="fa-solid fa-robot me-1"></i> Yêu cầu AI Phân Tích
+                    </button>
                 </div>
-                <hr class="border-light opacity-25">
-                <ul class="list-unstyled mt-3 mb-0">
-                    <li class="mb-3 d-flex"><i class="fa-solid fa-circle-check text-success bg-white rounded-circle fs-5 me-3"></i> Tình trạng toàn khu ổn định (Điểm an toàn: 95/100).</li>
-                    <li class="mb-3 d-flex"><i class="fa-solid fa-circle-exclamation text-warning bg-white rounded-circle fs-5 me-3"></i> AI nhận thấy Phòng 103 thường xuyên có mức nhiệt cao vào buổi trưa. Khuyến nghị kiểm tra thiết bị sinh nhiệt.</li>
-                    <li class="d-flex"><i class="fa-solid fa-circle-info text-info bg-white rounded-circle fs-5 me-3"></i> Hệ thống cảm biến hoạt động tốt, không có độ trễ mạng.</li>
-                </ul>
+                <div style="height: 320px;"><canvas id="tempChart"></canvas></div>
+                <div class="mt-2 text-center text-muted small italic">Trục ngang hiển thị các lần đo gần nhất từ cảm biến</div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div id="ai-card" class="custom-card p-4 bg-dark text-white border-0 shadow h-100 transition-3">
+                <h6 class="fw-bold mb-3 text-warning text-uppercase small tracking-wider">
+                    <i class="fa-solid fa-microchip me-2"></i>SafeGuard AI Core
+                </h6>
+                <hr class="border-secondary">
+                <div id="ai-box" class="mt-3" style="line-height: 1.8; font-size: 0.95rem; color: #f8f9fa;">
+                    Đang tải dữ liệu phòng...
+                </div>
             </div>
         </div>
     </div>
 </div>
 
 @section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
-        const ctx2 = document.getElementById('tempHistoryChart').getContext('2d');
-        const gradientLine = ctx2.createLinearGradient(0, 0, 0, 300);
-        gradientLine.addColorStop(0, 'rgba(255, 99, 132, 0.5)');
-        gradientLine.addColorStop(1, 'rgba(255, 99, 132, 0.0)');
+        let currentRoom = "101";
+        const ctx = document.getElementById('tempChart').getContext('2d');
 
-        new Chart(ctx2, {
+        let myChart = new Chart(ctx, {
             type: 'line',
             data: {
-                labels: ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'CN'],
+                labels: ['-', '-', '-', '-', '-', '-', '-'],
                 datasets: [{
-                    label: 'Nhiệt độ cao nhất (°C)',
-                    data: [32, 33, 31, 35, 48, 32, 31],
-                    borderColor: '#dc3545',
-                    backgroundColor: gradientLine,
+                    label: 'Nhiệt độ (°C)',
+                    data: [0, 0, 0, 0, 0, 0, 0],
+                    borderColor: '#ff4d4d',
+                    backgroundColor: 'rgba(255, 77, 77, 0.1)',
                     borderWidth: 3,
                     fill: true,
-                    tension: 0.4
+                    tension: 0.4,
+                    pointRadius: 5,
+                    pointBackgroundColor: '#fff'
                 }]
             },
             options: {
@@ -57,9 +112,62 @@
                 maintainAspectRatio: false,
                 plugins: { legend: { display: false } },
                 scales: {
-                    y: { beginAtZero: false, min: 25, max: 55 }
+                    y: { min: 10, max: 70, grid: { color: '#f0f0f0' } },
+                    x: { grid: { display: false } }
                 }
             }
         });
+
+        async function loadData(askAi = false) {
+            const aiBox = document.getElementById('ai-box');
+            const aiCard = document.getElementById('ai-card');
+            const heatmap = document.getElementById('roomHeatmap');
+
+            if (askAi) {
+                aiBox.innerHTML = '<div class="d-flex align-items-center"><div class="spinner-border spinner-border-sm text-warning me-3"></div><span>SafeGuard AI Core đang phân tích sâu...</span></div>';
+            }
+
+            try {
+                const apiBase = "https://sbptpcca47.execute-api.ap-southeast-1.amazonaws.com/analyze";
+                const response = await fetch(`${apiBase}?room_id=${currentRoom}&ask_ai=${askAi}`);
+                const data = await response.json();
+
+                // 1. Cập nhật Heatmap
+                const rooms = ["101", "102", "103", "104"];
+                heatmap.innerHTML = "";
+                rooms.forEach(r => {
+                    let temp = (r === data.current_room) ? (data.chart_data[data.chart_data.length - 1] || 0) : 30;
+                    let colorClass = temp > 40 ? "bg-danger" : (temp > 35 ? "bg-warning text-dark" : "bg-success");
+                    let activeClass = (r === currentRoom) ? "room-active" : "";
+                    heatmap.innerHTML += `<div onclick="selectRoom('${r}')" class="room-card p-3 text-white rounded shadow-sm ${colorClass} ${activeClass}"><div class="small opacity-75">Phòng</div><div class="fw-bold fs-4">${r}</div><div class="small opacity-75">${temp}°C</div></div>`;
+                });
+
+                // 2. Cập nhật biểu đồ
+                document.getElementById('chartTitle').innerHTML = `<i class="fa-solid fa-chart-line me-2"></i>Lịch sử nhiệt độ Phòng ${currentRoom}`;
+                if (data.labels) myChart.data.labels = data.labels;
+                if (data.chart_data) myChart.data.datasets[0].data = data.chart_data;
+                myChart.update();
+
+                // 3. Cập nhật AI
+                aiBox.innerHTML = data.ai_analysis;
+                const latestTemp = data.chart_data[data.chart_data.length - 1];
+                if (latestTemp > 40) {
+                    aiCard.className = "custom-card p-4 bg-danger-alert text-white border-0 shadow h-100";
+                } else {
+                    aiCard.className = "custom-card p-4 bg-dark text-white border-0 shadow h-100";
+                }
+
+            } catch (err) {
+                console.error("Lỗi:", err);
+                aiBox.innerHTML = `<span class="text-warning small"><i class="fa-solid fa-circle-exclamation me-2"></i>Lỗi kết nối AWS.</span>`;
+            }
+        }
+
+        function selectRoom(id) {
+            currentRoom = id;
+            loadData(false);
+        }
+
+        document.addEventListener("DOMContentLoaded", () => loadData(false));
     </script>
 }
