@@ -24,8 +24,33 @@ namespace SafeGuard.Controllers
         public ActionResult Index() => View();
         public ActionResult NoiQuy() => View();
         public ActionResult ThongTinCaNhan() => View();
-        public ActionResult QuanLyPhong() => View();
         public ActionResult PhanTichAI() => View();
+
+        [HttpGet]
+        public async Task<ActionResult> QuanLyPhong()
+        {
+            // Nếu có đăng nhập nhưng Session phòng đang trống, thì tự động xuống DB lấy lên
+            if (Session["UserEmail"] != null && Session["AssignedRoom"] == null)
+            {
+                try
+                {
+                    var client = new AmazonDynamoDBClient(Amazon.RegionEndpoint.APSoutheast1);
+                    var usersTable = Table.LoadTable(client, "Users");
+                    var userItem = await usersTable.GetItemAsync(Session["UserEmail"].ToString());
+
+                    // Nếu trong DB có cột AssignedRoom và không bị rỗng
+                    if (userItem != null && userItem.ContainsKey("AssignedRoom") && !string.IsNullOrEmpty(userItem["AssignedRoom"].AsString()))
+                    {
+                        Session["AssignedRoom"] = userItem["AssignedRoom"].AsString(); // Gán vào Session
+                    }
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine("Lỗi lấy phòng: " + ex.Message);
+                }
+            }
+            return View();
+        }
 
         // ==========================================
         // LẤY LỊCH SỬ CẢNH BÁO TỪ DYNAMODB
@@ -33,14 +58,19 @@ namespace SafeGuard.Controllers
         public async Task<ActionResult> LichSuCanhBao()
         {
             var alertList = new List<TenantAlertVM>();
-            string myRoomId = "101"; // Gắn cứng phòng 101 theo yêu cầu
+
+            // Lấy phòng từ Session
+            string myRoomId = Session["AssignedRoom"] != null ? Session["AssignedRoom"].ToString() : "Chưa liên kết";
+
+            // THÊM DÒNG NÀY ĐỂ TRUYỀN TÊN PHÒNG RA NGOÀI GIAO DIỆN
+            ViewBag.RoomId = myRoomId;
 
             try
             {
                 var client = new AmazonDynamoDBClient(Amazon.RegionEndpoint.APSoutheast1);
                 var table = Table.LoadTable(client, "SafeDorm_History");
 
-                // Lọc lấy dữ liệu của phòng 101
+                // Lọc lấy dữ liệu của phòng hiện tại
                 var queryFilter = new QueryFilter("room_id", QueryOperator.Equal, myRoomId);
                 var search = table.Query(queryFilter);
                 var documentList = await search.GetNextSetAsync();
@@ -48,8 +78,30 @@ namespace SafeGuard.Controllers
                 foreach (var doc in documentList)
                 {
                     double temp = doc["temperature"].AsDouble();
-                    long unixTimestamp = doc["timestamp"].AsLong();
-                    DateTime timeStamp = DateTimeOffset.FromUnixTimeSeconds(unixTimestamp).ToLocalTime().DateTime;
+                    DateTime timeStamp;
+
+                    // ĐÃ SỬA: Logic đọc ngày tháng thông minh (Đọc được cả số cũ và chữ mới)
+                    // ĐÃ SỬA: Logic đọc ngày tháng chống lỗi (Đọc được cả số cũ và chữ mới)
+                    if (doc.ContainsKey("timestamp"))
+                    {
+                        string timeStr = doc["timestamp"].AsString();
+
+                        // Nếu chuỗi có chứa dấu "-" (VD: "2026-04-08 15:30:00") thì nó là ngày tháng kiểu mới
+                        if (timeStr.Contains("-"))
+                        {
+                            DateTime.TryParse(timeStr, out timeStamp);
+                        }
+                        else
+                        {
+                            // Nếu không có dấu "-", nó là dãy số Unix Timestamp cũ (VD: "1712500000")
+                            long unixTime = long.Parse(timeStr);
+                            timeStamp = DateTimeOffset.FromUnixTimeSeconds(unixTime).ToLocalTime().DateTime;
+                        }
+                    }
+                    else
+                    {
+                        timeStamp = DateTime.Now; // Đề phòng lỗi thiếu cột
+                    }
 
                     // Phân loại logic cảnh báo
                     string type = "normal";
@@ -85,6 +137,9 @@ namespace SafeGuard.Controllers
             return View(sortedList);
         }
 
+        // ==========================================
+        // NGƯỜI THUÊ NHẬP MÃ THAM GIA PHÒNG
+        // ==========================================
         [HttpPost]
         public async Task<ActionResult> XacNhanMaPhong(string inviteCode)
         {
@@ -131,10 +186,12 @@ namespace SafeGuard.Controllers
                 {
                     string userEmail = Session["UserEmail"].ToString();
                     var usersTable = Table.LoadTable(client, "Users");
+
                     var userDoc = new Document();
                     userDoc["userID"] = userEmail;
                     userDoc["AssignedRoom"] = roomId;
                     await usersTable.UpdateItemAsync(userDoc);
+
                     Session["AssignedRoom"] = roomId;
                 }
 
