@@ -6,6 +6,9 @@ using System.Web.Mvc;
 using SafeGuard.Filters;
 using Amazon.DynamoDBv2;
 using Amazon.DynamoDBv2.DocumentModel;
+using Newtonsoft.Json;
+using System.Net.Http;
+using System.Text;
 
 namespace SafeGuard.Controllers
 {
@@ -38,10 +41,9 @@ namespace SafeGuard.Controllers
                     var usersTable = Table.LoadTable(client, "Users");
                     var userItem = await usersTable.GetItemAsync(Session["UserEmail"].ToString());
 
-                    // Nếu trong DB có cột AssignedRoom và không bị rỗng
                     if (userItem != null && userItem.ContainsKey("AssignedRoom") && !string.IsNullOrEmpty(userItem["AssignedRoom"].AsString()))
                     {
-                        Session["AssignedRoom"] = userItem["AssignedRoom"].AsString(); // Gán vào Session
+                        Session["AssignedRoom"] = userItem["AssignedRoom"].AsString();
                     }
                 }
                 catch (Exception ex)
@@ -58,11 +60,7 @@ namespace SafeGuard.Controllers
         public async Task<ActionResult> LichSuCanhBao()
         {
             var alertList = new List<TenantAlertVM>();
-
-            // Lấy phòng từ Session
             string myRoomId = Session["AssignedRoom"] != null ? Session["AssignedRoom"].ToString() : "Chưa liên kết";
-
-            // THÊM DÒNG NÀY ĐỂ TRUYỀN TÊN PHÒNG RA NGOÀI GIAO DIỆN
             ViewBag.RoomId = myRoomId;
 
             try
@@ -70,7 +68,6 @@ namespace SafeGuard.Controllers
                 var client = new AmazonDynamoDBClient(Amazon.RegionEndpoint.APSoutheast1);
                 var table = Table.LoadTable(client, "SafeDorm_History");
 
-                // Lọc lấy dữ liệu của phòng hiện tại
                 var queryFilter = new QueryFilter("room_id", QueryOperator.Equal, myRoomId);
                 var search = table.Query(queryFilter);
                 var documentList = await search.GetNextSetAsync();
@@ -80,30 +77,24 @@ namespace SafeGuard.Controllers
                     double temp = doc["temperature"].AsDouble();
                     DateTime timeStamp;
 
-                    // ĐÃ SỬA: Logic đọc ngày tháng thông minh (Đọc được cả số cũ và chữ mới)
-                    // ĐÃ SỬA: Logic đọc ngày tháng chống lỗi (Đọc được cả số cũ và chữ mới)
                     if (doc.ContainsKey("timestamp"))
                     {
                         string timeStr = doc["timestamp"].AsString();
-
-                        // Nếu chuỗi có chứa dấu "-" (VD: "2026-04-08 15:30:00") thì nó là ngày tháng kiểu mới
                         if (timeStr.Contains("-"))
                         {
                             DateTime.TryParse(timeStr, out timeStamp);
                         }
                         else
                         {
-                            // Nếu không có dấu "-", nó là dãy số Unix Timestamp cũ (VD: "1712500000")
                             long unixTime = long.Parse(timeStr);
                             timeStamp = DateTimeOffset.FromUnixTimeSeconds(unixTime).ToLocalTime().DateTime;
                         }
                     }
                     else
                     {
-                        timeStamp = DateTime.Now; // Đề phòng lỗi thiếu cột
+                        timeStamp = DateTime.Now;
                     }
 
-                    // Phân loại logic cảnh báo
                     string type = "normal";
                     string desc = "Mức nhiệt độ phòng ổn định, cảm biến hoạt động tốt.";
 
@@ -118,13 +109,7 @@ namespace SafeGuard.Controllers
                         desc = $"Nhiệt độ tăng cao bất thường ({temp}°C).";
                     }
 
-                    alertList.Add(new TenantAlertVM
-                    {
-                        TimeStamp = timeStamp,
-                        Temperature = temp,
-                        Description = desc,
-                        AlertType = type
-                    });
+                    alertList.Add(new TenantAlertVM { TimeStamp = timeStamp, Temperature = temp, Description = desc, AlertType = type });
                 }
             }
             catch (Exception ex)
@@ -132,7 +117,6 @@ namespace SafeGuard.Controllers
                 System.Diagnostics.Debug.WriteLine("Lỗi lấy dữ liệu Tenant: " + ex.Message);
             }
 
-            // Sắp xếp mới nhất lên đầu
             var sortedList = alertList.OrderByDescending(x => x.TimeStamp).ToList();
             return View(sortedList);
         }
@@ -200,6 +184,154 @@ namespace SafeGuard.Controllers
             catch (Exception ex) { TempData["ErrorMessage"] = "Lỗi hệ thống: " + ex.Message; }
 
             return RedirectToAction("QuanLyPhong");
+        }
+
+        // ==========================================
+        // HÀM TẠO DỮ LIỆU GIẢ ĐỂ TEST BIỂU ĐỒ VÀ AI
+        // ==========================================
+        [HttpGet]
+        public async Task<ActionResult> TaoDuLieuGia()
+        {
+            string roomId = Session["AssignedRoom"] != null ? Session["AssignedRoom"].ToString() : "C-107";
+            try
+            {
+                var client = new AmazonDynamoDBClient(Amazon.RegionEndpoint.APSoutheast1);
+                var table = Table.LoadTable(client, "SafeDorm_History");
+
+                // Tạo dữ liệu cho 7 ngày gần nhất
+                for (int i = 6; i >= 0; i--)
+                {
+                    var doc = new Document();
+                    doc["room_id"] = roomId;
+                    doc["timestamp"] = DateTime.Now.AddDays(-i).ToString("yyyy-MM-dd HH:mm:ss");
+
+                    Random rnd = new Random();
+                    doc["temperature"] = rnd.Next(25, 32);
+
+                    // Cố tình đẩy nhiệt độ hôm nay lên 45 độ để test AI Báo cháy
+                    if (i == 0) doc["temperature"] = 45;
+
+                    await table.PutItemAsync(doc);
+                }
+                return Content($"Đã tạo thành công 7 ngày dữ liệu giả cho phòng {roomId}! Hãy quay lại trang Phân Tích AI.");
+            }
+            catch (Exception ex) { return Content("Lỗi: " + ex.Message); }
+        }
+
+        // ==========================================
+        // HÀM GỌI LÊN AWS LAMBDA (REAL-TIME 100%, KHÔNG CACHE)
+        // ==========================================
+        private async Task<(string message, string advice)> GetGeminiAIAnalysisRealTime(List<double> recentTemps)
+        {
+            // THAY LINK NÀY BẰNG LINK API GATEWAY CỦA BẠN:
+            string awsApiGatewayUrl = "https://ĐIỀN_LINK_API_GATEWAY_CỦA_BẠN_VÀO_ĐÂY";
+
+            string aiMessage = "Nhiệt độ phòng bạn rất ổn định.";
+            string aiAdvice = "Mẹo AI: Hãy tắt bớt thiết bị điện khi ra ngoài.";
+
+            try
+            {
+                using (var httpClient = new HttpClient())
+                {
+                    var payload = new { recentTemps = recentTemps };
+                    var content = new StringContent(JsonConvert.SerializeObject(payload), Encoding.UTF8, "application/json");
+
+                    var response = await httpClient.PostAsync(awsApiGatewayUrl, content);
+
+                    // Bắt buộc văng lỗi nếu API Gateway sập hoặc link sai
+                    response.EnsureSuccessStatusCode();
+
+                    var responseString = await response.Content.ReadAsStringAsync();
+                    dynamic json = JsonConvert.DeserializeObject(responseString);
+
+                    aiMessage = json.message;
+                    aiAdvice = json.advice;
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine("Lỗi gọi AI Real-time: " + ex.Message);
+
+                // Fallback nếu rớt mạng
+                double avgTemp = recentTemps.Any() ? recentTemps.Average() : 0;
+                if (avgTemp >= 38)
+                {
+                    aiMessage = "Nhiệt độ đang NÓNG BẤT THƯỜNG.";
+                    aiAdvice = "Mẹo AI: Kiểm tra thiết bị điện ngay lập tức.";
+                }
+            }
+
+            return (aiMessage, aiAdvice);
+        }
+
+        // ==========================================
+        // API: LẤY DỮ LIỆU BIỂU ĐỒ VÀ GỌI AI PHÂN TÍCH
+        // ==========================================
+        [HttpGet]
+        public async Task<JsonResult> GetRoomChartData()
+        {
+            string myRoomId = Session["AssignedRoom"] != null ? Session["AssignedRoom"].ToString() : "";
+
+            if (string.IsNullOrEmpty(myRoomId))
+            {
+                return Json(new { success = false, message = "Chưa có phòng" }, JsonRequestBehavior.AllowGet);
+            }
+
+            try
+            {
+                var client = new AmazonDynamoDBClient(Amazon.RegionEndpoint.APSoutheast1);
+                var table = Table.LoadTable(client, "SafeDorm_History");
+
+                var queryFilter = new QueryFilter("room_id", QueryOperator.Equal, myRoomId);
+                var search = table.Query(queryFilter);
+                var documentList = await search.GetNextSetAsync();
+
+                var logs = new List<dynamic>();
+                foreach (var doc in documentList)
+                {
+                    DateTime timeStamp = DateTime.Now;
+                    if (doc.ContainsKey("timestamp"))
+                    {
+                        string timeStr = doc["timestamp"].AsString();
+                        if (timeStr.Contains("-")) DateTime.TryParse(timeStr, out timeStamp);
+                        else timeStamp = DateTimeOffset.FromUnixTimeSeconds(long.Parse(timeStr)).ToLocalTime().DateTime;
+                    }
+
+                    logs.Add(new { Time = timeStamp, Temp = doc["temperature"].AsDouble() });
+                }
+
+                var chartData = logs.OrderByDescending(x => x.Time).Take(7).OrderBy(x => x.Time).Select(x => new
+                {
+                    Label = x.Time.ToString("HH:mm dd/MM"),
+                    Value = x.Temp
+                }).ToList();
+
+                // Ép kiểu double và list
+                var listTemps = chartData.Select(x => (double)x.Value).ToList();
+                string aiMessage = "Chưa có đủ dữ liệu cảm biến để AI phân tích.";
+                string aiAdvice = "Hệ thống đang chờ cảm biến gửi tín hiệu đầu tiên...";
+
+                // Gọi AI Lambda Real-time
+                if (listTemps.Count > 0)
+                {
+                    var geminiResult = await GetGeminiAIAnalysisRealTime(listTemps);
+                    aiMessage = geminiResult.message;
+                    aiAdvice = geminiResult.advice;
+                }
+
+                return Json(new
+                {
+                    success = true,
+                    labels = chartData.Select(c => c.Label),
+                    values = chartData.Select(c => c.Value),
+                    aiMessage = aiMessage,
+                    aiAdvice = aiAdvice
+                }, JsonRequestBehavior.AllowGet);
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = ex.Message }, JsonRequestBehavior.AllowGet);
+            }
         }
     }
 }
