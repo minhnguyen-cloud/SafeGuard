@@ -139,7 +139,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
 
-            <form method="post" action="@Url.Action("XacNhanMaPhong", "Tenant")">
+            <form id="formXacNhanMa">
                 <div class="modal-body p-4">
                     <div class="alert alert-info border-0 small mb-4" style="background-color: #e3f2fd; color: #0d47a1; border-radius: 12px;">
                         Nhập chính xác mã kích hoạt để hệ thống tự động nhận diện phòng của bạn.
@@ -147,7 +147,7 @@
 
                     <div class="mb-4 text-center">
                         <label class="form-label fw-bold small text-muted text-uppercase mb-2">Mã Kích Hoạt (Invite Code)</label>
-                        <input type="text" name="inviteCode" class="form-control form-control-lg text-center fw-bold text-primary invite-input shadow-sm"
+                        <input type="text" id="txtInviteCode" name="inviteCode" class="form-control form-control-lg text-center fw-bold text-primary invite-input shadow-sm"
                                placeholder="VD: A-101-X4Y2" required autofocus>
                     </div>
 
@@ -157,7 +157,7 @@
                 </div>
 
                 <div class="modal-footer p-4 border-top-0 pt-0">
-                    <button type="submit" class="btn btn-primary w-100 py-3 fw-bold shadow-sm" style="border-radius: 12px;">
+                    <button type="button" id="btnXacNhan" class="btn btn-primary w-100 py-3 fw-bold shadow-sm" style="border-radius: 12px;">
                         KÍCH HOẠT PHÒNG TRỌ
                     </button>
                 </div>
@@ -167,10 +167,80 @@
 </div>
 
 @section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
     <script>
         $(document).ready(function () {
-            // Đảm bảo Modal hoạt động khi click
-            var myModal = new bootstrap.Modal(document.getElementById('joinRoomModal'));
+            // Xử lý sự kiện khi bấm nút xác nhận
+            $('#btnXacNhan').click(function () {
+                var code = $('#txtInviteCode').val();
+
+                // Nếu người dùng để trống
+                if (!code || code.trim() === '') {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Thiếu thông tin',
+                        text: 'Vui lòng nhập mã kích hoạt!',
+                        confirmButtonColor: '#3085d6'
+                    });
+                    return;
+                }
+
+                // Hiện Popup loading
+                Swal.fire({
+                    title: 'Đang kiểm tra mã...',
+                    allowOutsideClick: false,
+                    didOpen: () => {
+                        Swal.showLoading()
+                    }
+                });
+
+                // Gọi AJAX kiểm tra mã
+                $.ajax({
+                    url: '@Url.Action("XacNhanMaPhong", "Tenant")',
+                    type: 'POST',
+                    data: { inviteCode: code },
+                    success: function (res) {
+                        if (res.success) {
+                            // Thành công: Đóng modal, báo xanh lá
+                            $('#joinRoomModal').modal('hide');
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'Thành công!',
+                                text: res.message,
+                                confirmButtonColor: '#28a745'
+                            }).then((result) => {
+                                // Reload lại trang để hiển thị bảng điều khiển phòng
+                                location.reload();
+                            });
+                        } else {
+                            // Thất bại: Báo lỗi đỏ
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Không hợp lệ',
+                                text: res.message,
+                                confirmButtonColor: '#d33'
+                            });
+                        }
+                    },
+                    error: function () {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Lỗi mạng',
+                            text: 'Không thể kết nối đến máy chủ. Vui lòng thử lại!',
+                            confirmButtonColor: '#d33'
+                        });
+                    }
+                });
+            });
+
+            // Tiện ích: Cho phép bấm Enter trong ô input thay vì rê chuột bấm nút
+            $('#txtInviteCode').keypress(function (e) {
+                if (e.which == 13) { // 13 là mã phím Enter
+                    e.preventDefault();
+                    $('#btnXacNhan').click();
+                }
+            });
         });
     </script>
 }

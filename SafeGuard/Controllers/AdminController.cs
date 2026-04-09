@@ -160,11 +160,37 @@ namespace SafeGuard.Controllers
             try
             {
                 var client = GetClient();
-                var table = Table.LoadTable(client, "Rooms");
-                await table.DeleteItemAsync(blockId, roomId);
-                TempData["SuccessMessage"] = $"Đã xóa phòng {roomId} thành công!";
+
+                // 1. Xóa phòng khỏi bảng Rooms
+                var tableRooms = Table.LoadTable(client, "Rooms");
+                await tableRooms.DeleteItemAsync(blockId, roomId);
+
+                // 2. Xóa dây chuyền: Đá tất cả người thuê đang ở phòng này ra ngoài
+                string fullRoomId = $"{blockId}-{roomId}";
+                try
+                {
+                    var usersTable = Table.LoadTable(client, "Users");
+                    var scanFilter = new ScanFilter();
+                    scanFilter.AddCondition("AssignedRoom", ScanOperator.Equal, fullRoomId);
+                    var search = usersTable.Scan(scanFilter);
+                    var usersInRoom = await search.GetNextSetAsync();
+
+                    foreach (var user in usersInRoom)
+                    {
+                        // ĐÃ SỬA: Xóa hẳn cột AssignedRoom thay vì để rỗng ""
+                        user.Remove("AssignedRoom");
+                        await usersTable.UpdateItemAsync(user);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine("Lỗi khi kick người thuê: " + ex.Message);
+                }
+
+                TempData["SuccessMessage"] = $"Đã xóa phòng {fullRoomId} và cập nhật lại danh sách thành viên!";
             }
             catch (Exception ex) { TempData["ErrorMessage"] = "Lỗi xóa phòng: " + ex.Message; }
+
             return RedirectToAction("QuanLyPhong");
         }
 
@@ -328,6 +354,7 @@ namespace SafeGuard.Controllers
             }
             return File(Encoding.UTF8.GetPreamble().Concat(Encoding.UTF8.GetBytes(builder.ToString())).ToArray(), "text/csv", $"LichSuCanhBao_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
         }
+
         // ==========================================
         // LẤY DANH SÁCH THÀNH VIÊN TRONG PHÒNG (DÙNG CHO POPUP AJAX)
         // ==========================================
@@ -339,13 +366,11 @@ namespace SafeGuard.Controllers
                 var client = GetClient();
                 var usersTable = Table.LoadTable(client, "Users");
 
-                // Quét bảng Users tìm người có AssignedRoom khớp với mã phòng truyền vào (VD: C-107)
                 var scanFilter = new ScanFilter();
                 scanFilter.AddCondition("AssignedRoom", ScanOperator.Equal, roomId);
                 var search = usersTable.Scan(scanFilter);
                 var documentList = await search.GetRemainingAsync();
 
-                // Lọc lấy Tên và Email để hiển thị
                 var members = documentList.Select(doc => new {
                     FullName = doc.ContainsKey("fullName") ? doc["fullName"].AsString() : "Chưa cập nhật",
                     Email = doc.ContainsKey("email") ? doc["email"].AsString() : (doc.ContainsKey("userID") ? doc["userID"].AsString() : "N/A")

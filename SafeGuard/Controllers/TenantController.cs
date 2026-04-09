@@ -12,18 +12,20 @@ using System.Text;
 
 namespace SafeGuard.Controllers
 {
+    // ==========================================
+    // CLASS VIEW MODEL ĐÃ ĐƯỢC CHUYỂN RA NGOÀI ĐỂ TRÁNH LỖI GIAO DIỆN
+    // ==========================================
+    public class TenantAlertVM
+    {
+        public DateTime TimeStamp { get; set; }
+        public double Temperature { get; set; }
+        public string Description { get; set; }
+        public string AlertType { get; set; } // "fire", "high_temp", "normal"
+    }
+
     [RoleAuthorize(Role = "TENANT")]
     public class TenantController : Controller
     {
-        // View Model để truyền dữ liệu ra bảng
-        public class TenantAlertVM
-        {
-            public DateTime TimeStamp { get; set; }
-            public double Temperature { get; set; }
-            public string Description { get; set; }
-            public string AlertType { get; set; } // "fire", "high_temp", "normal"
-        }
-
         public ActionResult Index() => View();
         public ActionResult NoiQuy() => View();
         public ActionResult ThongTinCaNhan() => View();
@@ -32,8 +34,7 @@ namespace SafeGuard.Controllers
         [HttpGet]
         public async Task<ActionResult> QuanLyPhong()
         {
-            // Nếu có đăng nhập nhưng Session phòng đang trống, thì tự động xuống DB lấy lên
-            if (Session["UserEmail"] != null && Session["AssignedRoom"] == null)
+            if (Session["UserEmail"] != null)
             {
                 try
                 {
@@ -41,14 +42,43 @@ namespace SafeGuard.Controllers
                     var usersTable = Table.LoadTable(client, "Users");
                     var userItem = await usersTable.GetItemAsync(Session["UserEmail"].ToString());
 
-                    if (userItem != null && userItem.ContainsKey("AssignedRoom") && !string.IsNullOrEmpty(userItem["AssignedRoom"].AsString()))
+                    if (userItem != null && userItem.ContainsKey("AssignedRoom"))
                     {
-                        Session["AssignedRoom"] = userItem["AssignedRoom"].AsString();
+                        string currentRoom = userItem["AssignedRoom"].AsString();
+
+                        if (!string.IsNullOrEmpty(currentRoom) && currentRoom.Contains("-"))
+                        {
+                            // ĐÃ SỬA: Tách "A-101" thành "A" và "101" để DynamoDB không bị lỗi văng Catch
+                            var parts = currentRoom.Split('-');
+                            string blockId = parts[0];
+                            string roomId = parts[1];
+
+                            var roomTable = Table.LoadTable(client, "Rooms");
+                            var roomExist = await roomTable.GetItemAsync(blockId, roomId);
+
+                            if (roomExist == null)
+                            {
+                                // Xóa Session và xóa cột trong DB
+                                Session["AssignedRoom"] = null;
+                                userItem.Remove("AssignedRoom");
+                                await usersTable.UpdateItemAsync(userItem);
+
+                                TempData["ErrorMessage"] = "Phòng của bạn đã bị Quản lý xóa khỏi hệ thống!";
+                            }
+                            else
+                            {
+                                Session["AssignedRoom"] = currentRoom;
+                            }
+                        }
+                        else
+                        {
+                            Session["AssignedRoom"] = null;
+                        }
                     }
                 }
                 catch (Exception ex)
                 {
-                    System.Diagnostics.Debug.WriteLine("Lỗi lấy phòng: " + ex.Message);
+                    System.Diagnostics.Debug.WriteLine("Lỗi lấy/kiểm tra phòng: " + ex.Message);
                 }
             }
             return View();
@@ -124,14 +154,14 @@ namespace SafeGuard.Controllers
         // ==========================================
         // NGƯỜI THUÊ NHẬP MÃ THAM GIA PHÒNG
         // ==========================================
+        // ==========================================
+        // NGƯỜI THUÊ NHẬP MÃ THAM GIA PHÒNG (DÙNG AJAX)
+        // ==========================================
         [HttpPost]
-        public async Task<ActionResult> XacNhanMaPhong(string inviteCode)
+        public async Task<JsonResult> XacNhanMaPhong(string inviteCode)
         {
             if (string.IsNullOrEmpty(inviteCode))
-            {
-                TempData["ErrorMessage"] = "Vui lòng nhập mã phòng!";
-                return RedirectToAction("QuanLyPhong");
-            }
+                return Json(new { success = false, message = "Vui lòng nhập mã phòng!" });
 
             try
             {
@@ -140,26 +170,17 @@ namespace SafeGuard.Controllers
                 var inviteItem = await inviteTable.GetItemAsync(inviteCode.Trim().ToUpper());
 
                 if (inviteItem == null)
-                {
-                    TempData["ErrorMessage"] = "Mã không tồn tại hoặc bạn đã nhập sai!";
-                    return RedirectToAction("QuanLyPhong");
-                }
+                    return Json(new { success = false, message = "Mã không tồn tại hoặc bạn đã nhập sai!" });
 
                 if (inviteItem["IsUsed"].AsBoolean())
-                {
-                    TempData["ErrorMessage"] = "Mã này đã được sử dụng bởi một người khác!";
-                    return RedirectToAction("QuanLyPhong");
-                }
+                    return Json(new { success = false, message = "Mã này đã được sử dụng bởi một người khác!" });
 
                 if (inviteItem.ContainsKey("CreatedAt") && inviteItem.ContainsKey("ExpireHours"))
                 {
                     DateTime createdAt = DateTime.Parse(inviteItem["CreatedAt"].AsString());
                     int expireHours = inviteItem["ExpireHours"].AsInt();
                     if (DateTime.UtcNow > createdAt.AddHours(expireHours))
-                    {
-                        TempData["ErrorMessage"] = "Mã kích hoạt này đã hết hạn sử dụng!";
-                        return RedirectToAction("QuanLyPhong");
-                    }
+                        return Json(new { success = false, message = "Mã kích hoạt này đã hết hạn sử dụng!" });
                 }
 
                 string roomId = inviteItem["RoomId"].AsString();
@@ -179,11 +200,13 @@ namespace SafeGuard.Controllers
                     Session["AssignedRoom"] = roomId;
                 }
 
-                TempData["SuccessMessage"] = $"Chúc mừng! Bạn đã gia nhập phòng {roomId} thành công.";
+                // Trả về JSON thành công thay vì Redirect
+                return Json(new { success = true, message = $"Chúc mừng! Bạn đã gia nhập phòng {roomId} thành công." });
             }
-            catch (Exception ex) { TempData["ErrorMessage"] = "Lỗi hệ thống: " + ex.Message; }
-
-            return RedirectToAction("QuanLyPhong");
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = "Lỗi hệ thống: " + ex.Message });
+            }
         }
 
         // ==========================================
