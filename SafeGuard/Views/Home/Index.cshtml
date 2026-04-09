@@ -15,7 +15,7 @@
             <div class="carousel-caption d-none d-md-block text-center">
                 <h1>Hệ Thống Tự Động Giám Sát Và Cảnh Báo <br>Nguy Cơ Cháy <span class="highlight-text">Phòng Trọ & Ký Túc Xá</span></h1>
                 <p class="fs-4 mt-3">Phát hiện sớm - Cảnh báo tức thì - Bảo vệ sinh mạng và tài sản</p>
-                <a href="#" class="btn btn-danger btn-lg mt-3 rounded-pill px-5">Xem Tính Năng </a>
+                <a href="@Url.Action("Features", "Home")" class="btn btn-danger btn-lg mt-3 rounded-pill px-5">Xem Tính Năng </a>
             </div>
         </div>
         <div class="carousel-item">
@@ -44,6 +44,53 @@
     </button>
 </div>
 
+<section class="py-5 position-relative overflow-hidden" style="background-color: #f8faff;" id="about-safeguard">
+    <div class="container py-5">
+        <div class="row align-items-center g-5">
+            <div class="col-lg-6 intro-text-box">
+                <span class="badge px-3 py-2 rounded-pill mb-3 fw-bold shadow-sm" style="background-color: rgba(255, 159, 28, 0.15); color: var(--accent-orange); font-size: 0.9rem;">
+                    <i class="fa-solid fa-leaf me-1"></i> Về SafeGuard
+                </span>
+                <h2 class="display-6 fw-bold mb-4" style="color: var(--primary-blue);">Hệ Sinh Thái Cảnh Báo Cháy <br /><span class="text-danger">Thông Minh 4.0</span></h2>
+                <p class="lead text-muted mb-4" style="line-height: 1.8;">SafeGuard không chỉ là chiếc còi báo động đơn thuần. Chúng tôi mang đến một nền tảng giám sát nhiệt độ đột phá, ứng dụng công nghệ <b>IoT và Điện toán đám mây</b>, được thiết kế chuyên biệt để bảo vệ sinh mạng tại các khu trọ và ký túc xá.</p>
+
+                <ul class="list-unstyled mb-5 intro-list">
+                    <li class="mb-3 d-flex align-items-center text-secondary fw-medium">
+                        <div class="icon-check-circle me-3"><i class="fa-solid fa-check"></i></div>
+                        Cảm biến nhạy bén, liên tục cập nhật dữ liệu từng giây.
+                    </li>
+                    <li class="mb-3 d-flex align-items-center text-secondary fw-medium">
+                        <div class="icon-check-circle me-3"><i class="fa-solid fa-check"></i></div>
+                        Phân tích tự động để hạn chế tối đa báo động giả.
+                    </li>
+                    <li class="mb-3 d-flex align-items-center text-secondary fw-medium">
+                        <div class="icon-check-circle me-3"><i class="fa-solid fa-check"></i></div>
+                        Hoạt động ổn định 24/7 kể cả khi mất wifi.
+                    </li>
+                </ul>
+                <a href="@Url.Action("Features", "Home")" class="btn btn-outline-primary btn-lg rounded-pill px-4 fw-bold btn-intro">
+                    Khám phá chi tiết <i class="fa-solid fa-arrow-right ms-2"></i>
+                </a>
+            </div>
+
+            <div class="col-lg-6 intro-image-box mt-5 mt-lg-0">
+                <div class="position-relative p-2 p-md-4">
+                    <img src="https://images.unsplash.com/photo-1558002038-1055907df827?auto=format&fit=crop&q=80&w=800" alt="SafeGuard System" class="img-fluid rounded-5 shadow-lg main-intro-img border border-3 border-white">
+
+                    <div class="position-absolute bg-white p-3 p-md-4 rounded-4 shadow-lg float-badge d-flex align-items-center" style="bottom: 0px; left: 0px; border-left: 5px solid var(--accent-orange);">
+                        <div class="bg-warning bg-opacity-10 p-3 rounded-circle me-3 text-warning">
+                            <i class="fa-solid fa-bolt fa-2x"></i>
+                        </div>
+                        <div>
+                            <h4 class="fw-bold mb-0 text-dark">&lt; 3 Giây</h4>
+                            <span class="text-muted small fw-bold">Thời gian phản hồi</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
 <section class="py-5 bg-white mt-4">
     <div class="container">
         <div class="text-center mb-5">
@@ -58,7 +105,7 @@
                         <i class="fa-solid fa-bell-concierge fa-2x"></i>
                     </div>
                     <h4 class="fw-bold">Cảnh Báo Tức Thì</h4>
-                    <p class="text-muted">Gửi tin nhắn SMS, Zalo và gọi điện trực tiếp cho chủ nhà ngay khi phát hiện nồng độ khói bất thường.</p>
+                    <p class="text-muted">Gửi tin nhắn  trực tiếp cho chủ nhà ngay khi phát hiện nhiệt độ tăng thường.</p>
                 </div>
             </div>
             <div class="col-md-6">
@@ -67,7 +114,7 @@
                         <i class="fa-solid fa-mobile-screen fa-2x"></i>
                     </div>
                     <h4 class="fw-bold">Giám Sát Từ Xa</h4>
-                    <p class="text-muted">Theo dõi nhiệt độ trực tiếp qua điện thoại mọi lúc, mọi nơi.</p>
+                    <p class="text-muted">Theo dõi nhiệt độ trực tiếp qua điện thoại hoặc website mọi lúc, mọi nơi.</p>
                 </div>
             </div>
         </div>
@@ -109,7 +156,7 @@
                             <li><i class="fa-solid fa-check text-success me-3 fa-lg"></i> Cảnh báo đa kênh (App, SMS, Cuộc gọi)</li>
                             <li><i class="fa-solid fa-check text-success me-3 fa-lg"></i> Kết nối IoT Đám mây 24/7</li>
                             <li><i class="fa-solid fa-check text-success me-3 fa-lg"></i> Cảm biến AI phân tích nhiệt độ chuẩn xác</li>
-                            <li><i class="fa-solid fa-check text-success me-3 fa-lg"></i> Giám sát và điều khiển toàn bộ qua App</li>                          
+                            <li><i class="fa-solid fa-check text-success me-3 fa-lg"></i> Giám sát và điều khiển toàn bộ qua App</li>
                         </ul>
                     </div>
                 </div>
@@ -207,6 +254,102 @@
 </section>
 
 <style>
+    /* ========================================== */
+    /* CSS MỚI CHO PHẦN GIỚI THIỆU SẢN PHẨM       */
+    /* ========================================== */
+    .icon-check-circle {
+        width: 25px;
+        height: 25px;
+        background-color: var(--primary-blue);
+        color: white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.8rem;
+    }
+
+    .intro-text-box {
+        animation: slideInLeft 1.2s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+    }
+
+    .intro-image-box {
+        animation: slideInRight 1.2s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+    }
+
+    .main-intro-img {
+        transition: transform 0.5s ease;
+    }
+
+    .intro-image-box:hover .main-intro-img {
+        transform: scale(1.03);
+    }
+
+    /* Hiệu ứng lơ lửng cho hộp badge */
+    .float-badge {
+        animation: floatUpDown 3s ease-in-out infinite;
+        z-index: 2;
+    }
+
+    /* Hiệu ứng trượt khi hover vào dòng text */
+    .intro-list li {
+        transition: transform 0.3s ease, color 0.3s ease;
+    }
+
+        .intro-list li:hover {
+            transform: translateX(10px);
+            color: var(--primary-blue) !important;
+        }
+
+    .btn-intro {
+        transition: all 0.3s ease;
+    }
+
+        .btn-intro:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(13, 110, 253, 0.25);
+        }
+
+    /* Định nghĩa Keyframes */
+    @@keyframes slideInLeft {
+        0% {
+            opacity: 0;
+            transform: translateX(-50px);
+        }
+
+        100% {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+
+    @@keyframes slideInRight {
+        0% {
+            opacity: 0;
+            transform: translateX(50px);
+        }
+
+        100% {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+
+    @@keyframes floatUpDown {
+        0% {
+            transform: translateY(0px);
+        }
+
+        50% {
+            transform: translateY(-15px);
+        }
+
+        100% {
+            transform: translateY(0px);
+        }
+    }
+    /* ========================================== */
+
     /* Hiệu ứng Box Tính năng */
     .feature-card {
         transition: all 0.4s ease;

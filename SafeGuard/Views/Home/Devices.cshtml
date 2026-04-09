@@ -5,8 +5,8 @@
 
 <section class="page-header py-5 text-white text-center position-relative">
     <div class="container position-relative" style="z-index: 2;">
-        <h1 class="display-4 fw-bold mb-3"><i class="fa-solid fa-microchip text-warning me-3"></i>Hệ Sinh Thái Thiết Bị</h1>
-        <p class="lead w-75 mx-auto">SafeGuard sử dụng các cảm biến IoT độ nhạy cao, kết nối không dây siêu tốc và vận hành bền bỉ trong mọi điều kiện khắc nghiệt nhất.</p>
+        <h1 class="display-4 fw-bold mb-3"><i class="fa-solid fa-microchip text-warning me-3"></i>Hệ Sinh Thái Phần Cứng</h1>
+        <p class="lead w-75 mx-auto">SafeGuard sử dụng vi điều khiển ESP32 kết hợp cùng các cảm biến độ nhạy cao, hoạt động bền bỉ và truyền tải dữ liệu siêu tốc lên Đám mây.</p>
     </div>
     <div class="header-overlay"></div>
 </section>
@@ -14,25 +14,25 @@
 <section class="py-5 bg-light">
     <div class="container py-4">
         <div class="text-center mb-5">
-            <h2 class="fw-bold" style="color: var(--primary-blue);">Các Thiết Bị Phần Cứng Cốt Lõi</h2>
-            <p class="text-muted">Được đồng bộ hóa hoàn toàn với phần mềm quản lý trung tâm</p>
+            <h2 class="fw-bold" style="color: var(--primary-blue);">Các Linh Kiện Cốt Lõi</h2>
+            <p class="text-muted">Mô hình thực tế được sử dụng trong quá trình nghiên cứu và phát triển</p>
         </div>
 
-        <div class="row row-cols-1 row-cols-md-2 row-cols-lg-4 g-4">
+        <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4 justify-content-center">
 
             <div class="col">
                 <div class="card h-100 border-0 shadow-sm device-card text-center p-3 rounded-4">
-                    <span class="badge bg-danger position-absolute top-0 end-0 m-3 z-3">Quan Trọng</span>
+                    <span class="badge position-absolute top-0 end-0 m-3 z-3 text-white" style="background-color: var(--accent-orange);">Bộ Não Trung Tâm</span>
                     <div class="device-img-wrapper mb-3 overflow-hidden rounded-3">
-                        <img src="https://images.unsplash.com/photo-1558389186-4e58b16e4dbb?auto=format&fit=crop&q=80&w=400" class="card-img-top" alt="Cảm biến khói">
+                        <img src="https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&q=80&w=400" class="card-img-top" alt="Vi điều khiển ESP32">
                     </div>
                     <div class="card-body p-0">
-                        <h5 class="fw-bold" style="color: var(--primary-blue);">Cảm Biến Khói Kép</h5>
-                        <p class="text-muted small mb-3">Phát hiện khói quang học & nhiệt độ gia tăng đột ngột.</p>
+                        <h5 class="fw-bold" style="color: var(--primary-blue);">Vi điều khiển ESP32</h5>
+                        <p class="text-muted small mb-3">Xử lý toàn bộ logic hệ thống và giao tiếp với máy chủ thông qua kết nối mạng không dây.</p>
                         <ul class="list-unstyled small text-start bg-light p-2 rounded-3 text-muted">
-                            <li><i class="fa-solid fa-microchip me-2 text-secondary"></i>Chip: ESP32 / ESP8266</li>
-                            <li><i class="fa-solid fa-wifi me-2 text-secondary"></i>Kết nối: Wi-Fi 2.4GHz</li>
-                            <li><i class="fa-solid fa-battery-half me-2 text-secondary"></i>Pin: 2 năm (CR123A)</li>
+                            <li><i class="fa-solid fa-microchip me-2 text-secondary"></i>Vi xử lý: Lõi kép 32-bit</li>
+                            <li><i class="fa-solid fa-wifi me-2 text-secondary"></i>Kết nối: Wi-Fi & Bluetooth</li>
+                            <li><i class="fa-solid fa-bolt me-2 text-secondary"></i>Điện áp: 3.3V - 5V</li>
                         </ul>
                     </div>
                 </div>
@@ -40,34 +40,17 @@
 
             <div class="col">
                 <div class="card h-100 border-0 shadow-sm device-card text-center p-3 rounded-4">
-                    <span class="badge position-absolute top-0 end-0 m-3 z-3 text-white" style="background-color: var(--accent-orange);">Hub Trung Tâm</span>
+                    <span class="badge bg-danger position-absolute top-0 end-0 m-3 z-3">Cảm Biến</span>
                     <div class="device-img-wrapper mb-3 overflow-hidden rounded-3">
-                        <img src="https://images.unsplash.com/photo-1544197150-b99a580bb7a8?auto=format&fit=crop&q=80&w=400" class="card-img-top" alt="Bộ điều khiển trung tâm">
+                        <img src="https://images.unsplash.com/photo-1581092160562-40aa08e78837?auto=format&fit=crop&q=80&w=400" class="card-img-top" alt="Cảm biến DHT11">
                     </div>
                     <div class="card-body p-0">
-                        <h5 class="fw-bold" style="color: var(--primary-blue);">SafeGuard Hub</h5>
-                        <p class="text-muted small mb-3">Thu thập dữ liệu, ra lệnh tự động và giao tiếp với Cloud.</p>
+                        <h5 class="fw-bold" style="color: var(--primary-blue);">Cảm Biến DHT11</h5>
+                        <p class="text-muted small mb-3">Đo lường sự gia tăng nhiệt độ và độ ẩm trong phòng để phát hiện sớm dấu hiệu hỏa hoạn.</p>
                         <ul class="list-unstyled small text-start bg-light p-2 rounded-3 text-muted">
-                            <li><i class="fa-solid fa-network-wired me-2 text-secondary"></i>Mạng: LAN / Wi-Fi / 4G</li>
-                            <li><i class="fa-solid fa-bolt me-2 text-secondary"></i>Nguồn: 220V + UPS Mini</li>
-                            <li><i class="fa-solid fa-memory me-2 text-secondary"></i>Lưu trữ: Thẻ nhớ 64GB</li>
-                        </ul>
-                    </div>
-                </div>
-            </div>
-
-            <div class="col">
-                <div class="card h-100 border-0 shadow-sm device-card text-center p-3 rounded-4">
-                    <div class="device-img-wrapper mb-3 overflow-hidden rounded-3">
-                        <img src="https://images.unsplash.com/photo-1517309230475-6736d926b979?auto=format&fit=crop&q=80&w=400" class="card-img-top" alt="Còi báo động">
-                    </div>
-                    <div class="card-body p-0">
-                        <h5 class="fw-bold" style="color: var(--primary-blue);">Chuông & Đèn Còi</h5>
-                        <p class="text-muted small mb-3">Phát âm thanh cường độ cao và ánh sáng nhấp nháy chói.</p>
-                        <ul class="list-unstyled small text-start bg-light p-2 rounded-3 text-muted">
-                            <li><i class="fa-solid fa-volume-high me-2 text-secondary"></i>Cường độ: 110 dB</li>
-                            <li><i class="fa-solid fa-lightbulb me-2 text-secondary"></i>Đèn: LED Strobe đỏ</li>
-                            <li><i class="fa-solid fa-plug me-2 text-secondary"></i>Nguồn: 12V DC</li>
+                            <li><i class="fa-solid fa-temperature-half me-2 text-secondary"></i>Dải đo nhiệt: 0°C - 50°C</li>
+                            <li><i class="fa-solid fa-droplet me-2 text-secondary"></i>Dải đo ẩm: 20% - 90% RH</li>
+                            <li><i class="fa-solid fa-stopwatch me-2 text-secondary"></i>Thời gian cập nhật: 1 giây</li>
                         </ul>
                     </div>
                 </div>
@@ -76,15 +59,49 @@
             <div class="col">
                 <div class="card h-100 border-0 shadow-sm device-card text-center p-3 rounded-4">
                     <div class="device-img-wrapper mb-3 overflow-hidden rounded-3">
-                        <img src="https://images.unsplash.com/photo-1558449028-b53a39d100fc?auto=format&fit=crop&q=80&w=400" class="card-img-top" alt="Rơ le ngắt điện">
+                        <img src="https://images.unsplash.com/photo-1517309230475-6736d926b979?auto=format&fit=crop&q=80&w=400" class="card-img-top" alt="Còi Buzzer">
                     </div>
                     <div class="card-body p-0">
-                        <h5 class="fw-bold" style="color: var(--primary-blue);">Module Relay Khởi Động Tự Động</h5>
-                        <p class="text-muted small mb-3">Tự động ngắt điện tổng và mở cửa từ khi có cảnh báo.</p>
+                        <h5 class="fw-bold" style="color: var(--primary-blue);">Còi Báo Động (Buzzer)</h5>
+                        <p class="text-muted small mb-3">Kích hoạt âm thanh cảnh báo cường độ cao ngay tại chỗ khi nhiệt độ vượt mức an toàn.</p>
                         <ul class="list-unstyled small text-start bg-light p-2 rounded-3 text-muted">
-                            <li><i class="fa-solid fa-power-off me-2 text-secondary"></i>Tải trọng: Lên tới 30A</li>
-                            <li><i class="fa-solid fa-shield-halved me-2 text-secondary"></i>Cách ly quang chống nhiễu</li>
-                            <li><i class="fa-solid fa-stopwatch me-2 text-secondary"></i>Phản hồi: < 0.5 giây</li>
+                            <li><i class="fa-solid fa-volume-high me-2 text-secondary"></i>Tín hiệu: Cảnh báo liên tục</li>
+                            <li><i class="fa-solid fa-plug me-2 text-secondary"></i>Loại: Buzzer chủ động (Active)</li>
+                            <li><i class="fa-solid fa-triangle-exclamation me-2 text-secondary"></i>Chức năng: Sơ tán khẩn cấp</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col">
+                <div class="card h-100 border-0 shadow-sm device-card text-center p-3 rounded-4">
+                    <div class="device-img-wrapper mb-3 overflow-hidden rounded-3">
+                        <img src="https://images.unsplash.com/photo-1517077304055-6e89abbf09b0?auto=format&fit=crop&q=80&w=400" class="card-img-top" alt="Breadboard">
+                    </div>
+                    <div class="card-body p-0">
+                        <h5 class="fw-bold" style="color: var(--primary-blue);">Board Mạch (Breadboard)</h5>
+                        <p class="text-muted small mb-3">Nền tảng gắn kết phần cứng vật lý, giúp liên kết ESP32 và các cảm biến thành một khối.</p>
+                        <ul class="list-unstyled small text-start bg-light p-2 rounded-3 text-muted">
+                            <li><i class="fa-solid fa-border-none me-2 text-secondary"></i>Ưu điểm: Không cần mỏ hàn</li>
+                            <li><i class="fa-solid fa-layer-group me-2 text-secondary"></i>Tính năng: Linh hoạt tháo lắp</li>
+                            <li><i class="fa-solid fa-shield-cat me-2 text-secondary"></i>Thiết kế: Tiêu chuẩn kỹ thuật</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col">
+                <div class="card h-100 border-0 shadow-sm device-card text-center p-3 rounded-4">
+                    <div class="device-img-wrapper mb-3 overflow-hidden rounded-3">
+                        <img src="https://images.unsplash.com/photo-1555664424-778a1e5e1b48?auto=format&fit=crop&q=80&w=400" class="card-img-top" alt="Dây cắm Jumper">
+                    </div>
+                    <div class="card-body p-0">
+                        <h5 class="fw-bold" style="color: var(--primary-blue);">Hệ Thống Dây Jumper</h5>
+                        <p class="text-muted small mb-3">Đảm bảo dòng điện và luồng tín hiệu truyền dẫn xuyên suốt giữa các linh kiện điện tử.</p>
+                        <ul class="list-unstyled small text-start bg-light p-2 rounded-3 text-muted">
+                            <li><i class="fa-solid fa-arrows-turn-right me-2 text-secondary"></i>Đực - Đực (Male-to-Male)</li>
+                            <li><i class="fa-solid fa-arrows-turn-right me-2 text-secondary" style="transform: rotate(180deg);"></i>Cái - Cái (Female-to-Female)</li>
+                            <li><i class="fa-solid fa-arrows-split-up-and-left me-2 text-secondary"></i>Đực - Cái (Male-to-Female)</li>
                         </ul>
                     </div>
                 </div>

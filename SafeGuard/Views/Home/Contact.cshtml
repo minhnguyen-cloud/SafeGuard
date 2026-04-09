@@ -61,7 +61,7 @@
                     <h3 class="fw-bold mb-4 text-center" style="color: var(--primary-blue);">Gửi Yêu Cầu Cho Chúng Tôi</h3>
                     <p class="text-muted text-center mb-4">Bạn cần tư vấn lắp đặt hệ thống cho khu trọ hoặc báo lỗi thiết bị? Hãy điền thông tin bên dưới.</p>
 
-                    <form>
+                    <form id="contactForm">
                         <div class="row g-3">
                             <div class="col-md-6">
                                 <div class="form-floating mb-3">
@@ -84,7 +84,7 @@
                             <div class="col-12">
                                 <div class="form-floating mb-3">
                                     <select class="form-select" id="subjectSelect" aria-label="Chủ đề liên hệ">
-                                        <option selected>-- Chọn chủ đề --</option>
+                                        <option value="" selected>-- Chọn chủ đề --</option>
                                         <option value="1">Tư vấn lắp đặt hệ thống mới</option>
                                         <option value="2">Báo cáo lỗi / Bảo hành thiết bị</option>
                                         <option value="3">Hợp tác kinh doanh</option>
@@ -100,7 +100,7 @@
                                 </div>
                             </div>
                             <div class="col-12 text-center">
-                                <button type="submit" class="btn btn-warning btn-lg px-5 py-3 fw-bold rounded-pill shadow-sm w-100 send-btn">
+                                <button type="button" id="btnSend" class="btn btn-warning btn-lg px-5 py-3 fw-bold rounded-pill shadow-sm w-100 send-btn">
                                     <i class="fa-solid fa-paper-plane me-2"></i> GỬI YÊU CẦU NGAY
                                 </button>
                             </div>
@@ -114,7 +114,6 @@
 </section>
 
 <style>
-    /* Kế thừa Header Overlay */
     .page-header {
         background-image: url('https://images.unsplash.com/photo-1516387938699-a93567ec168e?auto=format&fit=crop&q=80&w=1920');
         background-size: cover;
@@ -132,7 +131,6 @@
         z-index: 1;
     }
 
-    /* Icon tròn nhỏ */
     .icon-circle-small {
         width: 50px;
         height: 50px;
@@ -143,7 +141,6 @@
         font-size: 1.2rem;
     }
 
-    /* Hiệu ứng hover thông tin */
     .contact-item {
         transition: transform 0.3s ease;
         padding: 10px;
@@ -155,7 +152,6 @@
             background-color: #f8f9fa;
         }
 
-    /* Tùy chỉnh Form Floating của Bootstrap */
     .form-control:focus, .form-select:focus {
         border-color: var(--accent-orange);
         box-shadow: 0 0 0 0.25rem rgba(255, 159, 28, 0.25);
@@ -165,7 +161,6 @@
         color: #6c757d;
     }
 
-    /* Nút gửi */
     .send-btn {
         transition: all 0.3s ease;
     }
@@ -175,3 +170,59 @@
             box-shadow: 0 10px 20px rgba(255, 193, 7, 0.4) !important;
         }
 </style>
+
+@section Scripts {
+    <script>
+        $(document).ready(function () {
+            $("#btnSend").click(function (e) {
+                e.preventDefault();
+
+                // Lấy dữ liệu
+                var name = $("#nameInput").val();
+                var email = $("#emailInput").val();
+                var phone = $("#phoneInput").val();
+                var subject = $("#subjectSelect option:selected").text();
+                var message = $("#messageTextarea").val();
+
+                // Validate cơ bản
+                if (!name || !email || !phone || !message || $("#subjectSelect").val() === "") {
+                    alert("Vui lòng điền đầy đủ thông tin để SafeGuard có thể hỗ trợ bạn tốt nhất!");
+                    return;
+                }
+
+                // Hiệu ứng Loading
+                var $btn = $(this);
+                var originalText = $btn.html();
+                $btn.html('<i class="fa-solid fa-spinner fa-spin me-2"></i> ĐANG GỬI...').addClass("disabled");
+
+                // Gửi AJAX
+                $.ajax({
+                    url: '@Url.Action("SendContact", "Home")',
+                    type: 'POST',
+                    data: {
+                        name: name,
+                        email: email,
+                        phone: phone,
+                        subject: subject,
+                        message: message
+                    },
+                    success: function (response) {
+                        if (response.success) {
+                            alert("Thành công! Yêu cầu của bạn đã được gửi đến Admin SafeGuard.");
+                            $("#contactForm")[0].reset(); // Xóa form
+                        } else {
+                            alert("Có lỗi xảy ra: " + response.message);
+                        }
+                    },
+                    error: function () {
+                        alert("Không thể kết nối đến máy chủ. Vui lòng thử lại sau.");
+                    },
+                    complete: function() {
+                        // Khôi phục nút bấm sau khi gửi xong
+                        $btn.html(originalText).removeClass("disabled");
+                    }
+                });
+            });
+        });
+    </script>
+}
