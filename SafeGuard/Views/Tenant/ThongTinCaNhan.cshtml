@@ -1,4 +1,5 @@
-﻿@{
+﻿@model SafeGuard.Controllers.TenantProfileVM
+@{
     ViewBag.Title = "Thông Tin Cá Nhân";
     Layout = "~/Views/Shared/_DashboardLayout.cshtml";
 }
@@ -26,7 +27,7 @@
         position: absolute;
         right: 5px;
         bottom: 5px;
-        background-color: #dc3545; /* Màu đỏ SafeGuard */
+        background-color: #dc3545;
         color: white;
         border-radius: 50%;
         width: 38px;
@@ -83,26 +84,6 @@
         animation: fadeInUp 0.6s ease-out forwards;
         opacity: 0;
     }
-
-    .delay-1 {
-        animation-delay: 0.1s;
-    }
-
-    .delay-2 {
-        animation-delay: 0.2s;
-    }
-
-    @@keyframes fadeInUp {
-        from {
-            opacity: 0;
-            transform: translateY(20px);
-        }
-
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
-    }
 </style>
 
 <div class="container-fluid py-4">
@@ -111,7 +92,7 @@
             <div class="profile-card p-4 text-center">
 
                 <div class="avatar-wrapper mb-4">
-                    <img id="avatarImage" src="https://ui-avatars.com/api/?name=Tri+Nguyen&background=dc3545&color=fff&size=200" alt="Avatar" class="avatar-preview">
+                    <img id="avatarImage" src="@Model.AvatarUrl" alt="Avatar" class="avatar-preview">
 
                     <label for="avatarUpload" class="avatar-edit-btn" title="Thay đổi ảnh đại diện">
                         <i class="fa-solid fa-camera"></i>
@@ -119,44 +100,43 @@
                     <input type="file" id="avatarUpload" accept=".png, .jpg, .jpeg" style="display: none;">
                 </div>
 
-                <h4 class="fw-bold text-dark mb-1">Nguyễn Văn Trí</h4>
+                <h4 class="fw-bold text-dark mb-1">@Model.FullName</h4>
                 <p class="text-muted mb-3"><i class="fa-solid fa-user-check me-1 text-success"></i> Khách thuê (Tenant)</p>
 
                 <div class="d-flex justify-content-center gap-2 mb-3">
                     <span class="badge bg-danger bg-opacity-10 text-danger border border-danger px-3 py-2 rounded-pill">
-                        <i class="fa-solid fa-house-chimney me-1"></i> Phòng 302
+                        <i class="fa-solid fa-house-chimney me-1"></i> @(Model.AssignedRoom != "Chưa có" ? "Phòng " + Model.AssignedRoom : "Chưa có phòng")
                     </span>
                     <span class="badge bg-primary bg-opacity-10 text-primary border border-primary px-3 py-2 rounded-pill">
-                        <i class="fa-solid fa-location-dot me-1"></i> Cơ sở Quận 4
+                        <i class="fa-solid fa-location-dot me-1"></i> @Model.Address
                     </span>
                 </div>
             </div>
         </div>
 
         <div class="col-lg-8">
-
-            <div class="profile-card anim-fade-up delay-1">
+            <div class="profile-card anim-fade-up">
                 <div class="card-header-custom d-flex align-items-center">
                     <i class="fa-solid fa-address-card text-danger fs-4 me-2"></i> THÔNG TIN CÁ NHÂN
                 </div>
                 <div class="card-body p-4">
-                    <form>
+                    <form id="formUpdateProfile">
                         <div class="row g-4">
                             <div class="col-md-6">
                                 <label class="form-label fw-bold text-muted small">Tên đăng nhập</label>
-                                <input type="text" class="form-control form-control-custom" value="mh_tri2026" readonly title="Tên đăng nhập không thể thay đổi">
+                                <input type="text" class="form-control form-control-custom" value="@Model.Username" readonly title="Tên đăng nhập không thể thay đổi">
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label fw-bold text-muted small">Họ và tên</label>
-                                <input type="text" class="form-control form-control-custom" value="Nguyễn Văn Trí">
+                                <input type="text" id="txtFullName" name="fullName" class="form-control form-control-custom" value="@Model.FullName">
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label fw-bold text-muted small">Địa chỉ Email</label>
-                                <input type="email" class="form-control form-control-custom" value="tri@student.ntt.edu.vn">
+                                <input type="email" id="txtEmail" name="email" class="form-control form-control-custom" value="@Model.Email" placeholder="Nhập email của bạn">
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label fw-bold text-muted small">Số điện thoại</label>
-                                <input type="text" class="form-control form-control-custom" value="0912345678">
+                                <input type="text" id="txtPhone" name="phone" class="form-control form-control-custom" value="@Model.Phone">
                             </div>
 
                             <div class="col-12 mt-4">
@@ -164,86 +144,95 @@
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label fw-bold text-muted small">Khu trọ</label>
-                                <input type="text" class="form-control form-control-custom" value="SafeGuard Quận 4 (NTTU)" readonly>
+                                <input type="text" class="form-control form-control-custom" value="@Model.BlockName" readonly>
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label fw-bold text-muted small">Số phòng</label>
-                                <input type="text" class="form-control form-control-custom" value="Phòng 302" readonly>
+                                <input type="text" class="form-control form-control-custom" value="@(Model.AssignedRoom != "Chưa có" ? "Phòng " + Model.AssignedRoom : "Chưa có")" readonly>
                             </div>
                         </div>
 
                         <div class="text-end mt-4 pt-3 border-top">
-                            <button type="button" class="btn btn-danger px-4 rounded-pill fw-bold shadow-sm">
+                            <button type="button" id="btnSaveProfile" class="btn btn-danger px-4 rounded-pill fw-bold shadow-sm">
                                 <i class="fa-solid fa-floppy-disk me-1"></i> Lưu Thông Tin
                             </button>
                         </div>
                     </form>
                 </div>
             </div>
-
-            <div class="profile-card anim-fade-up delay-2">
-                <div class="card-header-custom d-flex align-items-center">
-                    <i class="fa-solid fa-shield-halved text-dark fs-4 me-2"></i> ĐỔI MẬT KHẨU
-                </div>
-                <div class="card-body p-4">
-                    <form>
-                        <div class="row g-4">
-                            <div class="col-12">
-                                <label class="form-label fw-bold text-muted small">Mật khẩu cũ</label>
-                                <div class="input-group">
-                                    <span class="input-group-text bg-light border-end-0"><i class="fa-solid fa-lock text-muted"></i></span>
-                                    <input type="password" class="form-control form-control-custom border-start-0 ps-0" placeholder="Nhập mật khẩu hiện tại">
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label fw-bold text-muted small">Mật khẩu mới</label>
-                                <div class="input-group">
-                                    <span class="input-group-text bg-light border-end-0"><i class="fa-solid fa-key text-danger"></i></span>
-                                    <input type="password" class="form-control form-control-custom border-start-0 ps-0" placeholder="Nhập mật khẩu mới">
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label fw-bold text-muted small">Xác nhận mật khẩu mới</label>
-                                <div class="input-group">
-                                    <span class="input-group-text bg-light border-end-0"><i class="fa-solid fa-check-double text-success"></i></span>
-                                    <input type="password" class="form-control form-control-custom border-start-0 ps-0" placeholder="Nhập lại mật khẩu mới">
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="text-end mt-4 pt-3 border-top">
-                            <button type="button" class="btn btn-dark px-4 rounded-pill fw-bold shadow-sm">
-                                <i class="fa-solid fa-arrows-rotate me-1"></i> Cập Nhật Mật Khẩu
-                            </button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-
         </div>
     </div>
 </div>
 
-<script>
-    document.addEventListener("DOMContentLoaded", function () {
-        const avatarUpload = document.getElementById('avatarUpload');
-        const avatarImage = document.getElementById('avatarImage');
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
-        avatarUpload.addEventListener('change', function (e) {
-            const file = e.target.files[0];
-            if (file) {
-                // Kiểm tra nếu là file ảnh
-                if (file.type.startsWith('image/')) {
-                    const reader = new FileReader();
-                    reader.onload = function (e) {
-                        // Cập nhật thẻ src của hình ảnh
-                        avatarImage.src = e.target.result;
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const avatarUpload = document.getElementById('avatarUpload');
+            const avatarImage = document.getElementById('avatarImage');
+            let selectedFile = null; // Biến cất giữ file ảnh
+
+            // 1. KHI NGƯỜI DÙNG CHỌN ẢNH (Chỉ mới đổi Preview, chưa up lên AWS)
+            avatarUpload.addEventListener('change', function (e) {
+                const file = e.target.files[0];
+                if (file) {
+                    if (file.type.startsWith('image/')) {
+                        selectedFile = file; // Cất file đi
+                        const reader = new FileReader();
+                        reader.onload = function (e) {
+                            avatarImage.src = e.target.result; // Hiện ảnh nháp lên màn hình
+                        }
+                        reader.readAsDataURL(file);
+                    } else {
+                        Swal.fire('Lỗi', 'Vui lòng chọn file hình ảnh hợp lệ (.jpg, .png)', 'error');
                     }
-                    reader.readAsDataURL(file);
-                } else {
-                    alert("Vui lòng chọn một file hình ảnh hợp lệ (.jpg, .png)");
                 }
-            }
+            });
+
+            // 2. KHI BẤM NÚT LƯU THÔNG TIN (Gửi thẳng lên AWS)
+            document.getElementById('btnSaveProfile').addEventListener('click', function () {
+                var fullName = document.getElementById('txtFullName').value;
+                var phone = document.getElementById('txtPhone').value;
+                var emailInput = document.getElementById('txtEmail').value; // <-- Lấy giá trị Email
+
+                if (fullName.trim() === '') {
+                    Swal.fire('Cảnh báo', 'Họ tên không được để trống', 'warning');
+                    return;
+                }
+
+                // ... (Phần bật Loading giữ nguyên) ...
+
+                var formData = new FormData();
+                formData.append('fullName', fullName);
+                formData.append('phone', phone);
+                formData.append('emailInput', emailInput); // <-- Đẩy Email lên C#
+                if (selectedFile) {
+                    formData.append('avatarFile', selectedFile);
+                }
+
+                // Bắn API lên C#
+                $.ajax({
+                    url: '@Url.Action("CapNhatThongTin", "Tenant")',
+                    type: 'POST',
+                    data: formData,
+                    processData: false,
+                    contentType: false,
+                    success: function (res) {
+                        if (res.success) {
+                            // Thành công -> Báo ok -> Reload lại để nhận Link ảnh mới
+                            Swal.fire('Thành công!', res.message, 'success').then(() => {
+                                location.reload();
+                            });
+                        } else {
+                            Swal.fire('Lỗi', res.message, 'error');
+                        }
+                    },
+                    error: function () {
+                        Swal.fire('Lỗi mạng', 'Không thể kết nối đến máy chủ S3', 'error');
+                    }
+                });
+            });
         });
-    });
-</script>
+    </script>
+}

@@ -3,17 +3,23 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Web.Mvc;
+using System.Web;
 using SafeGuard.Filters;
 using Amazon.DynamoDBv2;
 using Amazon.DynamoDBv2.DocumentModel;
 using Newtonsoft.Json;
 using System.Net.Http;
 using System.Text;
+using Amazon.S3;
+using Amazon.S3.Transfer;
+using System.IO;
+using System.Configuration;
+using Amazon.Runtime;
 
 namespace SafeGuard.Controllers
 {
     // ==========================================
-    // CLASS VIEW MODEL ĐÃ ĐƯỢC CHUYỂN RA NGOÀI ĐỂ TRÁNH LỖI GIAO DIỆN
+    // CÁC CLASS VIEW MODEL 
     // ==========================================
     public class TenantAlertVM
     {
@@ -23,14 +29,176 @@ namespace SafeGuard.Controllers
         public string AlertType { get; set; } // "fire", "high_temp", "normal"
     }
 
+    public class TenantProfileVM
+    {
+        public string UserID { get; set; }
+        public string Username { get; set; }
+        public string FullName { get; set; }
+        public string Email { get; set; }
+        public string Phone { get; set; }
+        public string AssignedRoom { get; set; }
+        public string AvatarUrl { get; set; }
+        public string BlockName { get; set; }
+        public string Address { get; set; }
+    }
+
     [RoleAuthorize(Role = "TENANT")]
     public class TenantController : Controller
     {
         public ActionResult Index() => View();
         public ActionResult NoiQuy() => View();
-        public ActionResult ThongTinCaNhan() => View();
         public ActionResult PhanTichAI() => View();
 
+        // =========================================================
+        // HÀM RADAR: TỰ ĐỘNG TÌM ID THẬT CỦA USER ĐỂ TRÁNH TẠO TÀI KHOẢN MA
+        // =========================================================
+        private async Task<string> GetRealUserIdAsync(AmazonDynamoDBClient client, string sessionValue)
+        {
+            var usersTable = Table.LoadTable(client, "Users");
+
+            // 1. Thử tìm xem có ai có Khóa chính trùng với Session không (Hợp lệ nếu Session lưu đúng UUID)
+            var user = await usersTable.GetItemAsync(sessionValue);
+            if (user != null && user.ContainsKey("role")) return sessionValue;
+
+            // 2. Nếu không có, quét bảng tìm ai có username == sessionValue (Để lấy UUID thật)
+            var filter = new ScanFilter();
+            filter.AddCondition("username", ScanOperator.Equal, sessionValue);
+            var search = usersTable.Scan(filter);
+            var results = await search.GetNextSetAsync();
+            if (results.Count > 0) return results[0]["userID"].AsString();
+
+            // 3. Quét thêm trường hợp đăng nhập bằng email
+            var filterEmail = new ScanFilter();
+            filterEmail.AddCondition("email", ScanOperator.Equal, sessionValue);
+            var searchEmail = usersTable.Scan(filterEmail);
+            var resultsEmail = await searchEmail.GetNextSetAsync();
+            if (resultsEmail.Count > 0) return resultsEmail[0]["userID"].AsString();
+
+            return sessionValue; // Trả về mặc định nếu không tìm thấy
+        }
+
+        // ==========================================
+        // 1. TRANG THÔNG TIN CÁ NHÂN & CẬP NHẬT S3
+        // ==========================================
+        [HttpGet]
+        public async Task<ActionResult> ThongTinCaNhan()
+        {
+            var profile = new TenantProfileVM();
+            if (Session["UserEmail"] != null)
+            {
+                try
+                {
+                    var client = new AmazonDynamoDBClient(Amazon.RegionEndpoint.APSoutheast1);
+                    // SỬ DỤNG RADAR ĐỂ TÌM ID THẬT
+                    string realUserId = await GetRealUserIdAsync(client, Session["UserEmail"].ToString());
+                    var table = Table.LoadTable(client, "Users");
+                    var user = await table.GetItemAsync(realUserId);
+
+                    if (user != null)
+                    {
+                        profile.UserID = user.ContainsKey("userID") ? user["userID"].AsString() : realUserId;
+                        profile.Username = user.ContainsKey("username") ? user["username"].AsString() : Session["UserEmail"].ToString().Split('@')[0];
+                        profile.FullName = user.ContainsKey("fullName") ? user["fullName"].AsString() : profile.Username;
+
+                        profile.Email = user.ContainsKey("email") ? user["email"].AsString() : "";
+                        profile.Phone = user.ContainsKey("phone") ? user["phone"].AsString() : "";
+                        profile.AssignedRoom = user.ContainsKey("AssignedRoom") && !string.IsNullOrEmpty(user["AssignedRoom"].AsString())
+                                               ? user["AssignedRoom"].AsString() : "Chưa có";
+                        profile.AvatarUrl = user.ContainsKey("AvatarUrl") ? user["AvatarUrl"].AsString()
+                                            : $"https://ui-avatars.com/api/?name={profile.FullName}&background=dc3545&color=fff&size=200";
+
+                        // TỰ ĐỘNG TÌM ĐỊA CHỈ KHU TRỌ
+                        profile.BlockName = "Chưa xác định";
+                        profile.Address = "Chưa có dữ liệu địa chỉ";
+
+                        if (profile.AssignedRoom != "Chưa có" && profile.AssignedRoom.Contains("-"))
+                        {
+                            string blockId = profile.AssignedRoom.Split('-')[0];
+                            var facTable = Table.LoadTable(client, "Facilities");
+                            var filter = new ScanFilter();
+                            filter.AddCondition("PK", ScanOperator.Equal, "BLOCK");
+                            filter.AddCondition("BlockId", ScanOperator.Equal, blockId);
+                            var search = facTable.Scan(filter);
+                            var facList = await search.GetRemainingAsync();
+
+                            if (facList.Count > 0)
+                            {
+                                profile.BlockName = facList[0].ContainsKey("BlockName") ? facList[0]["BlockName"].AsString() : "Khu " + blockId;
+                                profile.Address = facList[0].ContainsKey("Address") ? facList[0]["Address"].AsString() : "Chưa cập nhật địa chỉ";
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex) { System.Diagnostics.Debug.WriteLine("Lỗi lấy Profile: " + ex.Message); }
+            }
+            return View(profile);
+        }
+
+        [HttpPost]
+        public async Task<JsonResult> CapNhatThongTin(string fullName, string phone, string emailInput, HttpPostedFileBase avatarFile)
+        {
+            if (Session["UserEmail"] == null) return Json(new { success = false, message = "Vui lòng đăng nhập lại!" });
+
+            string s3AvatarUrl = null;
+
+            try
+            {
+                var dbClient = new AmazonDynamoDBClient(Amazon.RegionEndpoint.APSoutheast1);
+                // SỬ DỤNG RADAR ĐỂ TÌM ID THẬT
+                string realUserId = await GetRealUserIdAsync(dbClient, Session["UserEmail"].ToString());
+
+                // UPLOAD ẢNH S3
+                if (avatarFile != null && avatarFile.ContentLength > 0)
+                {
+                    string accessKey = ConfigurationManager.AppSettings["AWS_ACCESS_KEY"];
+                    string secretKey = ConfigurationManager.AppSettings["AWS_SECRET_KEY"];
+                    string bucketName = ConfigurationManager.AppSettings["AWS_S3_BUCKET"];
+                    string fileName = $"avatars/{realUserId}_{DateTime.Now.Ticks}{Path.GetExtension(avatarFile.FileName)}";
+
+                    var credentials = new BasicAWSCredentials(accessKey, secretKey);
+                    using (var s3Client = new AmazonS3Client(credentials, Amazon.RegionEndpoint.APSoutheast1))
+                    {
+                        var transferUtility = new TransferUtility(s3Client);
+                        using (var stream = avatarFile.InputStream)
+                        {
+                            var uploadRequest = new TransferUtilityUploadRequest
+                            {
+                                InputStream = stream,
+                                Key = fileName,
+                                BucketName = bucketName,
+                                CannedACL = S3CannedACL.PublicRead
+                            };
+                            await transferUtility.UploadAsync(uploadRequest);
+                        }
+                        s3AvatarUrl = $"https://{bucketName}.s3.ap-southeast-1.amazonaws.com/{fileName}";
+                    }
+                }
+
+                // CẬP NHẬT DYNAMODB (VÀO ĐÚNG TÀI KHOẢN GỐC)
+                var table = Table.LoadTable(dbClient, "Users");
+                var user = await table.GetItemAsync(realUserId);
+
+                if (user != null)
+                {
+                    user["fullName"] = fullName;
+                    user["phone"] = phone;
+                    if (!string.IsNullOrEmpty(emailInput)) user["email"] = emailInput;
+                    if (s3AvatarUrl != null) user["AvatarUrl"] = s3AvatarUrl;
+
+                    await table.UpdateItemAsync(user);
+                    return Json(new { success = true, message = "Cập nhật thông tin thành công!", newAvatar = s3AvatarUrl });
+                }
+                return Json(new { success = false, message = "Không tìm thấy user trong hệ thống." });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = "Lỗi hệ thống: " + ex.Message });
+            }
+        }
+
+        // ==========================================
+        // 2. QUẢN LÝ PHÒNG 
+        // ==========================================
         [HttpGet]
         public async Task<ActionResult> QuanLyPhong()
         {
@@ -39,8 +207,9 @@ namespace SafeGuard.Controllers
                 try
                 {
                     var client = new AmazonDynamoDBClient(Amazon.RegionEndpoint.APSoutheast1);
+                    string realUserId = await GetRealUserIdAsync(client, Session["UserEmail"].ToString());
                     var usersTable = Table.LoadTable(client, "Users");
-                    var userItem = await usersTable.GetItemAsync(Session["UserEmail"].ToString());
+                    var userItem = await usersTable.GetItemAsync(realUserId);
 
                     if (userItem != null && userItem.ContainsKey("AssignedRoom"))
                     {
@@ -48,21 +217,15 @@ namespace SafeGuard.Controllers
 
                         if (!string.IsNullOrEmpty(currentRoom) && currentRoom.Contains("-"))
                         {
-                            // ĐÃ SỬA: Tách "A-101" thành "A" và "101" để DynamoDB không bị lỗi văng Catch
                             var parts = currentRoom.Split('-');
-                            string blockId = parts[0];
-                            string roomId = parts[1];
-
                             var roomTable = Table.LoadTable(client, "Rooms");
-                            var roomExist = await roomTable.GetItemAsync(blockId, roomId);
+                            var roomExist = await roomTable.GetItemAsync(parts[0], parts[1]);
 
                             if (roomExist == null)
                             {
-                                // Xóa Session và xóa cột trong DB
                                 Session["AssignedRoom"] = null;
                                 userItem.Remove("AssignedRoom");
-                                await usersTable.UpdateItemAsync(userItem);
-
+                                await usersTable.PutItemAsync(userItem);
                                 TempData["ErrorMessage"] = "Phòng của bạn đã bị Quản lý xóa khỏi hệ thống!";
                             }
                             else
@@ -70,22 +233,69 @@ namespace SafeGuard.Controllers
                                 Session["AssignedRoom"] = currentRoom;
                             }
                         }
-                        else
-                        {
-                            Session["AssignedRoom"] = null;
-                        }
+                        else Session["AssignedRoom"] = null;
                     }
                 }
-                catch (Exception ex)
-                {
-                    System.Diagnostics.Debug.WriteLine("Lỗi lấy/kiểm tra phòng: " + ex.Message);
-                }
+                catch (Exception ex) { System.Diagnostics.Debug.WriteLine("Lỗi: " + ex.Message); }
             }
             return View();
         }
 
         // ==========================================
-        // LẤY LỊCH SỬ CẢNH BÁO TỪ DYNAMODB
+        // 3. XÁC NHẬN MÃ PHÒNG BẰNG AJAX
+        // ==========================================
+        [HttpPost]
+        public async Task<JsonResult> XacNhanMaPhong(string inviteCode)
+        {
+            if (string.IsNullOrEmpty(inviteCode)) return Json(new { success = false, message = "Vui lòng nhập mã phòng!" });
+
+            try
+            {
+                var client = new AmazonDynamoDBClient(Amazon.RegionEndpoint.APSoutheast1);
+                var inviteTable = Table.LoadTable(client, "RoomInvites");
+                var inviteItem = await inviteTable.GetItemAsync(inviteCode.Trim().ToUpper());
+
+                if (inviteItem == null) return Json(new { success = false, message = "Mã không tồn tại hoặc sai!" });
+                if (inviteItem["IsUsed"].AsBoolean()) return Json(new { success = false, message = "Mã đã được sử dụng!" });
+
+                if (inviteItem.ContainsKey("CreatedAt") && inviteItem.ContainsKey("ExpireHours"))
+                {
+                    DateTime createdAt = DateTime.Parse(inviteItem["CreatedAt"].AsString());
+                    if (DateTime.UtcNow > createdAt.AddHours(inviteItem["ExpireHours"].AsInt()))
+                        return Json(new { success = false, message = "Mã kích hoạt đã hết hạn!" });
+                }
+
+                string roomId = inviteItem["RoomId"].AsString();
+                inviteItem["IsUsed"] = true;
+                await inviteTable.UpdateItemAsync(inviteItem);
+
+                if (Session["UserEmail"] != null)
+                {
+                    string realUserId = await GetRealUserIdAsync(client, Session["UserEmail"].ToString());
+                    var usersTable = Table.LoadTable(client, "Users");
+
+                    var userDoc = await usersTable.GetItemAsync(realUserId);
+                    if (userDoc != null)
+                    {
+                        userDoc["AssignedRoom"] = roomId;
+                        await usersTable.UpdateItemAsync(userDoc);
+                    }
+                    else // Đề phòng lỗi sâu
+                    {
+                        var newDoc = new Document();
+                        newDoc["userID"] = realUserId;
+                        newDoc["AssignedRoom"] = roomId;
+                        await usersTable.UpdateItemAsync(newDoc);
+                    }
+                    Session["AssignedRoom"] = roomId;
+                }
+                return Json(new { success = true, message = $"Gia nhập phòng {roomId} thành công." });
+            }
+            catch (Exception ex) { return Json(new { success = false, message = "Lỗi: " + ex.Message }); }
+        }
+
+        // ==========================================
+        // 4. LẤY LỊCH SỬ CẢNH BÁO
         // ==========================================
         public async Task<ActionResult> LichSuCanhBao()
         {
@@ -97,158 +307,36 @@ namespace SafeGuard.Controllers
             {
                 var client = new AmazonDynamoDBClient(Amazon.RegionEndpoint.APSoutheast1);
                 var table = Table.LoadTable(client, "SafeDorm_History");
-
-                var queryFilter = new QueryFilter("room_id", QueryOperator.Equal, myRoomId);
-                var search = table.Query(queryFilter);
+                var search = table.Query(new QueryFilter("room_id", QueryOperator.Equal, myRoomId));
                 var documentList = await search.GetNextSetAsync();
 
                 foreach (var doc in documentList)
                 {
                     double temp = doc["temperature"].AsDouble();
-                    DateTime timeStamp;
+                    DateTime timeStamp = doc.ContainsKey("timestamp")
+                        ? (doc["timestamp"].AsString().Contains("-")
+                            ? DateTime.Parse(doc["timestamp"].AsString())
+                            : DateTimeOffset.FromUnixTimeSeconds(long.Parse(doc["timestamp"].AsString())).ToLocalTime().DateTime)
+                        : DateTime.Now;
 
-                    if (doc.ContainsKey("timestamp"))
-                    {
-                        string timeStr = doc["timestamp"].AsString();
-                        if (timeStr.Contains("-"))
-                        {
-                            DateTime.TryParse(timeStr, out timeStamp);
-                        }
-                        else
-                        {
-                            long unixTime = long.Parse(timeStr);
-                            timeStamp = DateTimeOffset.FromUnixTimeSeconds(unixTime).ToLocalTime().DateTime;
-                        }
-                    }
-                    else
-                    {
-                        timeStamp = DateTime.Now;
-                    }
-
-                    string type = "normal";
-                    string desc = "Mức nhiệt độ phòng ổn định, cảm biến hoạt động tốt.";
-
-                    if (temp >= 50)
-                    {
-                        type = "fire";
-                        desc = "Cảnh báo nguy cơ cháy: Nhiệt độ tăng đột biến cực cao!";
-                    }
-                    else if (temp >= 38)
-                    {
-                        type = "high_temp";
-                        desc = $"Nhiệt độ tăng cao bất thường ({temp}°C).";
-                    }
+                    string type = temp >= 50 ? "fire" : (temp >= 38 ? "high_temp" : "normal");
+                    string desc = temp >= 50 ? "Cảnh báo nguy cơ cháy: Nhiệt độ tăng đột biến!"
+                                : (temp >= 38 ? $"Nhiệt độ tăng cao ({temp}°C)." : "Mức nhiệt độ ổn định.");
 
                     alertList.Add(new TenantAlertVM { TimeStamp = timeStamp, Temperature = temp, Description = desc, AlertType = type });
                 }
             }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine("Lỗi lấy dữ liệu Tenant: " + ex.Message);
-            }
+            catch (Exception) { }
 
-            var sortedList = alertList.OrderByDescending(x => x.TimeStamp).ToList();
-            return View(sortedList);
+            return View(alertList.OrderByDescending(x => x.TimeStamp).ToList());
         }
 
         // ==========================================
-        // NGƯỜI THUÊ NHẬP MÃ THAM GIA PHÒNG
-        // ==========================================
-        // ==========================================
-        // NGƯỜI THUÊ NHẬP MÃ THAM GIA PHÒNG (DÙNG AJAX)
-        // ==========================================
-        [HttpPost]
-        public async Task<JsonResult> XacNhanMaPhong(string inviteCode)
-        {
-            if (string.IsNullOrEmpty(inviteCode))
-                return Json(new { success = false, message = "Vui lòng nhập mã phòng!" });
-
-            try
-            {
-                var client = new AmazonDynamoDBClient(Amazon.RegionEndpoint.APSoutheast1);
-                var inviteTable = Table.LoadTable(client, "RoomInvites");
-                var inviteItem = await inviteTable.GetItemAsync(inviteCode.Trim().ToUpper());
-
-                if (inviteItem == null)
-                    return Json(new { success = false, message = "Mã không tồn tại hoặc bạn đã nhập sai!" });
-
-                if (inviteItem["IsUsed"].AsBoolean())
-                    return Json(new { success = false, message = "Mã này đã được sử dụng bởi một người khác!" });
-
-                if (inviteItem.ContainsKey("CreatedAt") && inviteItem.ContainsKey("ExpireHours"))
-                {
-                    DateTime createdAt = DateTime.Parse(inviteItem["CreatedAt"].AsString());
-                    int expireHours = inviteItem["ExpireHours"].AsInt();
-                    if (DateTime.UtcNow > createdAt.AddHours(expireHours))
-                        return Json(new { success = false, message = "Mã kích hoạt này đã hết hạn sử dụng!" });
-                }
-
-                string roomId = inviteItem["RoomId"].AsString();
-                inviteItem["IsUsed"] = true;
-                await inviteTable.UpdateItemAsync(inviteItem);
-
-                if (Session["UserEmail"] != null)
-                {
-                    string userEmail = Session["UserEmail"].ToString();
-                    var usersTable = Table.LoadTable(client, "Users");
-
-                    var userDoc = new Document();
-                    userDoc["userID"] = userEmail;
-                    userDoc["AssignedRoom"] = roomId;
-                    await usersTable.UpdateItemAsync(userDoc);
-
-                    Session["AssignedRoom"] = roomId;
-                }
-
-                // Trả về JSON thành công thay vì Redirect
-                return Json(new { success = true, message = $"Chúc mừng! Bạn đã gia nhập phòng {roomId} thành công." });
-            }
-            catch (Exception ex)
-            {
-                return Json(new { success = false, message = "Lỗi hệ thống: " + ex.Message });
-            }
-        }
-
-        // ==========================================
-        // HÀM TẠO DỮ LIỆU GIẢ ĐỂ TEST BIỂU ĐỒ VÀ AI
-        // ==========================================
-        [HttpGet]
-        public async Task<ActionResult> TaoDuLieuGia()
-        {
-            string roomId = Session["AssignedRoom"] != null ? Session["AssignedRoom"].ToString() : "C-107";
-            try
-            {
-                var client = new AmazonDynamoDBClient(Amazon.RegionEndpoint.APSoutheast1);
-                var table = Table.LoadTable(client, "SafeDorm_History");
-
-                // Tạo dữ liệu cho 7 ngày gần nhất
-                for (int i = 6; i >= 0; i--)
-                {
-                    var doc = new Document();
-                    doc["room_id"] = roomId;
-                    doc["timestamp"] = DateTime.Now.AddDays(-i).ToString("yyyy-MM-dd HH:mm:ss");
-
-                    Random rnd = new Random();
-                    doc["temperature"] = rnd.Next(25, 32);
-
-                    // Cố tình đẩy nhiệt độ hôm nay lên 45 độ để test AI Báo cháy
-                    if (i == 0) doc["temperature"] = 45;
-
-                    await table.PutItemAsync(doc);
-                }
-                return Content($"Đã tạo thành công 7 ngày dữ liệu giả cho phòng {roomId}! Hãy quay lại trang Phân Tích AI.");
-            }
-            catch (Exception ex) { return Content("Lỗi: " + ex.Message); }
-        }
-
-        // ==========================================
-        // HÀM GỌI LÊN AWS LAMBDA (REAL-TIME 100%, KHÔNG CACHE)
+        // 5. GỌI AWS LAMBDA (AI REAL-TIME)
         // ==========================================
         private async Task<(string message, string advice)> GetGeminiAIAnalysisRealTime(List<double> recentTemps)
         {
-            // THAY LINK NÀY BẰNG LINK API GATEWAY CỦA BẠN:
-            string awsApiGatewayUrl = "https://ĐIỀN_LINK_API_GATEWAY_CỦA_BẠN_VÀO_ĐÂY";
-
+            string awsApiGatewayUrl = "https://ulj2dtb59k.execute-api.ap-southeast-1.amazonaws.com/default/SafeGuard_Tenant_Analyzer";
             string aiMessage = "Nhiệt độ phòng bạn rất ổn định.";
             string aiAdvice = "Mẹo AI: Hãy tắt bớt thiết bị điện khi ra ngoài.";
 
@@ -256,105 +344,79 @@ namespace SafeGuard.Controllers
             {
                 using (var httpClient = new HttpClient())
                 {
-                    var payload = new { recentTemps = recentTemps };
-                    var content = new StringContent(JsonConvert.SerializeObject(payload), Encoding.UTF8, "application/json");
-
+                    var content = new StringContent(JsonConvert.SerializeObject(new { recentTemps = recentTemps }), Encoding.UTF8, "application/json");
                     var response = await httpClient.PostAsync(awsApiGatewayUrl, content);
-
-                    // Bắt buộc văng lỗi nếu API Gateway sập hoặc link sai
                     response.EnsureSuccessStatusCode();
 
                     var responseString = await response.Content.ReadAsStringAsync();
                     dynamic json = JsonConvert.DeserializeObject(responseString);
-
-                    aiMessage = json.message;
-                    aiAdvice = json.advice;
+                    aiMessage = json.message; aiAdvice = json.advice;
                 }
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                System.Diagnostics.Debug.WriteLine("Lỗi gọi AI Real-time: " + ex.Message);
-
-                // Fallback nếu rớt mạng
-                double avgTemp = recentTemps.Any() ? recentTemps.Average() : 0;
-                if (avgTemp >= 38)
+                if ((recentTemps.Any() ? recentTemps.Average() : 0) >= 38)
                 {
                     aiMessage = "Nhiệt độ đang NÓNG BẤT THƯỜNG.";
                     aiAdvice = "Mẹo AI: Kiểm tra thiết bị điện ngay lập tức.";
                 }
             }
-
             return (aiMessage, aiAdvice);
         }
 
         // ==========================================
-        // API: LẤY DỮ LIỆU BIỂU ĐỒ VÀ GỌI AI PHÂN TÍCH
+        // 6. LẤY DỮ LIỆU BIỂU ĐỒ VÀ GỌI AI
         // ==========================================
         [HttpGet]
         public async Task<JsonResult> GetRoomChartData()
         {
             string myRoomId = Session["AssignedRoom"] != null ? Session["AssignedRoom"].ToString() : "";
-
-            if (string.IsNullOrEmpty(myRoomId))
-            {
-                return Json(new { success = false, message = "Chưa có phòng" }, JsonRequestBehavior.AllowGet);
-            }
+            if (string.IsNullOrEmpty(myRoomId)) return Json(new { success = false, message = "Chưa có phòng" }, JsonRequestBehavior.AllowGet);
 
             try
             {
                 var client = new AmazonDynamoDBClient(Amazon.RegionEndpoint.APSoutheast1);
                 var table = Table.LoadTable(client, "SafeDorm_History");
+                var documentList = await table.Query(new QueryFilter("room_id", QueryOperator.Equal, myRoomId)).GetNextSetAsync();
 
-                var queryFilter = new QueryFilter("room_id", QueryOperator.Equal, myRoomId);
-                var search = table.Query(queryFilter);
-                var documentList = await search.GetNextSetAsync();
-
-                var logs = new List<dynamic>();
-                foreach (var doc in documentList)
-                {
-                    DateTime timeStamp = DateTime.Now;
-                    if (doc.ContainsKey("timestamp"))
-                    {
-                        string timeStr = doc["timestamp"].AsString();
-                        if (timeStr.Contains("-")) DateTime.TryParse(timeStr, out timeStamp);
-                        else timeStamp = DateTimeOffset.FromUnixTimeSeconds(long.Parse(timeStr)).ToLocalTime().DateTime;
-                    }
-
-                    logs.Add(new { Time = timeStamp, Temp = doc["temperature"].AsDouble() });
-                }
-
-                var chartData = logs.OrderByDescending(x => x.Time).Take(7).OrderBy(x => x.Time).Select(x => new
-                {
-                    Label = x.Time.ToString("HH:mm dd/MM"),
-                    Value = x.Temp
+                var logs = documentList.Select(doc => new {
+                    Time = doc.ContainsKey("timestamp") ? (doc["timestamp"].AsString().Contains("-") ? DateTime.Parse(doc["timestamp"].AsString()) : DateTimeOffset.FromUnixTimeSeconds(long.Parse(doc["timestamp"].AsString())).ToLocalTime().DateTime) : DateTime.Now,
+                    Temp = doc["temperature"].AsDouble()
                 }).ToList();
 
-                // Ép kiểu double và list
-                var listTemps = chartData.Select(x => (double)x.Value).ToList();
-                string aiMessage = "Chưa có đủ dữ liệu cảm biến để AI phân tích.";
-                string aiAdvice = "Hệ thống đang chờ cảm biến gửi tín hiệu đầu tiên...";
+                var chartData = logs.OrderByDescending(x => x.Time).Take(7).OrderBy(x => x.Time).Select(x => new { Label = x.Time.ToString("HH:mm dd/MM"), Value = x.Temp }).ToList();
 
-                // Gọi AI Lambda Real-time
+                string aiMessage = "Chưa đủ dữ liệu AI."; string aiAdvice = "Chờ cảm biến gửi tín hiệu...";
+                var listTemps = chartData.Select(x => (double)x.Value).ToList();
                 if (listTemps.Count > 0)
                 {
-                    var geminiResult = await GetGeminiAIAnalysisRealTime(listTemps);
-                    aiMessage = geminiResult.message;
-                    aiAdvice = geminiResult.advice;
+                    var gemini = await GetGeminiAIAnalysisRealTime(listTemps);
+                    aiMessage = gemini.message; aiAdvice = gemini.advice;
                 }
 
-                return Json(new
-                {
-                    success = true,
-                    labels = chartData.Select(c => c.Label),
-                    values = chartData.Select(c => c.Value),
-                    aiMessage = aiMessage,
-                    aiAdvice = aiAdvice
-                }, JsonRequestBehavior.AllowGet);
+                return Json(new { success = true, labels = chartData.Select(c => c.Label), values = chartData.Select(c => c.Value), aiMessage = aiMessage, aiAdvice = aiAdvice }, JsonRequestBehavior.AllowGet);
             }
-            catch (Exception ex)
+            catch (Exception ex) { return Json(new { success = false, message = ex.Message }, JsonRequestBehavior.AllowGet); }
+        }
+
+        // ==========================================
+        // 7. TẠO DỮ LIỆU GIẢ 
+        // ==========================================
+        [HttpGet]
+        public async Task<ActionResult> TaoDuLieuGia()
+        {
+            string roomId = Session["AssignedRoom"] != null ? Session["AssignedRoom"].ToString() : "C-107";
+            try
             {
-                return Json(new { success = false, message = ex.Message }, JsonRequestBehavior.AllowGet);
+                var table = Table.LoadTable(new AmazonDynamoDBClient(Amazon.RegionEndpoint.APSoutheast1), "SafeDorm_History");
+                for (int i = 6; i >= 0; i--)
+                {
+                    var doc = new Document { ["room_id"] = roomId, ["timestamp"] = DateTime.Now.AddDays(-i).ToString("yyyy-MM-dd HH:mm:ss"), ["temperature"] = i == 0 ? 45 : new Random().Next(25, 32) };
+                    await table.PutItemAsync(doc);
+                }
+                return Content($"Tạo dữ liệu cho {roomId} thành công!");
             }
+            catch (Exception ex) { return Content("Lỗi: " + ex.Message); }
         }
     }
 }
