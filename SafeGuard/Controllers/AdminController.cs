@@ -408,29 +408,114 @@ namespace SafeGuard.Controllers
                 var client = GetClient();
                 var historyTable = Table.LoadTable(client, "SafeDorm_History");
 
-                // Lấy data trong 10 phút qua
                 long tenMinsAgo = DateTimeOffset.UtcNow.AddMinutes(-10).ToUnixTimeSeconds();
                 var historyFilter = new ScanFilter();
                 historyFilter.AddCondition("timestamp", ScanOperator.GreaterThanOrEqual, tenMinsAgo);
                 var recentLogs = await historyTable.Scan(historyFilter).GetNextSetAsync();
 
-                var sensorList = recentLogs
-                    .GroupBy(doc => doc["room_id"].AsString())
-                    .Select(g => {
-                        var latest = g.OrderByDescending(doc => doc["timestamp"].AsLong()).First();
-                        double temp = latest["temperature"].AsDouble();
-                        return new
+                var usersTable = Table.LoadTable(client, "Users"); // Mở bảng Users để tra email
+
+                var sensorList = new List<object>();
+
+                // Nhóm theo phòng và chỉ lấy bản ghi mới nhất
+                var groupedLogs = recentLogs.GroupBy(doc => doc["room_id"].AsString());
+
+                foreach (var g in groupedLogs)
+                {
+                    var latest = g.OrderByDescending(doc => doc["timestamp"].AsLong()).First();
+                    string rId = latest["room_id"].AsString();
+                    double temp = latest["temperature"].AsDouble();
+                    bool isAlert = temp >= 38;
+                    bool isEmergency = temp >= 50;
+
+                    // --- BẮT ĐẦU LUỒNG GỬI EMAIL KHẨN CẤP ---
+                    if (isEmergency)
+                    {
+                        // Tránh spam mail mỗi giây: Check Session xem đã gửi mail trong vòng 10 phút chưa
+                        string sessionKey = $"EmailSent_{rId}";
+                        if (Session[sessionKey] == null)
                         {
-                            RoomId = latest["room_id"].AsString(),
-                            Temp = temp,
-                            Time = DateTimeOffset.FromUnixTimeSeconds(latest["timestamp"].AsLong()).ToLocalTime().ToString("hh:mm tt"),
-                            IsAlert = temp >= 38
-                        };
-                    }).ToList();
+                            // 1. Quét tìm ai đang ở phòng này
+                            var uFilter = new ScanFilter();
+                            uFilter.AddCondition("AssignedRoom", ScanOperator.Contains, rId);
+                            var usersInRoom = await usersTable.Scan(uFilter).GetNextSetAsync();
+
+                            // 2. Nếu có người ở, lôi email ra và gửi
+                            if (usersInRoom.Count > 0)
+                            {
+                                string targetEmail = usersInRoom[0].ContainsKey("email") ? usersInRoom[0]["email"].AsString() : usersInRoom[0]["userID"].AsString();
+
+                                // GỌI HÀM GỬI EMAIL KHÔNG ĐỢI (Chạy ngầm để web không bị giật)
+                                _ = SendEmergencyEmail(targetEmail, rId, temp);
+
+                                // Đánh dấu là đã gửi để 10 phút sau mới gửi tiếp (tránh spam)
+                                Session[sessionKey] = DateTime.Now.AddMinutes(10);
+                            }
+                        }
+                    }
+                    // --- KẾT THÚC LUỒNG EMAIL ---
+
+                    sensorList.Add(new
+                    {
+                        RoomId = rId,
+                        Temp = temp,
+                        Time = DateTimeOffset.FromUnixTimeSeconds(latest["timestamp"].AsLong()).ToLocalTime().ToString("hh:mm tt"),
+                        IsAlert = isAlert
+                    });
+                }
 
                 return Json(sensorList, JsonRequestBehavior.AllowGet);
             }
-            catch { return Json(null, JsonRequestBehavior.AllowGet); }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine("Lỗi RealTime: " + ex.Message);
+                return Json(null, JsonRequestBehavior.AllowGet);
+            }
+        }
+        // ==========================================
+        // HÀM HỖ TRỢ: GỬI EMAIL CẢNH BÁO
+        // ==========================================
+        private async Task SendEmergencyEmail(string toEmail, string roomName, double temperature)
+        {
+            try
+            {
+                // Thay bằng Email và Mật khẩu ứng dụng (App Password) của bạn
+                string botEmail = "adminsafeguard@gmail.com";
+                string botPassword = "sofq imon enbq uexp";
+
+                var message = new System.Net.Mail.MailMessage(botEmail, toEmail)
+                {
+                    Subject = $"[KHẨN CẤP] CẢNH BÁO NHIỆT ĐỘ CAO - PHÒNG {roomName}",
+                    IsBodyHtml = true,
+                    Body = $@"
+                        <div style='font-family: Arial, sans-serif; max-width: 600px; margin: auto; border: 2px solid #dc3545; border-radius: 10px; overflow: hidden;'>
+                            <div style='background-color: #dc3545; color: white; padding: 20px; text-align: center;'>
+                                <h2 style='margin: 0;'>🔥 BÁO ĐỘNG AN TOÀN 🔥</h2>
+                            </div>
+                            <div style='padding: 20px; background-color: #f8d7da; color: #842029;'>
+                                <p style='font-size: 16px;'>Hệ thống SafeGuard phát hiện nhiệt độ <strong>NÓNG BẤT THƯỜNG</strong> tại phòng của bạn.</p>
+                                <h1 style='text-align: center; color: #dc3545; font-size: 48px; margin: 10px 0;'>{temperature}°C</h1>
+                                <p style='font-size: 16px;'><strong>Phòng giám sát:</strong> {roomName}</p>
+                                <p style='font-size: 16px;'><strong>Lời khuyên:</strong> Hãy kiểm tra ngay các thiết bị điện có khả năng sinh nhiệt hoặc ngắt cầu dao tổng nếu cần thiết.</p>
+                            </div>
+                            <div style='background-color: #f1f1f1; padding: 10px; text-align: center; color: #6c757d; font-size: 12px;'>
+                                Hệ thống cảnh báo tự động từ SafeGuard. Vui lòng không trả lời email này.
+                            </div>
+                        </div>"
+                };
+
+                using (var smtp = new System.Net.Mail.SmtpClient("smtp.gmail.com", 587))
+                {
+                    smtp.Credentials = new System.Net.NetworkCredential(botEmail, botPassword);
+                    smtp.EnableSsl = true;
+                    await smtp.SendMailAsync(message);
+                }
+                System.Diagnostics.Debug.WriteLine("Đã gửi email khẩn cấp thành công tới: " + toEmail);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine("Lỗi gửi email: " + ex.Message);
+            }
         }
 
         public ActionResult BaoCaoAI() => View();
