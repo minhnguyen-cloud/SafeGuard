@@ -28,6 +28,16 @@ namespace SafeGuard.Controllers
         public string Description { get; set; }
         public string AlertType { get; set; } // "fire", "high_temp", "normal"
     }
+    public class TenantDashboardVM
+    {
+        public string RoomName { get; set; }
+        public string BlockName { get; set; }
+        public double? CurrentTemperature { get; set; }
+        public string LastUpdated { get; set; }
+        public string StatusMessage { get; set; }
+        public bool IsAlert { get; set; }
+        public bool HasData { get; set; }
+    }
 
     public class TenantProfileVM
     {
@@ -45,7 +55,90 @@ namespace SafeGuard.Controllers
     [RoleAuthorize(Role = "TENANT")]
     public class TenantController : Controller
     {
-        public ActionResult Index() => View();
+        [HttpGet]
+        public async Task<ActionResult> Index()
+        {
+            var model = new TenantDashboardVM
+            {
+                RoomName = "Chưa có",
+                BlockName = "N/A",
+                HasData = false,
+                StatusMessage = "Hệ thống đang chờ kết nối...",
+                LastUpdated = "Chưa có dữ liệu"
+            };
+
+            if (Session["AssignedRoom"] != null)
+            {
+                string roomId = Session["AssignedRoom"].ToString();
+
+                if (roomId.Contains("-"))
+                {
+                    model.RoomName = "Phòng " + roomId.Split('-')[1];
+                    model.BlockName = "Dãy " + roomId.Split('-')[0];
+                }
+                else
+                {
+                    model.RoomName = "Phòng " + roomId;
+                }
+
+                try
+                {
+                    var client = new AmazonDynamoDBClient(Amazon.RegionEndpoint.APSoutheast1);
+                    var table = Table.LoadTable(client, "SafeDorm_History");
+
+                    var filter = new QueryFilter("room_id", QueryOperator.Equal, roomId);
+                    var search = table.Query(filter);
+                    var docs = await search.GetNextSetAsync();
+
+                    if (docs.Count > 0)
+                    {
+                        // Lấy record mới nhất dựa trên thời gian
+                        var latestDoc = docs.OrderByDescending(d => d.ContainsKey("timestamp") ? d["timestamp"].AsString() : "").First();
+
+                        model.CurrentTemperature = latestDoc["temperature"].AsDouble();
+                        model.HasData = true;
+
+                        // Xử lý chuỗi thời gian (Tránh lỗi do dữ liệu giả và thật khác format)
+                        DateTime timeStamp;
+                        string timeStr = latestDoc["timestamp"].AsString();
+                        if (timeStr.Contains("-"))
+                        {
+                            DateTime.TryParse(timeStr, out timeStamp);
+                        }
+                        else
+                        {
+                            timeStamp = DateTimeOffset.FromUnixTimeSeconds(long.Parse(timeStr)).ToLocalTime().DateTime;
+                        }
+
+                        // Nếu vừa cập nhật trong vòng 5 phút, hiện "Vừa xong", ngược lại hiện giờ cụ thể
+                        TimeSpan diff = DateTime.Now - timeStamp;
+                        model.LastUpdated = diff.TotalMinutes <= 5 ? "Vừa xong" : timeStamp.ToString("HH:mm - dd/MM");
+
+                        // XỬ LÝ ĐỔI MÀU CẢNH BÁO
+                        if (model.CurrentTemperature >= 45)
+                        {
+                            model.IsAlert = true;
+                            model.StatusMessage = "NGUY HIỂM: Nhiệt độ tăng cao bất thường! Vui lòng kiểm tra thiết bị trong phòng ngay.";
+                        }
+                        else if (model.CurrentTemperature >= 38)
+                        {
+                            model.IsAlert = true;
+                            model.StatusMessage = "CẢNH BÁO: Nhiệt độ đang ở mức cao. Hệ thống AI khuyên bạn chú ý.";
+                        }
+                        else
+                        {
+                            model.IsAlert = false;
+                            model.StatusMessage = "Hệ thống cảm biến nhiệt độ tại phòng bạn đang hoạt động bình thường và ổn định.";
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine("Lỗi lấy nhiệt độ Tenant: " + ex.Message);
+                }
+            }
+            return View(model);
+        }
         public ActionResult NoiQuy() => View();
         public ActionResult PhanTichAI() => View();
 
