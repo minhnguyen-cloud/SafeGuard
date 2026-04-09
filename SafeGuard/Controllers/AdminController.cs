@@ -27,8 +27,8 @@ namespace SafeGuard.Controllers
             try
             {
                 var roomsTable = Table.LoadTable(client, "Rooms");
-                var allRooms = await roomsTable.Scan(new ScanFilter()).GetNextSetAsync();
-                ViewBag.TotalRooms = allRooms.Count;
+                var allRoomsDocs = await roomsTable.Scan(new ScanFilter()).GetNextSetAsync();
+                ViewBag.TotalRooms = allRoomsDocs.Count;
 
                 var usersTable = Table.LoadTable(client, "Users");
                 var tenantFilter = new ScanFilter();
@@ -49,13 +49,13 @@ namespace SafeGuard.Controllers
 
                 // 5. TRẠNG THÁI GẦN ĐÂY
                 ViewBag.RecentActivities = activeTenants
-                    .Where(u => u.ContainsKey("roomId") && !string.IsNullOrEmpty(u["roomId"].AsString()))
+                    .Where(u => u.ContainsKey("AssignedRoom") && !string.IsNullOrEmpty(u["AssignedRoom"].AsString()))
                     .OrderByDescending(u => u.ContainsKey("createdAt") ? u["createdAt"].AsString() : "")
                     .Take(4)
                     .Select(u => new RecentActivityVM
                     {
                         Name = u.ContainsKey("fullName") ? u["fullName"].AsString() : "Sinh viên",
-                        Room = u["roomId"].AsString(),
+                        Room = u["AssignedRoom"].AsString(),
                         Time = u.ContainsKey("createdAt") ? DateTime.Parse(u["createdAt"].AsString()).ToString("HH:mm - dd/MM") : ""
                     }).ToList();
 
@@ -72,11 +72,18 @@ namespace SafeGuard.Controllers
                         };
                     }).ToList();
 
-                // 7. LẤY DÃY CHO DROPDOWN
+                // 7. LẤY DÃY VÀ PHÒNG THẬT CHO DROPDOWN TẠO MÃ
                 var tableFacilities = Table.LoadTable(client, "Facilities");
                 var blocks = await tableFacilities.Query(new QueryFilter("PK", QueryOperator.Equal, "BLOCK")).GetRemainingAsync();
-                // Ép sang List<string> để View dễ đọc, không bị lỗi Document
                 ViewBag.Blocks = blocks.Select(b => b["BlockId"].AsString()).ToList();
+
+                // TRUYỀN DANH SÁCH PHÒNG THẬT LÊN VIEW
+                ViewBag.RealRoomsList = allRoomsDocs.Select(r => new SafeGuard.Models.RoomDisplayViewModel
+                {
+                    BlockName = r.ContainsKey("BlockId") ? r["BlockId"].AsString() : "",
+                    RoomId = r.ContainsKey("RoomId") ? r["RoomId"].AsString() : ""
+                }).OrderBy(x => x.BlockName).ThenBy(x => x.RoomId).ToList();
+
             }
             catch (Exception ex)
             {
@@ -118,7 +125,7 @@ namespace SafeGuard.Controllers
                         RoomName = "Phòng " + bId + "-" + rId,
                         BlockName = bId,
                         RoomId = rId,
-                        OwnerEmail = owner != null ? owner["userID"].AsString() : "Chưa có người thuê",
+                        OwnerEmail = owner != null ? (owner.ContainsKey("fullName") ? owner["fullName"].AsString() : owner["userID"].AsString()) : "Chưa có người thuê",
                         IsOnline = owner != null
                     });
                 }
@@ -155,43 +162,46 @@ namespace SafeGuard.Controllers
         }
 
         [HttpPost]
-        public async Task<ActionResult> XoaPhong(string blockId, string roomId)
+        public async Task<JsonResult> XoaPhong(string blockId, string roomId)
         {
             try
             {
                 var client = GetClient();
+                string fullRoomId = $"{blockId}-{roomId}";
 
                 // 1. Xóa phòng khỏi bảng Rooms
                 var tableRooms = Table.LoadTable(client, "Rooms");
                 await tableRooms.DeleteItemAsync(blockId, roomId);
 
-                // 2. Xóa dây chuyền: Đá tất cả người thuê đang ở phòng này ra ngoài
-                string fullRoomId = $"{blockId}-{roomId}";
-                try
-                {
-                    var usersTable = Table.LoadTable(client, "Users");
-                    var scanFilter = new ScanFilter();
-                    scanFilter.AddCondition("AssignedRoom", ScanOperator.Equal, fullRoomId);
-                    var search = usersTable.Scan(scanFilter);
-                    var usersInRoom = await search.GetNextSetAsync();
+                // 2. Đá TẤT CẢ người thuê ra khỏi phòng
+                var usersTable = Table.LoadTable(client, "Users");
+                var scanFilter = new ScanFilter();
+                scanFilter.AddCondition("AssignedRoom", ScanOperator.Equal, fullRoomId);
+                var usersInRoom = await usersTable.Scan(scanFilter).GetRemainingAsync();
 
-                    foreach (var user in usersInRoom)
-                    {
-                        // ĐÃ SỬA: Xóa hẳn cột AssignedRoom thay vì để rỗng ""
-                        user.Remove("AssignedRoom");
-                        await usersTable.UpdateItemAsync(user);
-                    }
-                }
-                catch (Exception ex)
+                foreach (var user in usersInRoom)
                 {
-                    System.Diagnostics.Debug.WriteLine("Lỗi khi kick người thuê: " + ex.Message);
+                    user.Remove("AssignedRoom");
+                    await usersTable.PutItemAsync(user); // Ghi đè toàn bộ để ép DB xóa cột
                 }
 
-                TempData["SuccessMessage"] = $"Đã xóa phòng {fullRoomId} và cập nhật lại danh sách thành viên!";
+                // 3. Xóa sạch các Mã Kích Hoạt của phòng này
+                var invitesTable = Table.LoadTable(client, "RoomInvites");
+                var inviteFilter = new ScanFilter();
+                inviteFilter.AddCondition("RoomId", ScanOperator.Equal, fullRoomId);
+                var invitesInRoom = await invitesTable.Scan(inviteFilter).GetRemainingAsync();
+
+                foreach (var inv in invitesInRoom)
+                {
+                    await invitesTable.DeleteItemAsync(inv["InviteCode"].AsString());
+                }
+
+                return Json(new { success = true, message = $"Đã xóa vĩnh viễn phòng {fullRoomId} và dọn dẹp dữ liệu!" });
             }
-            catch (Exception ex) { TempData["ErrorMessage"] = "Lỗi xóa phòng: " + ex.Message; }
-
-            return RedirectToAction("QuanLyPhong");
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = "Lỗi hệ thống: " + ex.Message });
+            }
         }
 
         // ==========================================
@@ -219,6 +229,10 @@ namespace SafeGuard.Controllers
                     block["ActiveRooms"] = activeRooms;
                 }
                 ViewBag.Blocks = blocks.OrderBy(b => b["BlockName"].AsString()).ToList();
+
+                // MỚI THÊM: Truyền danh sách phòng và user sang View để hiển thị Popup Chi Tiết
+                ViewBag.AllRooms = allRooms;
+                ViewBag.AllUsers = allUsers;
             }
             catch (Exception ex) { TempData["ErrorMessage"] = "Lỗi: " + ex.Message; }
             return View();
@@ -248,7 +262,8 @@ namespace SafeGuard.Controllers
                     roomItem["BlockId"] = blockId; roomItem["RoomId"] = $"10{i}"; roomItem["CreatedAt"] = DateTime.Now.ToString("O");
                     await tableRooms.PutItemAsync(roomItem);
                 }
-                TempData["SuccessMessage"] = $"Đã thêm {blockName} thành công!";
+                // ĐÃ SỬA CÂU THÔNG BÁO Ở ĐÂY
+                TempData["SuccessMessage"] = $"Đã thêm dãy trọ {blockName} thành công!";
             }
             catch (Exception ex) { TempData["ErrorMessage"] = "Lỗi: " + ex.Message; }
             return RedirectToAction("QuanLyDayTro");
@@ -382,6 +397,40 @@ namespace SafeGuard.Controllers
             {
                 return Json(new { success = false, message = ex.Message }, JsonRequestBehavior.AllowGet);
             }
+        }
+
+        // Dùng cho AJAX load lại bảng cảm biến Real-time ở trang Tổng quan
+        [HttpGet]
+        public async Task<JsonResult> GetRealTimeSensorData()
+        {
+            try
+            {
+                var client = GetClient();
+                var historyTable = Table.LoadTable(client, "SafeDorm_History");
+
+                // Lấy data trong 10 phút qua
+                long tenMinsAgo = DateTimeOffset.UtcNow.AddMinutes(-10).ToUnixTimeSeconds();
+                var historyFilter = new ScanFilter();
+                historyFilter.AddCondition("timestamp", ScanOperator.GreaterThanOrEqual, tenMinsAgo);
+                var recentLogs = await historyTable.Scan(historyFilter).GetNextSetAsync();
+
+                var sensorList = recentLogs
+                    .GroupBy(doc => doc["room_id"].AsString())
+                    .Select(g => {
+                        var latest = g.OrderByDescending(doc => doc["timestamp"].AsLong()).First();
+                        double temp = latest["temperature"].AsDouble();
+                        return new
+                        {
+                            RoomId = latest["room_id"].AsString(),
+                            Temp = temp,
+                            Time = DateTimeOffset.FromUnixTimeSeconds(latest["timestamp"].AsLong()).ToLocalTime().ToString("hh:mm tt"),
+                            IsAlert = temp >= 38
+                        };
+                    }).ToList();
+
+                return Json(sensorList, JsonRequestBehavior.AllowGet);
+            }
+            catch { return Json(null, JsonRequestBehavior.AllowGet); }
         }
 
         public ActionResult BaoCaoAI() => View();

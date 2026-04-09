@@ -3,6 +3,94 @@
     Layout = "~/Views/Shared/_DashboardLayout.cshtml";
 }
 
+<style>
+    /* HIỆU ỨNG CHUYỂN ĐỘNG */
+    .anim-fade-up {
+        animation: fadeInUp 0.6s ease-out forwards;
+        opacity: 0;
+    }
+
+    .delay-1 {
+        animation-delay: 0.1s;
+    }
+
+    .delay-2 {
+        animation-delay: 0.2s;
+    }
+
+    .delay-3 {
+        animation-delay: 0.3s;
+    }
+
+    @@keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    /* ĐÂY LÀ ĐOẠN CSS TRẢ LẠI GIAO DIỆN "THỀM TRẮNG" CỰC ĐẸP (HÌNH 2) */
+    .custom-card {
+        background-color: #ffffff;
+        border-radius: 12px;
+        border: 1px solid #e0e0e0;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+        transition: all 0.3s ease;
+    }
+
+        .custom-card:hover {
+            box-shadow: 0 8px 25px rgba(0,0,0,0.08);
+            transform: translateY(-2px);
+        }
+
+    .card-title-custom {
+        font-weight: 700;
+        color: #495057;
+        font-size: 0.95rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    /* CSS TRẠNG THÁI */
+    .status-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        display: inline-block;
+    }
+
+    .bg-green {
+        background-color: #28a745;
+    }
+
+    .bg-red {
+        background-color: #dc3545;
+    }
+
+    .pulse {
+        animation: pulse 1.5s infinite;
+    }
+
+    @@keyframes pulse {
+        0% {
+            box-shadow: 0 0 0 0 rgba(220,53,69, 0.4);
+        }
+
+        70% {
+            box-shadow: 0 0 0 10px rgba(220,53,69, 0);
+        }
+
+        100% {
+            box-shadow: 0 0 0 0 rgba(220,53,69, 0);
+        }
+    }
+</style>
+
 <div class="container-fluid p-0">
     <div class="row g-4 mb-4">
         <div class="col-md-7 anim-fade-up">
@@ -101,9 +189,23 @@
             <div class="custom-card p-4 h-100">
                 <h6 class="card-title-custom">Tạo Mã Kích Hoạt (Mã Mời)</h6>
                 <form method="post" action="@Url.Action("TaoMaMoi", "Admin")">
+
                     <select name="selectedRoom" class="form-select mb-3 mt-3 shadow-sm" required>
                         <option value="" selected disabled>-- Chọn Phòng --</option>
-                        @if (ViewBag.Blocks != null)
+                        @if (ViewBag.RealRoomsList != null)
+                        {
+                            var realRooms = ViewBag.RealRoomsList as List<SafeGuard.Models.RoomDisplayViewModel>;
+                            foreach (var group in realRooms.GroupBy(r => r.BlockName))
+                            {
+                                <optgroup label="Dãy @group.Key">
+                                    @foreach (var room in group)
+                                    {
+                                        <option value="@room.BlockName-@room.RoomId">Phòng @room.BlockName-@room.RoomId</option>
+                                    }
+                                </optgroup>
+                            }
+                        }
+                        else if (ViewBag.Blocks != null)
                         {
                             foreach (var bId in ViewBag.Blocks as List<string>)
                             {
@@ -117,7 +219,8 @@
                             }
                         }
                     </select>
-                    <input type="number" name="expireHours" class="form-control mb-3" value="24">
+
+                    <input type="number" name="expireHours" class="form-control mb-3" value="24" title="Thời hạn mã (Giờ)">
                     <button type="submit" class="btn btn-primary w-100 fw-bold shadow-sm">TẠO MÃ</button>
                 </form>
             </div>
@@ -136,8 +239,7 @@
         <div class="col-md-3 anim-fade-up delay-3">
             <div class="custom-card p-4 text-center h-100 d-flex flex-column justify-content-center">
                 <h6 class="card-title-custom">Chủ Trọ</h6>
-                <p class="mt-2 mb-3 fw-bold text-primary">@Session["UserName"]</p>
-                <button class="btn btn-sm btn-outline-dark w-100">Bảo mật hồ sơ</button>
+                <button class="btn btn-sm btn-outline-dark w-100 py-2 mt-3">Bảo mật hồ sơ</button>
             </div>
         </div>
         <div class="col-md-4 anim-fade-up delay-3">
@@ -176,7 +278,7 @@
         }
 
         $(document).ready(function() {
-            setInterval(updateDashboard, 5000); // Tự cập nhật mỗi 5 giây
+            setInterval(updateDashboard, 2000); // Tự cập nhật mỗi 5 giây
         });
 
         // Vẽ biểu đồ AI

@@ -70,6 +70,35 @@ namespace SafeGuard.Controllers
             if (Session["AssignedRoom"] != null)
             {
                 string roomId = Session["AssignedRoom"].ToString();
+                var client = new AmazonDynamoDBClient(Amazon.RegionEndpoint.APSoutheast1);
+
+                // --- KIỂM TRA XEM PHÒNG ĐÃ BỊ ADMIN XÓA CHƯA ---
+                var roomTable = Table.LoadTable(client, "Rooms");
+                var roomParts = roomId.Split('-');
+                if (roomParts.Length == 2)
+                {
+                    var roomExist = await roomTable.GetItemAsync(roomParts[0], roomParts[1]);
+                    if (roomExist == null)
+                    {
+                        // Admin đã xóa phòng này -> Xóa session
+                        Session["AssignedRoom"] = null;
+
+                        // Xóa luôn dưới DB của Tenant cho chắc ăn
+                        if (Session["UserId"] != null)
+                        {
+                            var usersTable = Table.LoadTable(client, "Users");
+                            var userDoc = await usersTable.GetItemAsync(Session["UserId"].ToString());
+                            if (userDoc != null)
+                            {
+                                userDoc.Remove("AssignedRoom");
+                                await usersTable.PutItemAsync(userDoc);
+                            }
+                        }
+                        // Trả về trang "Chưa có phòng" ngay lập tức
+                        return RedirectToAction("Index");
+                    }
+                }
+                // -------------------------------------------------------------
 
                 if (roomId.Contains("-"))
                 {
@@ -83,7 +112,6 @@ namespace SafeGuard.Controllers
 
                 try
                 {
-                    var client = new AmazonDynamoDBClient(Amazon.RegionEndpoint.APSoutheast1);
                     var table = Table.LoadTable(client, "SafeDorm_History");
 
                     var filter = new QueryFilter("room_id", QueryOperator.Equal, roomId);
@@ -139,6 +167,7 @@ namespace SafeGuard.Controllers
             }
             return View(model);
         }
+
         public ActionResult NoiQuy() => View();
         public ActionResult PhanTichAI() => View();
 

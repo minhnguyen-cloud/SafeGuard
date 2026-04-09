@@ -84,11 +84,9 @@
                                         <i class="fa-solid fa-users-viewfinder"></i>
                                     </button>
 
-                                    <form action="@Url.Action("XoaPhong", "Admin")" method="post" style="display:inline;" onsubmit="return confirm('Xóa phòng này?')">
-                                        <input type="hidden" name="blockId" value="@room.BlockName" />
-                                        <input type="hidden" name="roomId" value="@room.RoomId" />
-                                        <button type="submit" class="btn btn-sm btn-outline-danger border-0"><i class="fa-solid fa-trash-can"></i></button>
-                                    </form>
+                                    <button type="button" class="btn btn-sm btn-outline-danger border-0 btn-delete-room" data-block="@room.BlockName" data-room="@room.RoomId" title="Xóa phòng">
+                                        <i class="fa-solid fa-trash-can"></i>
+                                    </button>
                                 </td>
                             </tr>
                         }
@@ -161,6 +159,8 @@
 </div>
 
 @section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
     <script>
         // --- HÀM ÉP MỞ MODAL BẤT CHẤP PHIÊN BẢN (Dành cho nút Thêm Phòng) ---
         function forceOpenModal(modalId) {
@@ -270,6 +270,51 @@
                     $('#membersLoading').hide();
                     $('#membersContent').show();
                     $('#membersList').html('<div class="text-center text-danger py-3"><i class="fa-solid fa-triangle-exclamation me-2"></i> Lỗi kết nối đến máy chủ.</div>');
+                });
+            });
+
+            // --- AJAX XỬ LÝ NÚT XÓA PHÒNG BẰNG SWEETALERT ---
+            $('.btn-delete-room').click(function () {
+                var blockId = $(this).data('block');
+                var roomId = $(this).data('room');
+                var fullRoom = blockId + '-' + roomId;
+
+                Swal.fire({
+                    title: 'Xác nhận xóa?',
+                    text: "Phòng " + fullRoom + " sẽ bị xóa vĩnh viễn. Mọi người thuê sẽ bị đẩy ra và mã kích hoạt sẽ bị hủy!",
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#d33',
+                    cancelButtonColor: '#6c757d',
+                    confirmButtonText: 'Xóa vĩnh viễn',
+                    cancelButtonText: 'Hủy bỏ'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+
+                        Swal.fire({
+                            title: 'Đang dọn dẹp hệ thống...',
+                            allowOutsideClick: false,
+                            didOpen: () => { Swal.showLoading() }
+                        });
+
+                        $.ajax({
+                            url: '@Url.Action("XoaPhong", "Admin")',
+                            type: 'POST',
+                            data: { blockId: blockId, roomId: roomId },
+                            success: function (res) {
+                                if (res.success) {
+                                    Swal.fire('Thành công!', res.message, 'success').then(() => {
+                                        location.reload(); // Tự động reload để cập nhật bảng
+                                    });
+                                } else {
+                                    Swal.fire('Lỗi', res.message, 'error');
+                                }
+                            },
+                            error: function() {
+                                Swal.fire('Lỗi mạng', 'Không thể kết nối đến máy chủ', 'error');
+                            }
+                        });
+                    }
                 });
             });
         });
