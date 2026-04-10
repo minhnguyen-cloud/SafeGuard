@@ -1,0 +1,41 @@
+name: SafeGuard Backend CI/CD
+
+# 1. Kích hoạt tự động khi Push code lên nhánh Backend
+on:
+  push:
+    branches: [ "Backend" ]
+  pull_request:
+    branches: [ "Backend" ]
+
+jobs:
+  build:
+    # 2. Sử dụng máy chủ ảo chạy Windows để build ASP.NET MVC
+    runs-on: windows-latest 
+
+    steps:
+    # Bước 3.1: Tải mã nguồn của bạn vào máy chủ ảo
+    - name: Checkout Code
+      uses: actions/checkout@v3
+
+    # Bước 3.2: Cài đặt công cụ MSBuild
+    - name: Setup MSBuild
+      uses: microsoft/setup-msbuild@v1.1
+
+    # Bước 3.3: Cài đặt công cụ NuGet
+    - name: Setup NuGet
+      uses: NuGet/setup-nuget@v1.1.0
+
+    # Bước 3.4: Tải các thư viện cần thiết (Tương đương Restore NuGet Packages)
+    - name: Restore NuGet Packages
+      run: nuget restore SafeGuard.sln
+
+    # Bước 3.5: Tiến hành Build và Đóng gói toàn bộ trang web
+    - name: Build and Package ASP.NET MVC
+      run: msbuild SafeGuard.sln /p:Configuration=Release /p:DeployOnBuild=true /p:WebPublishMethod=Package /p:PackageAsSingleFile=true /p:PackageLocation="$(build.artifactstagingdirectory)\\"
+
+    # Bước 3.6: Xuất file .zip sau khi đóng gói thành công
+    - name: Upload Build Artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: SafeGuard-Backend-Release
+        path: ${{ github.workspace }}\**\*.zip
