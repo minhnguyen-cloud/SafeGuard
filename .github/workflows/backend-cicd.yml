@@ -1,0 +1,38 @@
+name: SafeGuard Backend CI/CD
+
+on:
+  push:
+    branches: [ "Backend" ]
+  pull_request:
+    branches: [ "Backend" ]
+
+jobs:
+  build:
+    runs-on: windows-latest 
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    # Đã nâng cấp lên v2 để hết cảnh báo màu vàng
+    - name: Setup MSBuild
+      uses: microsoft/setup-msbuild@v2
+
+    # Đã nâng cấp lên v2 để hết cảnh báo màu vàng
+    - name: Setup NuGet
+      uses: NuGet/setup-nuget@v2
+
+    # Tự động quét tìm file .sln ở mọi ngóc ngách và Restore
+    - name: Restore NuGet Packages
+      run: Get-ChildItem -Filter *.sln -Recurse | ForEach-Object { nuget restore $_.FullName }
+
+    # Tự động quét tìm file .sln, Build và xuất ra thư mục Publish
+    - name: Build and Package ASP.NET MVC
+      run: Get-ChildItem -Filter *.sln -Recurse | ForEach-Object { msbuild $_.FullName /p:Configuration=Release /p:DeployOnBuild=true /p:WebPublishMethod=Package /p:PackageAsSingleFile=true /p:PackageLocation="${{ github.workspace }}\Publish\\" }
+
+    # Gom file .zip lại để bạn tải về
+    - name: Upload Build Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: SafeGuard-Backend-Release
+        path: ${{ github.workspace }}\Publish\**\*.zip
