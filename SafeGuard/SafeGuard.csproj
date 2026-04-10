@@ -162,13 +162,15 @@
     <Compile Include="App_Start\RouteConfig.cs" />
     <Compile Include="Controllers\AccountController.cs" />
     <Compile Include="Controllers\AdminController.cs" />
-    <Compile Include="Controllers\ApiController.cs" />
+    <Compile Include="Controllers\ChatController.cs" />
     <Compile Include="Controllers\TenantController.cs" />
     <Compile Include="Filters\RoleAuthorizeAttribute.cs" />
     <Compile Include="Global.asax.cs">
       <DependentUpon>Global.asax</DependentUpon>
     </Compile>
     <Compile Include="Models\AlertHistoryViewModel.cs" />
+    <Compile Include="Models\ChatRequestViewModel.cs" />
+    <Compile Include="Models\ChatResponseViewModel.cs" />
     <Compile Include="Models\ConfirmSignUpViewModel.cs" />
     <Compile Include="Models\EmailWorker.cs" />
     <Compile Include="Models\ForgotPasswordViewModel.cs" />
@@ -178,6 +180,7 @@
     <Compile Include="Models\ResetPasswordViewModel.cs" />
     <Compile Include="Models\RoomDisplayViewModel.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Services\ChatbotService.cs" />
     <Compile Include="Services\CognitoAuthService.cs" />
   </ItemGroup>
   <ItemGroup>
