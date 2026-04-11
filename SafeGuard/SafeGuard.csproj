@@ -148,6 +148,9 @@
     <Content Include="Content\images\LoiIt1.jpg" />
     <Content Include="Content\images\LoiIt2.jpg" />
     <Content Include="Content\images\LoiIt3.png" />
+    <Content Include="Content\images\PiggyShy.png" />
+    <Content Include="Content\images\Thuonghieu.png" />
+    <Content Include="Content\images\Thuonghieu1.png" />
     <Content Include="Content\images\Tintuc1.jpg" />
     <Content Include="Content\images\Tintuc2.jpg" />
     <Content Include="Content\images\Tintuc3.jpg" />
