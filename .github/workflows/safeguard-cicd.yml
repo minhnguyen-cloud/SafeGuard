@@ -1,0 +1,33 @@
+name: SafeGuard Production CD (Main)
+
+# Chỉ kích hoạt khi có code đẩy thẳng vào hoặc Merge vào nhánh "main"
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  build-and-release:
+    runs-on: windows-latest 
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    - name: Setup MSBuild
+      uses: microsoft/setup-msbuild@v2
+
+    - name: Setup NuGet
+      uses: NuGet/setup-nuget@v2
+
+    - name: Restore NuGet Packages
+      run: Get-ChildItem -Filter *.sln -Recurse | ForEach-Object { nuget restore $_.FullName }
+
+    - name: Build and Package (Bản Chính Thức)
+      run: Get-ChildItem -Filter *.sln -Recurse | ForEach-Object { msbuild $_.FullName /p:Configuration=Release /p:DeployOnBuild=true /p:WebPublishMethod=Package /p:PackageAsSingleFile=true /p:PackageLocation="${{ github.workspace }}\ProductionPublish\\" }
+
+    # Xuất file ZIP bản chính thức
+    - name: Upload Production Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: SafeGuard-Main-Release-Final
+        path: ${{ github.workspace }}\ProductionPublish\**\*.zip
