@@ -60,7 +60,6 @@
         text-transform: uppercase;
     }
 
-    /* Style cho phần ghi chú liên hệ */
     .contact-admin-note {
         background-color: #fff3cd;
         color: #856404;
@@ -148,7 +147,7 @@
                     <div class="mb-4 text-center">
                         <label class="form-label fw-bold small text-muted text-uppercase mb-2">Mã Kích Hoạt (Invite Code)</label>
                         <input type="text" id="txtInviteCode" name="inviteCode" class="form-control form-control-lg text-center fw-bold text-primary invite-input shadow-sm"
-                               placeholder="VD: A-101-X4Y2" required autofocus>
+                               placeholder="VD: A-101-X4Y2" required autofocus maxlength="50">
                     </div>
 
                     <div class="contact-admin-note text-center">
@@ -171,12 +170,27 @@
 
     <script>
         $(document).ready(function () {
-            // Xử lý sự kiện khi bấm nút xác nhận
-            $('#btnXacNhan').click(function () {
-                var code = $('#txtInviteCode').val();
+            let isSubmitting = false;
 
-                // Nếu người dùng để trống
-                if (!code || code.trim() === '') {
+            function normalizeInviteCode(code) {
+                return (code || '').trim().toUpperCase();
+            }
+
+            function setSubmitState(disabled) {
+                const btn = $('#btnXacNhan');
+                btn.prop('disabled', disabled);
+                btn.html(disabled
+                    ? '<span class="spinner-border spinner-border-sm me-2"></span>ĐANG KIỂM TRA...'
+                    : 'KÍCH HOẠT PHÒNG TRỌ');
+            }
+
+            function submitInviteCode() {
+                if (isSubmitting) return;
+
+                let code = normalizeInviteCode($('#txtInviteCode').val());
+                $('#txtInviteCode').val(code);
+
+                if (!code) {
                     Swal.fire({
                         icon: 'warning',
                         title: 'Thiếu thông tin',
@@ -186,35 +200,47 @@
                     return;
                 }
 
-                // Hiện Popup loading
+                if (code.length < 5) {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Mã chưa hợp lệ',
+                        text: 'Mã kích hoạt có vẻ quá ngắn. Vui lòng kiểm tra lại.',
+                        confirmButtonColor: '#3085d6'
+                    });
+                    return;
+                }
+
+                isSubmitting = true;
+                setSubmitState(true);
+
                 Swal.fire({
                     title: 'Đang kiểm tra mã...',
                     allowOutsideClick: false,
+                    allowEscapeKey: false,
                     didOpen: () => {
-                        Swal.showLoading()
+                        Swal.showLoading();
                     }
                 });
 
-                // Gọi AJAX kiểm tra mã
                 $.ajax({
                     url: '@Url.Action("XacNhanMaPhong", "Tenant")',
                     type: 'POST',
                     data: { inviteCode: code },
                     success: function (res) {
+                        isSubmitting = false;
+                        setSubmitState(false);
+
                         if (res.success) {
-                            // Thành công: Đóng modal, báo xanh lá
                             $('#joinRoomModal').modal('hide');
                             Swal.fire({
                                 icon: 'success',
                                 title: 'Thành công!',
                                 text: res.message,
                                 confirmButtonColor: '#28a745'
-                            }).then((result) => {
-                                // Reload lại trang để hiển thị bảng điều khiển phòng
+                            }).then(() => {
                                 location.reload();
                             });
                         } else {
-                            // Thất bại: Báo lỗi đỏ
                             Swal.fire({
                                 icon: 'error',
                                 title: 'Không hợp lệ',
@@ -224,6 +250,9 @@
                         }
                     },
                     error: function () {
+                        isSubmitting = false;
+                        setSubmitState(false);
+
                         Swal.fire({
                             icon: 'error',
                             title: 'Lỗi mạng',
@@ -232,14 +261,23 @@
                         });
                     }
                 });
+            }
+
+            $('#btnXacNhan').click(function () {
+                submitInviteCode();
             });
 
-            // Tiện ích: Cho phép bấm Enter trong ô input thay vì rê chuột bấm nút
             $('#txtInviteCode').keypress(function (e) {
-                if (e.which == 13) { // 13 là mã phím Enter
+                if (e.which === 13) {
                     e.preventDefault();
-                    $('#btnXacNhan').click();
+                    submitInviteCode();
                 }
+            });
+
+            $('#joinRoomModal').on('hidden.bs.modal', function () {
+                isSubmitting = false;
+                setSubmitState(false);
+                $('#formXacNhanMa')[0].reset();
             });
         });
     </script>

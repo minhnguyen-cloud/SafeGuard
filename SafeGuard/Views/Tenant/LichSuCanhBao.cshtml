@@ -6,7 +6,6 @@
 }
 
 <style>
-    /* Hiệu ứng xuất hiện mượt mà */
     .anim-fade-up {
         animation: fadeInUp 0.6s ease-out forwards;
         opacity: 0;
@@ -28,7 +27,6 @@
         }
     }
 
-    /* Card hiện đại */
     .premium-card {
         background: #fff;
         border-radius: 16px;
@@ -47,7 +45,6 @@
         background: linear-gradient(90deg, #dc3545, #ffc107);
     }
 
-    /* Bảng dữ liệu xịn xò */
     .table-modern {
         border-collapse: separate;
         border-spacing: 0 10px;
@@ -94,7 +91,6 @@
             border-left-color: #dc3545;
         }
 
-    /* Ô tìm kiếm */
     .search-box {
         background-color: #f8f9fa;
         border-radius: 50px;
@@ -124,7 +120,7 @@
 
         <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
             <div class="d-flex gap-2">
-                <button class="btn btn-dark btn-sm rounded-pill px-3 fw-bold filter-btn" data-filter="all">Tất cả</button>
+                <button class="btn btn-dark btn-sm rounded-pill px-3 fw-bold filter-btn active-filter" data-filter="all">Tất cả</button>
                 <button class="btn btn-outline-warning btn-sm rounded-pill px-3 fw-semibold filter-btn" data-filter="high_temp">Nhiệt độ cao</button>
                 <button class="btn btn-outline-danger btn-sm rounded-pill px-3 fw-semibold filter-btn" data-filter="fire">Phát hiện cháy</button>
             </div>
@@ -199,33 +195,62 @@
             const rows = document.querySelectorAll('.alert-row');
             const searchInput = document.getElementById('searchInput');
 
-            // Logic lọc theo nút
+            let currentFilter = 'all';
+            let currentSearch = '';
+
+            function updateFilterButtonStyles() {
+                filterBtns.forEach(btn => {
+                    btn.classList.remove('btn-dark', 'btn-warning', 'btn-danger', 'text-dark');
+
+                    const type = btn.getAttribute('data-filter');
+
+                    if (type === currentFilter) {
+                        if (type === 'all') {
+                            btn.className = 'btn btn-dark btn-sm rounded-pill px-3 fw-bold filter-btn';
+                        } else if (type === 'high_temp') {
+                            btn.className = 'btn btn-warning btn-sm rounded-pill px-3 fw-bold text-dark filter-btn';
+                        } else if (type === 'fire') {
+                            btn.className = 'btn btn-danger btn-sm rounded-pill px-3 fw-bold filter-btn';
+                        }
+                    } else {
+                        if (type === 'all') {
+                            btn.className = 'btn btn-outline-dark btn-sm rounded-pill px-3 fw-semibold filter-btn';
+                        } else if (type === 'high_temp') {
+                            btn.className = 'btn btn-outline-warning btn-sm rounded-pill px-3 fw-semibold filter-btn';
+                        } else if (type === 'fire') {
+                            btn.className = 'btn btn-outline-danger btn-sm rounded-pill px-3 fw-semibold filter-btn';
+                        }
+                    }
+                });
+            }
+
+            function applyFilters() {
+                rows.forEach(row => {
+                    const rowType = row.getAttribute('data-type') || '';
+                    const rowText = row.innerText.toLowerCase();
+
+                    const passType = currentFilter === 'all' || rowType === currentFilter;
+                    const passSearch = !currentSearch || rowText.includes(currentSearch);
+
+                    row.style.display = (passType && passSearch) ? '' : 'none';
+                });
+            }
+
             filterBtns.forEach(btn => {
                 btn.addEventListener('click', function () {
-                    const filter = this.getAttribute('data-filter');
-
-                    // Toggle class active
-                    filterBtns.forEach(b => b.classList.replace('btn-dark', 'btn-outline-dark'));
-                    this.classList.replace('btn-outline-dark', 'btn-dark');
-
-                    rows.forEach(row => {
-                        const type = row.getAttribute('data-type');
-                        if (filter === 'all' || type === filter) {
-                            row.style.display = '';
-                        } else {
-                            row.style.display = 'none';
-                        }
-                    });
+                    currentFilter = this.getAttribute('data-filter');
+                    updateFilterButtonStyles();
+                    applyFilters();
                 });
             });
 
-            // Logic tìm kiếm cơ bản
             searchInput.addEventListener('keyup', function () {
-                const value = this.value.toLowerCase();
-                rows.forEach(row => {
-                    row.style.display = row.innerText.toLowerCase().indexOf(value) > -1 ? '' : 'none';
-                });
+                currentSearch = (this.value || '').trim().toLowerCase();
+                applyFilters();
             });
+
+            updateFilterButtonStyles();
+            applyFilters();
         });
     </script>
 }

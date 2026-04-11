@@ -2,10 +2,10 @@
 @{
     ViewBag.Title = "Thông Tin Cá Nhân";
     Layout = "~/Views/Shared/_DashboardLayout.cshtml";
+    var avatarSrc = string.IsNullOrWhiteSpace(Model.AvatarUrl) ? "https://via.placeholder.com/140x140?text=Avatar" : Model.AvatarUrl;
 }
 
 <style>
-    /* CSS cho khu vực Avatar chuyên nghiệp */
     .avatar-wrapper {
         position: relative;
         width: 140px;
@@ -46,7 +46,6 @@
             transform: scale(1.1);
         }
 
-    /* CSS cho Card chung */
     .profile-card {
         background: #fff;
         border-radius: 16px;
@@ -90,9 +89,8 @@
     <div class="row">
         <div class="col-lg-4 anim-fade-up">
             <div class="profile-card p-4 text-center">
-
                 <div class="avatar-wrapper mb-4">
-                    <img id="avatarImage" src="@Model.AvatarUrl" alt="Avatar" class="avatar-preview">
+                    <img id="avatarImage" src="@avatarSrc" alt="Avatar" class="avatar-preview">
 
                     <label for="avatarUpload" class="avatar-edit-btn" title="Thay đổi ảnh đại diện">
                         <i class="fa-solid fa-camera"></i>
@@ -103,7 +101,7 @@
                 <h4 class="fw-bold text-dark mb-1">@Model.FullName</h4>
                 <p class="text-muted mb-3"><i class="fa-solid fa-user-check me-1 text-success"></i> Khách thuê (Tenant)</p>
 
-                <div class="d-flex justify-content-center gap-2 mb-3">
+                <div class="d-flex justify-content-center gap-2 mb-3 flex-wrap">
                     <span class="badge bg-danger bg-opacity-10 text-danger border border-danger px-3 py-2 rounded-pill">
                         <i class="fa-solid fa-house-chimney me-1"></i> @(Model.AssignedRoom != "Chưa có" ? "Phòng " + Model.AssignedRoom : "Chưa có phòng")
                     </span>
@@ -128,15 +126,15 @@
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label fw-bold text-muted small">Họ và tên</label>
-                                <input type="text" id="txtFullName" name="fullName" class="form-control form-control-custom" value="@Model.FullName">
+                                <input type="text" id="txtFullName" name="fullName" class="form-control form-control-custom" value="@Model.FullName" maxlength="100">
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label fw-bold text-muted small">Địa chỉ Email</label>
-                                <input type="email" id="txtEmail" name="email" class="form-control form-control-custom" value="@Model.Email" placeholder="Nhập email của bạn">
+                                <input type="email" id="txtEmail" name="email" class="form-control form-control-custom" value="@Model.Email" placeholder="Nhập email của bạn" maxlength="150">
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label fw-bold text-muted small">Số điện thoại</label>
-                                <input type="text" id="txtPhone" name="phone" class="form-control form-control-custom" value="@Model.Phone">
+                                <input type="text" id="txtPhone" name="phone" class="form-control form-control-custom" value="@Model.Phone" maxlength="20">
                             </div>
 
                             <div class="col-12 mt-4">
@@ -171,47 +169,93 @@
         document.addEventListener("DOMContentLoaded", function () {
             const avatarUpload = document.getElementById('avatarUpload');
             const avatarImage = document.getElementById('avatarImage');
-            let selectedFile = null; // Biến cất giữ file ảnh
+            const btnSaveProfile = document.getElementById('btnSaveProfile');
+            let selectedFile = null;
+            let isSaving = false;
 
-            // 1. KHI NGƯỜI DÙNG CHỌN ẢNH (Chỉ mới đổi Preview, chưa up lên AWS)
+            function isValidEmail(email) {
+                if (!email) return true;
+                return /^[^\s@@]+@@[^\s@@]+\.[^\s@@]+$/.test(email);
+            }
+
+            function isValidPhone(phone) {
+                if (!phone) return true;
+                return /^[0-9+\-\s]{8,20}$/.test(phone);
+            }
+
+            function setSaveState(disabled) {
+                btnSaveProfile.disabled = disabled;
+                btnSaveProfile.innerHTML = disabled
+                    ? '<span class="spinner-border spinner-border-sm me-2"></span>Đang lưu...'
+                    : '<i class="fa-solid fa-floppy-disk me-1"></i> Lưu Thông Tin';
+            }
+
             avatarUpload.addEventListener('change', function (e) {
                 const file = e.target.files[0];
-                if (file) {
-                    if (file.type.startsWith('image/')) {
-                        selectedFile = file; // Cất file đi
-                        const reader = new FileReader();
-                        reader.onload = function (e) {
-                            avatarImage.src = e.target.result; // Hiện ảnh nháp lên màn hình
-                        }
-                        reader.readAsDataURL(file);
-                    } else {
-                        Swal.fire('Lỗi', 'Vui lòng chọn file hình ảnh hợp lệ (.jpg, .png)', 'error');
-                    }
+                if (!file) return;
+
+                const allowedTypes = ['image/png', 'image/jpeg', 'image/jpg'];
+                const maxSize = 5 * 1024 * 1024;
+
+                if (!allowedTypes.includes(file.type)) {
+                    Swal.fire('Lỗi', 'Vui lòng chọn file ảnh .jpg, .jpeg hoặc .png', 'error');
+                    avatarUpload.value = '';
+                    return;
                 }
+
+                if (file.size > maxSize) {
+                    Swal.fire('Lỗi', 'Ảnh quá lớn. Vui lòng chọn ảnh nhỏ hơn 5MB.', 'error');
+                    avatarUpload.value = '';
+                    return;
+                }
+
+                selectedFile = file;
+                const reader = new FileReader();
+                reader.onload = function (ev) {
+                    avatarImage.src = ev.target.result;
+                };
+                reader.readAsDataURL(file);
             });
 
-            // 2. KHI BẤM NÚT LƯU THÔNG TIN (Gửi thẳng lên AWS)
-            document.getElementById('btnSaveProfile').addEventListener('click', function () {
-                var fullName = document.getElementById('txtFullName').value;
-                var phone = document.getElementById('txtPhone').value;
-                var emailInput = document.getElementById('txtEmail').value; // <-- Lấy giá trị Email
+            btnSaveProfile.addEventListener('click', function () {
+                if (isSaving) return;
 
-                if (fullName.trim() === '') {
+                var fullName = document.getElementById('txtFullName').value.trim();
+                var phone = document.getElementById('txtPhone').value.trim();
+                var emailInput = document.getElementById('txtEmail').value.trim();
+
+                if (fullName === '') {
                     Swal.fire('Cảnh báo', 'Họ tên không được để trống', 'warning');
                     return;
                 }
 
-                // ... (Phần bật Loading giữ nguyên) ...
+                if (fullName.length < 2) {
+                    Swal.fire('Cảnh báo', 'Họ tên quá ngắn', 'warning');
+                    return;
+                }
+
+                if (!isValidEmail(emailInput)) {
+                    Swal.fire('Cảnh báo', 'Email không đúng định dạng', 'warning');
+                    return;
+                }
+
+                if (!isValidPhone(phone)) {
+                    Swal.fire('Cảnh báo', 'Số điện thoại không hợp lệ', 'warning');
+                    return;
+                }
+
+                isSaving = true;
+                setSaveState(true);
 
                 var formData = new FormData();
                 formData.append('fullName', fullName);
                 formData.append('phone', phone);
-                formData.append('emailInput', emailInput); // <-- Đẩy Email lên C#
+                formData.append('emailInput', emailInput);
+
                 if (selectedFile) {
                     formData.append('avatarFile', selectedFile);
                 }
 
-                // Bắn API lên C#
                 $.ajax({
                     url: '@Url.Action("CapNhatThongTin", "Tenant")',
                     type: 'POST',
@@ -219,8 +263,10 @@
                     processData: false,
                     contentType: false,
                     success: function (res) {
+                        isSaving = false;
+                        setSaveState(false);
+
                         if (res.success) {
-                            // Thành công -> Báo ok -> Reload lại để nhận Link ảnh mới
                             Swal.fire('Thành công!', res.message, 'success').then(() => {
                                 location.reload();
                             });
@@ -229,6 +275,8 @@
                         }
                     },
                     error: function () {
+                        isSaving = false;
+                        setSaveState(false);
                         Swal.fire('Lỗi mạng', 'Không thể kết nối đến máy chủ S3', 'error');
                     }
                 });
