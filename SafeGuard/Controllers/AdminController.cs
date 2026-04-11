@@ -653,7 +653,6 @@ namespace SafeGuard.Controllers
                 historyFilter.AddCondition("timestamp", ScanOperator.GreaterThanOrEqual, tenMinsAgo);
 
                 var recentLogs = await historyTable.Scan(historyFilter).GetRemainingAsync();
-                var usersTable = Table.LoadTable(client, "Users");
 
                 var sensorList = new List<object>();
 
@@ -669,28 +668,6 @@ namespace SafeGuard.Controllers
                     double temp = latest["temperature"].AsDouble();
 
                     bool isAlert = temp >= 38;
-                    bool isEmergency = temp >= 50;
-
-                    if (isEmergency)
-                    {
-                        string sessionKey = $"EmailSent_{rId}";
-                        if (Session[sessionKey] == null)
-                        {
-                            var uFilter = new ScanFilter();
-                            uFilter.AddCondition("AssignedRoom", ScanOperator.Equal, rId);
-                            var usersInRoom = await usersTable.Scan(uFilter).GetRemainingAsync();
-
-                            if (usersInRoom.Count > 0)
-                            {
-                                string targetEmail = usersInRoom[0].ContainsKey("email")
-                                    ? usersInRoom[0]["email"].AsString()
-                                    : usersInRoom[0]["userID"].AsString();
-
-                                _ = SendEmergencyEmail(targetEmail, rId, temp);
-                                Session[sessionKey] = DateTime.Now.AddMinutes(10);
-                            }
-                        }
-                    }
 
                     sensorList.Add(new
                     {
