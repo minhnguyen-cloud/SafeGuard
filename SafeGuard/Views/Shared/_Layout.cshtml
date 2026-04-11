@@ -7,6 +7,36 @@
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+   
+    <link rel="shortcut icon" href="~/Content/images/Thuonghieu1.png" type="image/x-icon" />
+    <link rel="icon" href="~/Content/images/Thuonghieu1.png" type="image/x-icon" />
+
+    @{
+        // Cách lấy URL và Domain cho ASP.NET MVC Classic
+        var request = HttpContext.Current.Request;
+        var scheme = request.Url.Scheme; // Lấy http hoặc https
+        var host = request.Url.Host;     // Lấy tên miền (ví dụ: safeguard.vn)
+        var port = request.Url.Port;     // Lấy port (nếu có)
+
+        // Tạo đường dẫn tuyệt đối
+        string baseUrl = scheme + "://" + host + (port == 80 || port == 443 ? "" : ":" + port);
+        var currentUrl = request.Url.AbsoluteUri;
+        var imageUrl = baseUrl + "/Content/images/Thuonghieu.jpg";
+    }
+
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="@currentUrl">
+    <meta property="og:title" content="SafeGuard - Hệ Thống Cảnh Báo Cháy Thông Minh">
+    <meta property="og:description" content="Giám sát nhiệt độ thời gian thực, tích hợp AI phân tích rủi ro và quản lý dãy trọ thông minh.">
+    <meta property="og:image" content="@imageUrl">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+
+    <meta property="twitter:card" content="summary_large_image">
+    <meta property="twitter:url" content="@currentUrl">
+    <meta property="twitter:title" content="SafeGuard - Hệ Thống Cảnh Báo Cháy Thông Minh">
+    <meta property="twitter:image" content="@imageUrl">
+
 
     <style>
         :root {
