@@ -13,13 +13,29 @@ jobs:
       - name: Checkout source code
         uses: actions/checkout@v4
 
+      - name: Show Docker version
+        run: docker version
+
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Restore NuGet packages
+        run: nuget restore SafeGuard.sln
+
+      - name: Publish ASP.NET app
+        run: msbuild SafeGuard.sln /p:Configuration=Release /p:WebPublishMethod=FileSystem /p:PublishUrl=Publish /p:DeleteExistingFiles=True
+
+      - name: Show published files
+        run: dir Publish
+
       - name: Docker login
         run: docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" -p "${{ secrets.DOCKERHUB_TOKEN }}"
 
       - name: Build Docker image
         run: docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/safeguard-web:latest -t ${{ secrets.DOCKERHUB_USERNAME }}/safeguard-web:${{ github.run_number }} .
 
-      - name: Push to Docker Hub
-        run: |
-          docker push ${{ secrets.DOCKERHUB_USERNAME }}/safeguard-web:latest
-          docker push ${{ secrets.DOCKERHUB_USERNAME }}/safeguard-web:${{ github.run_number }}
+      - name: Push latest tag
+        run: docker push ${{ secrets.DOCKERHUB_USERNAME }}/safeguard-web:latest
+
+      - name: Push numbered tag
+        run: docker push ${{ secrets.DOCKERHUB_USERNAME }}/safeguard-web:${{ github.run_number }}
