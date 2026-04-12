@@ -35,13 +35,19 @@ jobs:
         shell: powershell
         run: nuget restore "$env:GITHUB_WORKSPACE\SafeGuard\SafeGuard.sln"
 
-      - name: Publish ASP.NET app
+      - name: Publish ASP.NET web project
         shell: powershell
         run: |
           $publishPath = "$env:GITHUB_WORKSPACE\Publish"
           Write-Host "Publish path = $publishPath"
-          msbuild "$env:GITHUB_WORKSPACE\SafeGuard\SafeGuard.sln" `
+
+          if (Test-Path $publishPath) {
+            Remove-Item -Recurse -Force $publishPath
+          }
+
+          msbuild "$env:GITHUB_WORKSPACE\SafeGuard\SafeGuard.csproj" `
             /p:Configuration=Release `
+            /p:DeployOnBuild=true `
             /p:WebPublishMethod=FileSystem `
             /p:PublishUrl="$publishPath" `
             /p:DeleteExistingFiles=True
@@ -51,8 +57,8 @@ jobs:
         run: |
           $publishPath = "$env:GITHUB_WORKSPACE\Publish"
           Write-Host "Checking publish path: $publishPath"
-          Get-ChildItem $publishPath
           Test-Path $publishPath
+          Get-ChildItem $publishPath
 
       - name: Docker login
         shell: powershell
