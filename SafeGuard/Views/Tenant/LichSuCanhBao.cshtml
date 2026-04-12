@@ -1,0 +1,256 @@
+﻿@model IEnumerable<SafeGuard.Controllers.TenantAlertVM>
+
+@{
+    ViewBag.Title = "Lịch Sử Cảnh Báo";
+    Layout = "~/Views/Shared/_DashboardLayout.cshtml";
+}
+
+<style>
+    .anim-fade-up {
+        animation: fadeInUp 0.6s ease-out forwards;
+        opacity: 0;
+    }
+
+    .delay-1 {
+        animation-delay: 0.1s;
+    }
+
+    @@keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .premium-card {
+        background: #fff;
+        border-radius: 16px;
+        border: 1px solid rgba(0,0,0,0.05);
+        box-shadow: 0 4px 20px rgba(0,0,0,0.04);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .card-top-accent {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 4px;
+        background: linear-gradient(90deg, #dc3545, #ffc107);
+    }
+
+    .table-modern {
+        border-collapse: separate;
+        border-spacing: 0 10px;
+    }
+
+        .table-modern thead th {
+            border: none;
+            color: #6c757d;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.85rem;
+            padding-bottom: 10px;
+        }
+
+        .table-modern tbody tr {
+            background-color: #fff;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.02);
+            border-radius: 12px;
+            transition: all 0.3s ease;
+        }
+
+            .table-modern tbody tr:hover {
+                transform: translateY(-3px);
+                box-shadow: 0 8px 20px rgba(220, 53, 69, 0.08);
+                background-color: #fffafb;
+            }
+
+        .table-modern tbody td {
+            border: none;
+            padding: 16px 20px;
+            vertical-align: middle;
+        }
+
+            .table-modern tbody td:first-child {
+                border-radius: 12px 0 0 12px;
+                border-left: 3px solid transparent;
+            }
+
+            .table-modern tbody td:last-child {
+                border-radius: 0 12px 12px 0;
+            }
+
+        .table-modern tbody tr:hover td:first-child {
+            border-left-color: #dc3545;
+        }
+
+    .search-box {
+        background-color: #f8f9fa;
+        border-radius: 50px;
+        padding: 5px 15px;
+        border: 1px solid #e9ecef;
+    }
+
+        .search-box input {
+            border: none;
+            background: transparent;
+            outline: none;
+            box-shadow: none;
+        }
+</style>
+
+<div class="container-fluid py-4 p-0">
+    <div class="mb-4 anim-fade-up">
+        <h4 class="fw-bold text-dark mb-1"><i class="fa-solid fa-clock-rotate-left text-danger me-2"></i>Lịch Sử Cảnh Báo</h4>
+
+        <p class="text-muted small">
+            Dữ liệu ghi nhận từ cảm biến tại <strong class="text-primary fs-6">Phòng @ViewBag.RoomId</strong>.
+        </p>
+    </div>
+
+    <div class="premium-card p-4 anim-fade-up delay-1">
+        <div class="card-top-accent"></div>
+
+        <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
+            <div class="d-flex gap-2">
+                <button class="btn btn-dark btn-sm rounded-pill px-3 fw-bold filter-btn active-filter" data-filter="all">Tất cả</button>
+                <button class="btn btn-outline-warning btn-sm rounded-pill px-3 fw-semibold filter-btn" data-filter="high_temp">Nhiệt độ cao</button>
+                <button class="btn btn-outline-danger btn-sm rounded-pill px-3 fw-semibold filter-btn" data-filter="fire">Phát hiện cháy</button>
+            </div>
+
+            <div class="search-box d-flex align-items-center" style="width: 250px;">
+                <i class="fa-solid fa-magnifying-glass text-muted me-2"></i>
+                <input type="text" id="searchInput" class="form-control form-control-sm" placeholder="Tìm theo ngày tháng...">
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-modern align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th style="width: 25%;">Thời Gian</th>
+                        <th style="width: 20%;">Nhiệt Độ</th>
+                        <th style="width: 55%;">Mô Tả Sự Cố Hệ Thống</th>
+                    </tr>
+                </thead>
+                <tbody id="alertTableBody">
+                    @if (Model != null && Model.Any())
+                    {
+                        foreach (var item in Model)
+                        {
+                            <tr class="alert-row" data-type="@item.AlertType">
+                                <td>
+                                    <div class="fw-bold text-dark mb-1">@item.TimeStamp.ToString("dd/MM/yyyy")</div>
+                                    <div class="text-muted small"><i class="fa-regular fa-clock me-1"></i>@item.TimeStamp.ToString("HH:mm:ss")</div>
+                                </td>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        @if (item.AlertType == "fire")
+                                        {
+                                            <i class="fa-solid fa-fire text-danger fs-4 me-2 fa-fade"></i>
+                                            <h5 class="fw-black text-danger mb-0">@item.Temperature°C</h5>
+                                        }
+                                        else if (item.AlertType == "high_temp")
+                                        {
+                                            <i class="fa-solid fa-temperature-arrow-up text-warning fs-4 me-2"></i>
+                                            <h5 class="fw-black text-warning mb-0">@item.Temperature°C</h5>
+                                        }
+                                        else
+                                        {
+                                            <i class="fa-solid fa-temperature-half text-info fs-4 me-2"></i>
+                                            <h5 class="fw-bold text-info mb-0">@item.Temperature°C</h5>
+                                        }
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="fw-bold text-dark">
+                                        @(item.AlertType == "fire" ? "Cảnh báo nguy cơ cháy" : (item.AlertType == "high_temp" ? "Nhiệt độ cao bất thường" : "Báo cáo định kỳ"))
+                                    </span>
+                                    <div class="text-muted small mt-1">@item.Description</div>
+                                </td>
+                            </tr>
+                        }
+                    }
+                    else
+                    {
+                        <tr><td colspan="3" class="text-center py-4 text-muted">Chưa có dữ liệu lịch sử.</td></tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const filterBtns = document.querySelectorAll('.filter-btn');
+            const rows = document.querySelectorAll('.alert-row');
+            const searchInput = document.getElementById('searchInput');
+
+            let currentFilter = 'all';
+            let currentSearch = '';
+
+            function updateFilterButtonStyles() {
+                filterBtns.forEach(btn => {
+                    btn.classList.remove('btn-dark', 'btn-warning', 'btn-danger', 'text-dark');
+
+                    const type = btn.getAttribute('data-filter');
+
+                    if (type === currentFilter) {
+                        if (type === 'all') {
+                            btn.className = 'btn btn-dark btn-sm rounded-pill px-3 fw-bold filter-btn';
+                        } else if (type === 'high_temp') {
+                            btn.className = 'btn btn-warning btn-sm rounded-pill px-3 fw-bold text-dark filter-btn';
+                        } else if (type === 'fire') {
+                            btn.className = 'btn btn-danger btn-sm rounded-pill px-3 fw-bold filter-btn';
+                        }
+                    } else {
+                        if (type === 'all') {
+                            btn.className = 'btn btn-outline-dark btn-sm rounded-pill px-3 fw-semibold filter-btn';
+                        } else if (type === 'high_temp') {
+                            btn.className = 'btn btn-outline-warning btn-sm rounded-pill px-3 fw-semibold filter-btn';
+                        } else if (type === 'fire') {
+                            btn.className = 'btn btn-outline-danger btn-sm rounded-pill px-3 fw-semibold filter-btn';
+                        }
+                    }
+                });
+            }
+
+            function applyFilters() {
+                rows.forEach(row => {
+                    const rowType = row.getAttribute('data-type') || '';
+                    const rowText = row.innerText.toLowerCase();
+
+                    const passType = currentFilter === 'all' || rowType === currentFilter;
+                    const passSearch = !currentSearch || rowText.includes(currentSearch);
+
+                    row.style.display = (passType && passSearch) ? '' : 'none';
+                });
+            }
+
+            filterBtns.forEach(btn => {
+                btn.addEventListener('click', function () {
+                    currentFilter = this.getAttribute('data-filter');
+                    updateFilterButtonStyles();
+                    applyFilters();
+                });
+            });
+
+            searchInput.addEventListener('keyup', function () {
+                currentSearch = (this.value || '').trim().toLowerCase();
+                applyFilters();
+            });
+
+            updateFilterButtonStyles();
+            applyFilters();
+        });
+    </script>
+}

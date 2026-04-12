@@ -1,0 +1,255 @@
+﻿@using Amazon.DynamoDBv2.DocumentModel
+@{
+    ViewBag.Title = "Quản Lý Dãy Trọ";
+    Layout = "~/Views/Shared/_DashboardLayout.cshtml";
+
+    var blocks = ViewBag.Blocks as List<Document>;
+    var allRooms = ViewBag.AllRooms as List<Document>;
+    var allUsers = ViewBag.AllUsers as List<Document>;
+}
+
+<style>
+    /* TĂNG TỐC ĐỘ HIỆU ỨNG TỪ 0.5s XUỐNG 0.3s */
+    .anim-fade-up {
+        animation: fadeInUp 0.3s ease-out forwards;
+        opacity: 0;
+    }
+
+    @@keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    /* Thẻ Card Thềm Trắng Sang Trọng */
+    .custom-card {
+        background-color: #ffffff;
+        border-radius: 16px;
+        border: 1px solid #e0e0e0;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+    }
+
+        .custom-card:hover {
+            box-shadow: 0 8px 25px rgba(0,0,0,0.08);
+            transform: translateY(-3px);
+        }
+
+    .card-top-accent {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 4px;
+        background: linear-gradient(90deg, #0d6efd, #0dcaf0);
+    }
+
+    /* Định dạng Text trong Card */
+    .block-title {
+        font-size: 1.5rem;
+        font-weight: 800;
+        color: #212529;
+    }
+
+    .status-badge {
+        font-size: 0.75rem;
+        font-weight: 600;
+        border-radius: 20px;
+        padding: 4px 12px;
+    }
+
+    .stat-number {
+        font-size: 1.5rem;
+        font-weight: 700;
+    }
+</style>
+
+<div class="container-fluid p-0">
+    <div class="d-flex justify-content-between align-items-center mb-4 anim-fade-up">
+        <h5 class="fw-bold text-dark mb-0">Danh sách các dãy trọ</h5>
+        <button type="button" class="btn btn-primary fw-bold px-4 rounded-pill shadow-sm" data-bs-toggle="modal" data-bs-target="#addBlockModal">
+            <i class="fa-solid fa-plus me-2"></i>Thêm Dãy Mới
+        </button>
+    </div>
+
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show border-0 shadow-sm rounded-3 anim-fade-up">
+            <i class="fa-solid fa-check-circle me-2"></i> @TempData["SuccessMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    <div class="row g-4">
+        @if (blocks != null && blocks.Count > 0)
+        {
+            int delayIndex = 0;
+            foreach (var block in blocks)
+            {
+                string bId = block["BlockId"].AsString();
+                string bName = block["BlockName"].AsString();
+                string address = block.ContainsKey("Address") ? block["Address"].AsString() : "Chưa cập nhật";
+                int totalRooms = block["TotalRooms"].AsInt();
+                int activeRooms = block["ActiveRooms"].AsInt();
+
+                <div class="col-md-6 col-lg-4 anim-fade-up" style="animation-delay: @(delayIndex * 0.1)s;">
+                    <div class="custom-card p-4 h-100 d-flex flex-column">
+                        <div class="card-top-accent"></div>
+
+                        <div class="d-flex justify-content-between align-items-start mb-2 mt-2">
+                            <h3 class="block-title mb-0">@bName</h3>
+                            <span class="status-badge border border-success text-success bg-success bg-opacity-10">Hoạt động</span>
+                        </div>
+
+                        <p class="text-muted small mb-4"><i class="fa-solid fa-location-dot me-2"></i>@address</p>
+
+                        <div class="row text-center mb-4 flex-grow-1">
+                            <div class="col-6 border-end">
+                                <div class="stat-number text-dark">@totalRooms</div>
+                                <div class="text-muted small text-uppercase">Tổng Phòng</div>
+                            </div>
+                            <div class="col-6">
+                                <div class="stat-number text-primary">@activeRooms</div>
+                                <div class="text-muted small text-uppercase">Đang Thuê</div>
+                            </div>
+                        </div>
+
+                        <button class="btn btn-outline-secondary w-100 rounded-3 mt-auto fw-bold" data-bs-toggle="modal" data-bs-target="#modal-@bId">
+                            Xem chi tiết
+                        </button>
+                    </div>
+                </div>
+                delayIndex++; // Tăng chỉ số
+            }
+        }
+        else
+        {
+            <div class="col-12 text-center py-5 text-muted anim-fade-up">
+                <i class="fa-solid fa-building text-secondary opacity-25 mb-3" style="font-size: 4rem;"></i>
+                <h5>Chưa có dãy trọ nào trong hệ thống.</h5>
+            </div>
+        }
+    </div>
+</div>
+
+<div class="modal fade" id="addBlockModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 16px;">
+            <div class="modal-header border-bottom-0 pb-0 pt-4 px-4">
+                <h5 class="modal-title fw-bold">Thêm Dãy Trọ Mới</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="@Url.Action("ThemDayMoi", "Admin")" method="post">
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Tên Dãy (VD: A, B, C)</label>
+                        <input type="text" name="blockName" class="form-control" required placeholder="Nhập tên dãy...">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Địa Chỉ Khu Vực</label>
+                        <input type="text" name="address" class="form-control" required placeholder="Nhập địa chỉ...">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Số Lượng Phòng Tạo Sẵn</label>
+                        <input type="number" name="numberOfRooms" class="form-control" required value="5" min="1">
+                        <small class="text-muted mt-1 d-block">Hệ thống sẽ tự động tạo phòng từ 101 trở đi.</small>
+                    </div>
+                </div>
+                <div class="modal-footer border-top-0 pt-0 px-4 pb-4">
+                    <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-primary fw-bold rounded-pill px-4">Tạo Dãy Trọ</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@if (blocks != null && allRooms != null)
+{
+    foreach (var block in blocks)
+    {
+        string bId = block["BlockId"].AsString();
+        var roomsInThisBlock = allRooms.Where(r => r.ContainsKey("BlockId") && r["BlockId"].AsString() == bId)
+                                       .OrderBy(r => r["RoomId"].AsString()).ToList();
+
+        <div class="modal fade" id="modal-@bId" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+                <div class="modal-content border-0 shadow-lg" style="border-radius: 16px;">
+                    <div class="modal-header bg-light border-bottom-0 px-4 py-3" style="border-radius: 16px 16px 0 0;">
+                        <h5 class="modal-title fw-bold text-dark">
+                            <i class="fa-solid fa-list-check text-primary me-2"></i>Chi tiết Dãy @block["BlockName"].AsString()
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+
+                    <div class="modal-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle mb-0">
+                                <thead class="table-light text-muted small text-uppercase">
+                                    <tr>
+                                        <th class="ps-4">Tên Phòng</th>
+                                        <th>Trạng Thái</th>
+                                        <th class="pe-4">Khách Thuê</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @if (roomsInThisBlock.Count > 0)
+                                    {
+                                        foreach (var room in roomsInThisBlock)
+                                        {
+                                            string rId = room["RoomId"].AsString();
+                                            string fullRoomId = $"{bId}-{rId}";
+                                            var tenant = allUsers?.FirstOrDefault(u => u.ContainsKey("AssignedRoom") && u["AssignedRoom"].AsString() == fullRoomId);
+
+                                            <tr>
+                                                <td class="ps-4 fw-bold text-dark">Phòng @rId</td>
+                                                <td>
+                                                    @if (tenant != null)
+                                                    {
+                                                        <span class="badge bg-primary bg-opacity-10 text-primary border border-primary rounded-pill px-3">Đã thuê</span>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary rounded-pill px-3">Trống</span>
+                                                    }
+                                                </td>
+                                                <td class="pe-4 small">
+                                                    @if (tenant != null)
+                                                    {
+                                                        string tName = tenant.ContainsKey("fullName") ? tenant["fullName"].AsString() : tenant["userID"].AsString();
+                                                        <span class="fw-semibold text-dark"><i class="fa-solid fa-user text-muted me-1"></i> @tName</span>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span class="text-muted fst-italic">-- Chưa có --</span>
+                                                    }
+                                                </td>
+                                            </tr>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <tr>
+                                            <td colspan="3" class="text-center py-4 text-muted">Dãy này hiện chưa có phòng nào.</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="modal-footer border-top-0 bg-light py-2" style="border-radius: 0 0 16px 16px;">
+                        <button type="button" class="btn btn-secondary btn-sm rounded-pill px-4" data-bs-dismiss="modal">Đóng</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+}
