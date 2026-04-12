@@ -1,0 +1,80 @@
+name: Docker Publish SafeGuard
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  docker-build-and-push:
+    runs-on: self-hosted
+
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Setup NuGet
+        uses: NuGet/setup-nuget@v2
+
+      - name: Restore NuGet packages
+        shell: powershell
+        run: nuget restore "$env:GITHUB_WORKSPACE\SafeGuard\SafeGuard.sln"
+
+      - name: Auto-create Publish Profile
+        shell: powershell
+        run: |
+          $profileDir = "$env:GITHUB_WORKSPACE\SafeGuard\Properties\PublishProfiles"
+          New-Item -ItemType Directory -Force -Path $profileDir | Out-Null
+          $pubxml = @"
+          <?xml version=""1.0"" encoding=""utf-8""?>
+          <Project>
+            <PropertyGroup>
+              <WebPublishMethod>FileSystem</WebPublishMethod>
+              <PublishProvider>FileSystem</PublishProvider>
+              <DeleteExistingFiles>true</DeleteExistingFiles>
+              <LaunchSiteAfterPublish>false</LaunchSiteAfterPublish>
+              <LastUsedBuildConfiguration>Release</LastUsedBuildConfiguration>
+              <ExcludeApp_Data>false</ExcludeApp_Data>
+              <publishUrl>$env:GITHUB_WORKSPACE\Publish</publishUrl>
+            </PropertyGroup>
+          </Project>
+          "@
+          Set-Content -Path "$profileDir\CI.pubxml" -Value $pubxml
+          Write-Host "Đã tự động tạo file CI.pubxml thành công!"
+
+      - name: Publish ASP.NET web project
+        shell: powershell
+        run: |
+          msbuild "$env:GITHUB_WORKSPACE\SafeGuard\SafeGuard.csproj" `
+            /p:Configuration=Release `
+            /p:DeployOnBuild=true `
+            /p:PublishProfile=CI
+
+      - name: Verify Publish Folder
+        shell: powershell
+        run: |
+          $publishPath = "$env:GITHUB_WORKSPACE\Publish"
+          if (Test-Path $publishPath) {
+            Write-Host "Tuyệt vời! Đã tìm thấy thư mục Publish."
+            Get-ChildItem $publishPath
+          } else {
+            Write-Error "Lỗi: Thư mục Publish vẫn không xuất hiện!"
+            exit 1
+          }
+
+      - name: Docker login
+        shell: powershell
+        run: docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" -p "${{ secrets.DOCKERHUB_TOKEN }}"
+
+      - name: Build Docker image
+        shell: powershell
+        run: docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/safeguard-web:latest -t ${{ secrets.DOCKERHUB_USERNAME }}/safeguard-web:${{ github.run_number }} .
+
+      - name: Push to Docker Hub
+        shell: powershell
+        run: |
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/safeguard-web:latest
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/safeguard-web:${{ github.run_number }}
