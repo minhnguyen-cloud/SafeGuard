@@ -13,7 +13,15 @@ jobs:
       - name: Checkout source code
         uses: actions/checkout@v4
 
+      - name: Show current directory
+        shell: powershell
+        run: |
+          Get-Location
+          Get-ChildItem
+          Get-ChildItem SafeGuard
+
       - name: Show Docker version
+        shell: powershell
         run: docker version
 
       - name: Setup MSBuild
@@ -23,22 +31,34 @@ jobs:
         uses: NuGet/setup-nuget@v2
 
       - name: Restore NuGet packages
-        run: nuget restore SafeGuard.sln
+        shell: powershell
+        run: nuget restore .\SafeGuard\SafeGuard.sln
 
       - name: Publish ASP.NET app
-        run: msbuild SafeGuard.sln /p:Configuration=Release /p:WebPublishMethod=FileSystem /p:PublishUrl=Publish /p:DeleteExistingFiles=True
+        shell: powershell
+        run: |
+          msbuild .\SafeGuard\SafeGuard.sln `
+            /p:Configuration=Release `
+            /p:WebPublishMethod=FileSystem `
+            /p:PublishUrl=..\Publish `
+            /p:DeleteExistingFiles=True
 
       - name: Show published files
-        run: dir Publish
+        shell: powershell
+        run: dir .\Publish
 
       - name: Docker login
+        shell: powershell
         run: docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" -p "${{ secrets.DOCKERHUB_TOKEN }}"
 
       - name: Build Docker image
+        shell: powershell
         run: docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/safeguard-web:latest -t ${{ secrets.DOCKERHUB_USERNAME }}/safeguard-web:${{ github.run_number }} .
 
       - name: Push latest tag
+        shell: powershell
         run: docker push ${{ secrets.DOCKERHUB_USERNAME }}/safeguard-web:latest
 
       - name: Push numbered tag
+        shell: powershell
         run: docker push ${{ secrets.DOCKERHUB_USERNAME }}/safeguard-web:${{ github.run_number }}
