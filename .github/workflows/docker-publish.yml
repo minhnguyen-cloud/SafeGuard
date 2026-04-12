@@ -13,18 +13,6 @@ jobs:
       - name: Checkout source code
         uses: actions/checkout@v4
 
-      - name: Show current directory
-        shell: powershell
-        run: |
-          Write-Host "GITHUB_WORKSPACE = $env:GITHUB_WORKSPACE"
-          Get-Location
-          Get-ChildItem
-          Get-ChildItem .\SafeGuard
-
-      - name: Show Docker version
-        shell: powershell
-        run: docker version
-
       - name: Setup MSBuild
         uses: microsoft/setup-msbuild@v2
 
@@ -35,30 +23,47 @@ jobs:
         shell: powershell
         run: nuget restore "$env:GITHUB_WORKSPACE\SafeGuard\SafeGuard.sln"
 
+      - name: Auto-create Publish Profile
+        shell: powershell
+        run: |
+          $profileDir = "$env:GITHUB_WORKSPACE\SafeGuard\Properties\PublishProfiles"
+          New-Item -ItemType Directory -Force -Path $profileDir | Out-Null
+          $pubxml = @"
+          <?xml version=""1.0"" encoding=""utf-8""?>
+          <Project>
+            <PropertyGroup>
+              <WebPublishMethod>FileSystem</WebPublishMethod>
+              <PublishProvider>FileSystem</PublishProvider>
+              <DeleteExistingFiles>true</DeleteExistingFiles>
+              <LaunchSiteAfterPublish>false</LaunchSiteAfterPublish>
+              <LastUsedBuildConfiguration>Release</LastUsedBuildConfiguration>
+              <ExcludeApp_Data>false</ExcludeApp_Data>
+              <publishUrl>$env:GITHUB_WORKSPACE\Publish</publishUrl>
+            </PropertyGroup>
+          </Project>
+          "@
+          Set-Content -Path "$profileDir\CI.pubxml" -Value $pubxml
+          Write-Host "Đã tự động tạo file CI.pubxml thành công!"
+
       - name: Publish ASP.NET web project
         shell: powershell
         run: |
-          $publishPath = "$env:GITHUB_WORKSPACE\Publish"
-          Write-Host "Publish path = $publishPath"
-
-          if (Test-Path $publishPath) {
-            Remove-Item -Recurse -Force $publishPath
-          }
-
           msbuild "$env:GITHUB_WORKSPACE\SafeGuard\SafeGuard.csproj" `
             /p:Configuration=Release `
             /p:DeployOnBuild=true `
-            /p:WebPublishMethod=FileSystem `
-            /p:PublishUrl="$publishPath" `
-            /p:DeleteExistingFiles=True
+            /p:PublishProfile=CI
 
-      - name: Show published files
+      - name: Verify Publish Folder
         shell: powershell
         run: |
           $publishPath = "$env:GITHUB_WORKSPACE\Publish"
-          Write-Host "Checking publish path: $publishPath"
-          Test-Path $publishPath
-          Get-ChildItem $publishPath
+          if (Test-Path $publishPath) {
+            Write-Host "Tuyệt vời! Đã tìm thấy thư mục Publish."
+            Get-ChildItem $publishPath
+          } else {
+            Write-Error "Lỗi: Thư mục Publish vẫn không xuất hiện!"
+            exit 1
+          }
 
       - name: Docker login
         shell: powershell
@@ -68,10 +73,8 @@ jobs:
         shell: powershell
         run: docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/safeguard-web:latest -t ${{ secrets.DOCKERHUB_USERNAME }}/safeguard-web:${{ github.run_number }} .
 
-      - name: Push latest tag
+      - name: Push to Docker Hub
         shell: powershell
-        run: docker push ${{ secrets.DOCKERHUB_USERNAME }}/safeguard-web:latest
-
-      - name: Push numbered tag
-        shell: powershell
-        run: docker push ${{ secrets.DOCKERHUB_USERNAME }}/safeguard-web:${{ github.run_number }}
+        run: |
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/safeguard-web:latest
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/safeguard-web:${{ github.run_number }}
