@@ -16,10 +16,129 @@ namespace SafeGuard.Controllers
     public class AdminController : Controller
     {
         private AmazonDynamoDBClient GetClient() => new AmazonDynamoDBClient(Amazon.RegionEndpoint.APSoutheast1);
+        private readonly Random _random = new Random();
 
-        // ==========================================
-        // 1. TỔNG QUAN (DASHBOARD)
-        // ==========================================
+        private async Task<List<string>> GetAvailableRoomIdsAsync(AmazonDynamoDBClient client)
+        {
+            var roomsTable = Table.LoadTable(client, "Rooms");
+            var allRooms = await roomsTable.Scan(new ScanFilter()).GetRemainingAsync();
+
+            return allRooms
+                .Where(r => r.ContainsKey("BlockId") && r.ContainsKey("RoomId"))
+                .Select(r => $"{r["BlockId"].AsString().Trim()}-{r["RoomId"].AsString().Trim()}")
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+        }
+
+        private List<double> GetScenarioTemperatures(string scenario)
+        {
+            switch ((scenario ?? "").Trim().ToLower())
+            {
+                case "safe":
+                    return new List<double> { 28, 29, 30, 31, 32 };
+
+                case "warning":
+                    return new List<double> { 34, 36, 38, 40, 42 };
+
+                case "danger":
+                    return new List<double> { 40, 43, 46, 49, 52 };
+
+                default:
+                    return new List<double> { 30, 32, 35, 39, 44 };
+            }
+        }
+
+        private string BuildAdminDemoDescription(double temp)
+        {
+            if (temp >= 50)
+                return "Kịch bản nguy hiểm cao: nhiệt độ vượt ngưỡng khẩn cấp.";
+            if (temp >= 45)
+                return "Kịch bản cảnh báo mạnh: nhiệt độ tăng cao bất thường.";
+            if (temp >= 38)
+                return "Kịch bản cảnh báo: nhiệt độ đã vượt ngưỡng theo dõi.";
+            return "Kịch bản an toàn: nhiệt độ phòng đang ổn định.";
+        }
+
+        private async Task<int> DeleteAdminDemoInternal(AmazonDynamoDBClient client)
+        {
+            var historyTable = Table.LoadTable(client, "SafeDorm_History");
+            var allDocs = await historyTable.Scan(new ScanFilter()).GetRemainingAsync();
+
+            var adminDemoDocs = allDocs
+                .Where(d =>
+                    d.ContainsKey("isDemo") &&
+                    d["isDemo"].AsBoolean() &&
+                    d.ContainsKey("source") &&
+                    string.Equals(d["source"].AsString(), "SYSTEM_SIMULATOR", StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+            foreach (var doc in adminDemoDocs)
+            {
+                if (doc.ContainsKey("room_id") && doc.ContainsKey("timestamp"))
+                {
+                    await historyTable.DeleteItemAsync(doc["room_id"].AsString(), doc["timestamp"].AsLong());
+                }
+            }
+
+            return adminDemoDocs.Count;
+        }
+
+        private async Task<(bool success, string message, int roomCount)> CreateSystemDemoInternal(string scenario)
+        {
+            var client = GetClient();
+            var historyTable = Table.LoadTable(client, "SafeDorm_History");
+
+            var availableRooms = await GetAvailableRoomIdsAsync(client);
+            if (!availableRooms.Any())
+            {
+                return (false, "Không có phòng nào trong bảng Rooms để tạo dữ liệu demo.", 0);
+            }
+
+            await DeleteAdminDemoInternal(client);
+
+            int numberOfRooms = Math.Min(6, availableRooms.Count);
+            var selectedRooms = availableRooms
+                .OrderBy(x => _random.Next())
+                .Take(numberOfRooms)
+                .ToList();
+
+            var baseTemps = GetScenarioTemperatures(scenario);
+            long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+
+            for (int roomIndex = 0; roomIndex < selectedRooms.Count; roomIndex++)
+            {
+                string roomId = selectedRooms[roomIndex];
+                double roomOffset = Math.Round((_random.NextDouble() * 2.0) - 1.0, 1);
+
+                for (int i = 0; i < baseTemps.Count; i++)
+                {
+                    long ts = now - ((baseTemps.Count - 1 - i) * 60) - roomIndex;
+                    double temp = Math.Round(baseTemps[i] + roomOffset + ((_random.NextDouble() * 0.6) - 0.3), 1);
+
+                    var doc = new Document();
+                    doc["room_id"] = roomId;
+                    doc["timestamp"] = ts;
+                    doc["temperature"] = temp;
+                    doc["isDemo"] = true;
+                    doc["source"] = "SYSTEM_SIMULATOR";
+                    doc["demoScenario"] = scenario?.ToUpper() ?? "DEFAULT";
+                    doc["description"] = BuildAdminDemoDescription(temp);
+                    doc["createdAt"] = DateTime.UtcNow.ToString("O");
+
+                    await historyTable.PutItemAsync(doc);
+                }
+            }
+
+            string scenarioLabel =
+                string.Equals(scenario, "safe", StringComparison.OrdinalIgnoreCase) ? "an toàn" :
+                string.Equals(scenario, "warning", StringComparison.OrdinalIgnoreCase) ? "cảnh báo" :
+                string.Equals(scenario, "danger", StringComparison.OrdinalIgnoreCase) ? "nguy hiểm" :
+                "mặc định";
+
+            return (true, $"Đã tạo dữ liệu demo hệ thống theo kịch bản {scenarioLabel} cho {selectedRooms.Count} phòng.", selectedRooms.Count);
+        }
+
         [HttpGet]
         public async Task<ActionResult> Index()
         {
@@ -27,18 +146,15 @@ namespace SafeGuard.Controllers
 
             try
             {
-                // 1. Tổng số phòng
                 var roomsTable = Table.LoadTable(client, "Rooms");
                 var allRoomsDocs = await roomsTable.Scan(new ScanFilter()).GetRemainingAsync();
                 ViewBag.TotalRooms = allRoomsDocs.Count;
 
-                // 2. Lấy danh sách tenant
                 var usersTable = Table.LoadTable(client, "Users");
                 var tenantFilter = new ScanFilter();
                 tenantFilter.AddCondition("role", ScanOperator.Equal, "TENANT");
                 var tenants = await usersTable.Scan(tenantFilter).GetRemainingAsync();
 
-                // 3. Đang hoạt động = số PHÒNG khác nhau có tenant
                 var activeRoomIds = tenants
                     .Where(u => u.ContainsKey("AssignedRoom") && !string.IsNullOrWhiteSpace(u["AssignedRoom"].AsString()))
                     .Select(u => u["AssignedRoom"].AsString().Trim())
@@ -47,7 +163,6 @@ namespace SafeGuard.Controllers
 
                 ViewBag.ActiveRooms = activeRoomIds.Count;
 
-                // 4. Realtime 10 phút gần đây: dùng cho online / cảnh báo / bảng cảm biến
                 var historyTable = Table.LoadTable(client, "SafeDorm_History");
                 long tenMinsAgo = DateTimeOffset.UtcNow.AddMinutes(-10).ToUnixTimeSeconds();
 
@@ -62,11 +177,8 @@ namespace SafeGuard.Controllers
                     .ToList();
 
                 ViewBag.OnlineDevices = groupedLatestLogs.Count;
-
-                // Cảnh báo hiện tại = số phòng có log mới nhất >= 38 trong 10 phút gần đây
                 ViewBag.CurrentAlerts = groupedLatestLogs.Count(doc => doc["temperature"].AsDouble() >= 38);
 
-                // 5. Trạng thái gần đây
                 ViewBag.RecentActivities = tenants
                     .Where(u => u.ContainsKey("AssignedRoom") && !string.IsNullOrWhiteSpace(u["AssignedRoom"].AsString()))
                     .OrderByDescending(u => u.ContainsKey("createdAt") ? u["createdAt"].AsString() : "")
@@ -81,7 +193,6 @@ namespace SafeGuard.Controllers
                     })
                     .ToList();
 
-                // 6. Bảng cảm biến theo phòng (realtime 10 phút)
                 ViewBag.SensorList = groupedLatestLogs
                     .Select(latest => new SensorDataVM
                     {
@@ -94,7 +205,6 @@ namespace SafeGuard.Controllers
                     .OrderBy(x => x.RoomId)
                     .ToList();
 
-                // 7. Lấy dãy thật cho dropdown tạo mã
                 var tableFacilities = Table.LoadTable(client, "Facilities");
                 var blocks = await tableFacilities.Query(new QueryFilter("PK", QueryOperator.Equal, "BLOCK")).GetRemainingAsync();
                 ViewBag.Blocks = blocks
@@ -104,7 +214,6 @@ namespace SafeGuard.Controllers
                     .OrderBy(x => x)
                     .ToList();
 
-                // 8. Truyền danh sách phòng thật lên View
                 ViewBag.RealRoomsList = allRoomsDocs
                     .Select(r => new SafeGuard.Models.RoomDisplayViewModel
                     {
@@ -116,7 +225,6 @@ namespace SafeGuard.Controllers
                     .ThenBy(x => x.RoomId)
                     .ToList();
 
-                // 9. Chart tổng quan AI: lấy từ TOÀN BỘ history, không giới hạn 10 phút
                 var allHistoryDocs = await historyTable.Scan(new ScanFilter()).GetRemainingAsync();
 
                 var latestHistoryByRoom = allHistoryDocs
@@ -126,7 +234,6 @@ namespace SafeGuard.Controllers
                     .OrderByDescending(doc => doc["temperature"].AsDouble())
                     .ToList();
 
-                // Ưu tiên hiện các phòng đang nóng, nếu không có thì lấy top 5 phòng nhiệt độ cao nhất
                 var hotRoomsForChart = latestHistoryByRoom
                     .Where(x => x["temperature"].AsDouble() >= 38)
                     .ToList();
@@ -161,9 +268,6 @@ namespace SafeGuard.Controllers
             return View();
         }
 
-        // ==========================================
-        // 2. QUẢN LÝ PHÒNG
-        // ==========================================
         [HttpGet]
         public async Task<ActionResult> QuanLyPhong()
         {
@@ -312,9 +416,6 @@ namespace SafeGuard.Controllers
             }
         }
 
-        // ==========================================
-        // 3. QUẢN LÝ DÃY TRỌ
-        // ==========================================
         [HttpGet]
         public async Task<ActionResult> QuanLyDayTro()
         {
@@ -422,9 +523,6 @@ namespace SafeGuard.Controllers
             return RedirectToAction("QuanLyDayTro");
         }
 
-        // ==========================================
-        // 4. TẠO MÃ KÍCH HOẠT
-        // ==========================================
         [HttpGet]
         public async Task<ActionResult> TaoMaKichHoat()
         {
@@ -500,9 +598,6 @@ namespace SafeGuard.Controllers
             }
         }
 
-        // ==========================================
-        // 5. LỊCH SỬ CẢNH BÁO
-        // ==========================================
         public async Task<ActionResult> LichSuCanhBao()
         {
             var alertList = new List<AlertHistoryViewModel>();
@@ -606,9 +701,6 @@ namespace SafeGuard.Controllers
             );
         }
 
-        // ==========================================
-        // LẤY DANH SÁCH THÀNH VIÊN TRONG PHÒNG
-        // ==========================================
         [HttpGet]
         public async Task<JsonResult> GetRoomMembers(string roomId)
         {
@@ -637,9 +729,6 @@ namespace SafeGuard.Controllers
             }
         }
 
-        // ==========================================
-        // AJAX LOAD BẢNG CẢM BIẾN REAL-TIME
-        // ==========================================
         [HttpGet]
         public async Task<JsonResult> GetRealTimeSensorData()
         {
@@ -666,7 +755,6 @@ namespace SafeGuard.Controllers
 
                     string rId = latest["room_id"].AsString();
                     double temp = latest["temperature"].AsDouble();
-
                     bool isAlert = temp >= 38;
 
                     sensorList.Add(new
@@ -689,9 +777,130 @@ namespace SafeGuard.Controllers
             }
         }
 
-        // ==========================================
-        // 6. BÁO CÁO AI & THỐNG KÊ
-        // ==========================================
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<JsonResult> CreateSystemDemoData()
+        {
+            try
+            {
+                var result = await CreateSystemDemoInternal("default");
+                return Json(new
+                {
+                    success = result.success,
+                    message = result.message,
+                    roomCount = result.roomCount
+                });
+            }
+            catch (Exception ex)
+            {
+                return Json(new
+                {
+                    success = false,
+                    message = "Không thể tạo dữ liệu demo hệ thống: " + ex.Message
+                });
+            }
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<JsonResult> CreateSafeScenario()
+        {
+            try
+            {
+                var result = await CreateSystemDemoInternal("safe");
+                return Json(new
+                {
+                    success = result.success,
+                    message = result.message,
+                    roomCount = result.roomCount
+                });
+            }
+            catch (Exception ex)
+            {
+                return Json(new
+                {
+                    success = false,
+                    message = "Không thể tạo kịch bản an toàn: " + ex.Message
+                });
+            }
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<JsonResult> CreateWarningScenario()
+        {
+            try
+            {
+                var result = await CreateSystemDemoInternal("warning");
+                return Json(new
+                {
+                    success = result.success,
+                    message = result.message,
+                    roomCount = result.roomCount
+                });
+            }
+            catch (Exception ex)
+            {
+                return Json(new
+                {
+                    success = false,
+                    message = "Không thể tạo kịch bản cảnh báo: " + ex.Message
+                });
+            }
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<JsonResult> CreateDangerScenario()
+        {
+            try
+            {
+                var result = await CreateSystemDemoInternal("danger");
+                return Json(new
+                {
+                    success = result.success,
+                    message = result.message,
+                    roomCount = result.roomCount
+                });
+            }
+            catch (Exception ex)
+            {
+                return Json(new
+                {
+                    success = false,
+                    message = "Không thể tạo kịch bản nguy hiểm: " + ex.Message
+                });
+            }
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<JsonResult> DeleteSystemDemoData()
+        {
+            try
+            {
+                var client = GetClient();
+                int deletedCount = await DeleteAdminDemoInternal(client);
+
+                return Json(new
+                {
+                    success = true,
+                    deletedCount = deletedCount,
+                    message = deletedCount > 0
+                        ? $"Đã xóa {deletedCount} bản ghi dữ liệu demo của admin."
+                        : "Không có dữ liệu demo admin nào để xóa."
+                });
+            }
+            catch (Exception ex)
+            {
+                return Json(new
+                {
+                    success = false,
+                    message = "Không thể xóa dữ liệu demo hệ thống: " + ex.Message
+                });
+            }
+        }
+
         [HttpGet]
         public ActionResult BaoCaoAI()
         {
@@ -798,15 +1007,12 @@ namespace SafeGuard.Controllers
                     hottestRoom = hottest.RoomId,
                     hottestTemp = hottest.Temperature,
                     selectedRoom = roomId,
-
                     selectedRoomLabels = selectedRoomHistory
                         .Select(x => DateTimeOffset.FromUnixTimeSeconds(x.Timestamp).ToLocalTime().ToString("HH:mm"))
                         .ToList(),
-
                     selectedRoomTemps = selectedRoomHistory
                         .Select(x => x.Temperature)
                         .ToList(),
-
                     hotRooms = hotRooms.Select(x => new
                     {
                         roomId = x.RoomId,
@@ -814,9 +1020,7 @@ namespace SafeGuard.Controllers
                         blockName = GetBlockName(x.RoomId),
                         time = DateTimeOffset.FromUnixTimeSeconds(x.Timestamp).ToLocalTime().ToString("HH:mm dd/MM")
                     }).ToList(),
-
                     blockStats = blockStats,
-
                     aiSummary = aiSummary
                 }, JsonRequestBehavior.AllowGet);
             }
@@ -848,9 +1052,6 @@ namespace SafeGuard.Controllers
             public double Temperature { get; set; }
         }
 
-        // ==========================================
-        // HÀM HỖ TRỢ: GỬI EMAIL CẢNH BÁO
-        // ==========================================
         private async Task SendEmergencyEmail(string toEmail, string roomName, double temperature)
         {
             try
