@@ -1,0 +1,39 @@
+﻿@model SafeGuard.Models.ConfirmSignUpViewModel
+@{
+    ViewBag.Title = "Xác nhận - SafeGuard";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<section class="py-5 bg-light text-center" style="min-height: 70vh; display: flex; align-items: center;">
+    <div class="container">
+        <div class="card border-0 shadow-lg p-5 mx-auto" style="max-width: 500px;">
+            <h2 class="fw-bold mb-3" style="color: var(--primary-blue);">Kích Hoạt Tài Khoản</h2>
+
+            <p class="text-muted">Mã xác nhận đã được gửi đến: <strong class="text-dark">@Model.DisplayEmail</strong></p>
+
+            @using (Html.BeginForm("ConfirmSignUp", "Account", FormMethod.Post))
+            {
+                @Html.AntiForgeryToken()
+
+                @Html.HiddenFor(m => m.Username)
+                @Html.HiddenFor(m => m.DisplayEmail)
+
+                @Html.ValidationSummary(true, "", new { @class = "text-danger mb-3 fw-bold" })
+
+                <div class="mb-4">
+                    <label class="fw-bold mb-2">Nhập mã 6 số (Từ Email)</label>
+                    @Html.TextBoxFor(m => m.Code, new { @class = "form-control text-center fs-2 fw-bold", placeholder = "000000" })
+                    @Html.ValidationMessageFor(m => m.Code, "", new { @class = "text-danger small" })
+                </div>
+
+                <div class="mb-4 text-start">
+                    <label class="text-muted small fw-bold mb-1">
+                        <i class="fa-solid fa-key text-warning"></i> Mã cấp quyền Quản lý (Bỏ trống nếu là người thuê)
+                    </label>
+                    @Html.PasswordFor(m => m.AdminCode, new { @class = "form-control", placeholder = "Chỉ dành cho Chủ trọ/Ban quản lý KTX" })
+                </div>
+                <button type="submit" class="btn w-100 py-3 rounded-pill text-white fw-bold" style="background-color: var(--accent-orange);">XÁC NHẬN NGAY</button>
+            }
+        </div>
+    </div>
+</section>

@@ -1,0 +1,537 @@
+﻿@{
+    ViewBag.Title = "Tổng Quan Hệ Thống";
+    Layout = "~/Views/Shared/_DashboardLayout.cshtml";
+}
+
+<style>
+    .anim-fade-up {
+        animation: fadeInUp 0.6s ease-out forwards;
+        opacity: 0;
+    }
+
+    .delay-1 {
+        animation-delay: 0.1s;
+    }
+
+    .delay-2 {
+        animation-delay: 0.2s;
+    }
+
+    .delay-3 {
+        animation-delay: 0.3s;
+    }
+
+    @@keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .custom-card {
+        background-color: #ffffff;
+        border-radius: 12px;
+        border: 1px solid #e0e0e0;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+        transition: all 0.3s ease;
+    }
+
+        .custom-card:hover {
+            box-shadow: 0 8px 25px rgba(0,0,0,0.08);
+            transform: translateY(-2px);
+        }
+
+    .card-title-custom {
+        font-weight: 700;
+        color: #495057;
+        font-size: 0.95rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .status-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        display: inline-block;
+    }
+
+    .bg-green {
+        background-color: #28a745;
+    }
+
+    .bg-red {
+        background-color: #dc3545;
+    }
+
+    .pulse {
+        animation: pulse 1.5s infinite;
+    }
+
+    @@keyframes pulse {
+        0% {
+            box-shadow: 0 0 0 0 rgba(220,53,69, 0.4);
+        }
+
+        70% {
+            box-shadow: 0 0 0 10px rgba(220,53,69, 0);
+        }
+
+        100% {
+            box-shadow: 0 0 0 0 rgba(220,53,69, 0);
+        }
+    }
+</style>
+
+<div class="container-fluid p-0">
+    <div class="row g-4 mb-4">
+        <div class="col-md-7 anim-fade-up">
+            <div class="custom-card p-4 h-100">
+                <h6 class="card-title-custom">Tóm Tắt Hệ Thống</h6>
+                <div class="row mt-3">
+                    <div class="col-6 mb-2">
+                        <span class="text-muted small">Tổng Số Phòng:</span>
+                        <strong class="fs-5 ms-2">@(ViewBag.TotalRooms ?? 0)</strong>
+                    </div>
+
+                    <div class="col-6 mb-2">
+                        <span class="text-muted small">Cảnh Báo Hiện Tại:</span>
+                        <strong id="summary-alerts" class="fs-5 ms-2 @(ViewBag.CurrentAlerts > 0 ? "text-danger" : "text-success")">
+                            @(ViewBag.CurrentAlerts ?? 0)
+                        </strong>
+                    </div>
+
+                    <div class="col-6">
+                        <span class="text-muted small">Đang Hoạt Động:</span>
+                        <strong id="summary-active" class="fs-5 ms-2">@(ViewBag.ActiveRooms ?? 0)</strong>
+                    </div>
+
+                    <div class="col-6">
+                        <span class="text-muted small">Thiết Bị Online:</span>
+                        <strong id="summary-online" class="fs-5 ms-2 @(ViewBag.OnlineDevices == ViewBag.TotalRooms && ViewBag.TotalRooms > 0 ? "text-success" : "text-warning")">
+                            @(ViewBag.OnlineDevices ?? 0)/@(ViewBag.TotalRooms ?? 0)
+                        </strong>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-5 anim-fade-up delay-1">
+            <div class="custom-card p-4 h-100">
+                <h6 class="card-title-custom">Trạng Thái Gần Đây</h6>
+                <ul class="list-unstyled mb-0 mt-3">
+                    @{
+                        var recentActs = ViewBag.RecentActivities as List<SafeGuard.Controllers.ViewModels.RecentActivityVM>;
+                    }
+
+                    @if (recentActs != null && recentActs.Count > 0)
+                    {
+                        foreach (var activity in recentActs)
+                        {
+                            <li class="mb-3 d-flex align-items-center">
+                                <span class="status-dot bg-green me-3"></span>
+                                <span class="text-muted small">
+                                    <strong>@activity.Name</strong> đã tham gia <strong>Phòng @activity.Room</strong>
+                                    <span style="font-size: 0.85em; opacity: 0.8;">(@activity.Time)</span>
+                                </span>
+                            </li>
+                        }
+                    }
+                    else
+                    {
+                        <li class="text-muted small d-flex align-items-center">
+                            <i class="fa-solid fa-clock-rotate-left me-2"></i> Chưa có dữ liệu mới.
+                        </li>
+                    }
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <div class="col-12 anim-fade-up delay-1">
+            <div class="custom-card p-4">
+                <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3">
+                    <div>
+                        <h6 class="card-title-custom text-danger mb-2">
+                            <i class="fa-solid fa-flask-vial me-2"></i>Trung Tâm Mô Phỏng Hệ Thống
+                        </h6>
+                        <p class="text-muted small mb-1">
+                            Tạo nhanh dữ liệu kiểm thử cho nhiều phòng để trình diễn dashboard, cảnh báo, biểu đồ và báo cáo AI.
+                        </p>
+                        <p class="text-muted small mb-0">
+                            Gợi ý demo: Nên trải nghiệm với cả tài khoản <strong>Tenant</strong> và <strong>Admin</strong> để xem đầy đủ chức năng của hệ thống.
+                        </p>
+                    </div>
+                    <div class="d-flex flex-wrap gap-2">
+                        @using (Html.BeginForm("CreateSystemDemoData", "Admin", FormMethod.Post, new { id = "formSystemDemo", @class = "m-0" }))
+                        {
+                            @Html.AntiForgeryToken()
+                            <button type="submit" id="btnSystemDemo" class="btn btn-primary btn-sm fw-bold px-3 shadow-sm">
+                                <i class="fa-solid fa-wand-magic-sparkles me-2"></i>Tạo Demo
+                            </button>
+                        }
+
+                        @using (Html.BeginForm("CreateSafeScenario", "Admin", FormMethod.Post, new { id = "formSafeScenario", @class = "m-0" }))
+                        {
+                            @Html.AntiForgeryToken()
+                            <button type="submit" id="btnSafeScenario" class="btn btn-outline-success btn-sm fw-bold px-3 shadow-sm">
+                                <i class="fa-solid fa-shield-halved me-2"></i>An Toàn
+                            </button>
+                        }
+
+                        @using (Html.BeginForm("CreateWarningScenario", "Admin", FormMethod.Post, new { id = "formWarningScenario", @class = "m-0" }))
+                        {
+                            @Html.AntiForgeryToken()
+                            <button type="submit" id="btnWarningScenario" class="btn btn-outline-warning btn-sm fw-bold px-3 shadow-sm">
+                                <i class="fa-solid fa-triangle-exclamation me-2"></i>Cảnh Báo
+                            </button>
+                        }
+
+                        @using (Html.BeginForm("CreateDangerScenario", "Admin", FormMethod.Post, new { id = "formDangerScenario", @class = "m-0" }))
+                        {
+                            @Html.AntiForgeryToken()
+                            <button type="submit" id="btnDangerScenario" class="btn btn-outline-danger btn-sm fw-bold px-3 shadow-sm">
+                                <i class="fa-solid fa-fire me-2"></i>Nguy Hiểm
+                            </button>
+                        }
+
+                        @using (Html.BeginForm("DeleteSystemDemoData", "Admin", FormMethod.Post, new { id = "formDeleteSystemDemo", @class = "m-0" }))
+                        {
+                            @Html.AntiForgeryToken()
+                            <button type="submit" id="btnDeleteSystemDemo" class="btn btn-dark btn-sm fw-bold px-3 shadow-sm">
+                                <i class="fa-solid fa-trash-can me-2"></i>Xóa Demo
+                            </button>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <div class="col-md-8 anim-fade-up delay-2">
+            <div class="custom-card p-4 h-100">
+                <h6 class="card-title-custom text-primary mb-3">Quản Lý Cảm Biến Theo Phòng</h6>
+                <div class="table-responsive">
+                    <table class="table table-borderless table-hover align-middle">
+                        <thead style="background-color: #f8f9fa;">
+                            <tr class="small text-muted text-uppercase">
+                                <th>Phòng</th>
+                                <th>Trạng Thái</th>
+                                <th>Nhiệt Độ</th>
+                                <th>Cập Nhật</th>
+                            </tr>
+                        </thead>
+                        <tbody id="alert-tbody">
+                            @{
+                                var sensorList = ViewBag.SensorList as List<SafeGuard.Controllers.ViewModels.SensorDataVM>;
+                            }
+
+                            @if (sensorList != null && sensorList.Count > 0)
+                            {
+                                foreach (var sensor in sensorList)
+                                {
+                                    bool isAlert = sensor.Temp >= 38;
+                                    <tr>
+                                        <td class="fw-bold @(isAlert ? "text-danger" : "")">@sensor.RoomId</td>
+                                        <td><span class="status-dot @(isAlert ? "bg-red pulse" : "bg-green")"></span></td>
+                                        <td class="@(isAlert ? "text-danger fw-bold" : "")">@sensor.Temp°C</td>
+                                        <td class="small text-muted">@sensor.Time</td>
+                                    </tr>
+                                }
+                            }
+                            else
+                            {
+                                <tr>
+                                    <td colspan="4" class="text-center text-muted py-4">Chưa có dữ liệu cảm biến gần đây.</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4 anim-fade-up delay-2">
+            <div class="custom-card p-4 h-100">
+                <h6 class="card-title-custom">Tạo Mã Kích Hoạt (Mã Mời)</h6>
+                <form method="post" action="@Url.Action("TaoMaMoi", "Admin")">
+                    <select name="selectedRoom" class="form-select mb-3 mt-3 shadow-sm" required>
+                        <option value="" selected disabled>-- Chọn Phòng --</option>
+
+                        @if (ViewBag.RealRoomsList != null)
+                        {
+                            var realRooms = ViewBag.RealRoomsList as List<SafeGuard.Models.RoomDisplayViewModel>;
+                            foreach (var group in realRooms.GroupBy(r => r.BlockName))
+                            {
+                                <optgroup label="Dãy @group.Key">
+                                    @foreach (var room in group)
+                                    {
+                                        <option value="@room.BlockName-@room.RoomId">Phòng @room.BlockName-@room.RoomId</option>
+                                    }
+                                </optgroup>
+                            }
+                        }
+                        else if (ViewBag.Blocks != null)
+                        {
+                            foreach (var bId in ViewBag.Blocks as List<string>)
+                            {
+                                <optgroup label="Dãy @bId">
+                                    @for (int i = 1; i <= 6; i++)
+                                    {
+                                        var room = $"{bId}-10{i}";
+                                        <option value="@room">Phòng @room</option>
+                                    }
+                                </optgroup>
+                            }
+                        }
+                    </select>
+
+                    <input type="number" name="expireHours" class="form-control mb-3" value="24" title="Thời hạn mã (Giờ)">
+                    <button type="submit" class="btn btn-primary w-100 fw-bold shadow-sm">TẠO MÃ</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-md-5 anim-fade-up delay-3">
+            <div class="custom-card p-4 h-100">
+                <h6 class="card-title-custom mb-0">Top Phòng Nhiệt Độ Cao Hiện Tại</h6>
+                <div class="mt-3" style="height: 180px;">
+                    <canvas id="aiChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3 anim-fade-up delay-3">
+            <div class="custom-card p-3 h-100 d-flex align-items-center justify-content-center">
+                <img src="~/Content/images/PiggyShy.png"
+                     alt="Bản quyền"
+                     class="img-fluid"
+                     style="max-height: 180px; object-fit: contain; transition: transform 0.3s ease;"
+                     onmouseover="this.style.transform='scale(1.05)'"
+                     onmouseout="this.style.transform='scale(1)'">
+            </div>
+        </div>
+
+        <div class="col-md-4 anim-fade-up delay-3">
+            <div class="custom-card p-4 text-center h-100 d-flex flex-column justify-content-center">
+                <h6 class="card-title-custom">Thông Tin Hệ Thống</h6>
+                <i class="fa-brands fa-aws fs-2 text-warning my-2"></i>
+                <p class="text-muted small mb-0">Powered by AWS Serverless</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <script>
+        function updateDashboard() {
+            $.get('@Url.Action("GetRealTimeSensorData", "Admin")', function (data) {
+                if (!data) return;
+
+                let html = '';
+                let alertCount = 0;
+
+                if (data.length === 0) {
+                    html = `
+                        <tr>
+                            <td colspan="4" class="text-center text-muted py-4">Chưa có dữ liệu cảm biến gần đây.</td>
+                        </tr>
+                    `;
+                } else {
+                    data.forEach(sensor => {
+                        if (sensor.IsAlert) alertCount++;
+
+                        html += `
+                            <tr>
+                                <td class="fw-bold ${sensor.IsAlert ? 'text-danger' : ''}">${sensor.RoomId}</td>
+                                <td><span class="status-dot ${sensor.IsAlert ? 'bg-red pulse' : 'bg-green'}"></span></td>
+                                <td class="${sensor.IsAlert ? 'text-danger fw-bold' : ''}">${sensor.Temp}°C</td>
+                                <td class="small text-muted">${sensor.Time}</td>
+                            </tr>
+                        `;
+                    });
+                }
+
+                $('#alert-tbody').html(html);
+
+                const totalRooms = @(ViewBag.TotalRooms ?? 0);
+                $('#summary-online').text(data.length + '/' + totalRooms);
+
+                const alertEl = $('#summary-alerts');
+                alertEl
+                    .text(alertCount)
+                    .removeClass('text-danger text-success')
+                    .addClass(alertCount > 0 ? 'text-danger' : 'text-success');
+
+                const onlineEl = $('#summary-online');
+                onlineEl
+                    .removeClass('text-success text-warning')
+                    .addClass(data.length === totalRooms && totalRooms > 0 ? 'text-success' : 'text-warning');
+            });
+        }
+
+        const aiLabels = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(ViewBag.AIOverviewLabels ?? new List<string>()));
+        const aiTemps = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(ViewBag.AIOverviewTemps ?? new List<double>()));
+
+        const ctx = document.getElementById('aiChart').getContext('2d');
+
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: aiLabels,
+                datasets: [{
+                    label: 'Nhiệt độ (°C)',
+                    data: aiTemps,
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+
+        function setAdminButtonState($btn, loading, loadingText, normalHtml) {
+            if (loading) {
+                $btn.prop('disabled', true);
+                $btn.data('original-html', normalHtml);
+                $btn.html('<span class="spinner-border spinner-border-sm me-2"></span>' + loadingText);
+            } else {
+                $btn.prop('disabled', false);
+                $btn.html($btn.data('original-html') || normalHtml);
+            }
+        }
+
+        function bindAdminSimulationForm(formSelector, buttonSelector, actionUrl, successTitle, confirmConfig) {
+            $(formSelector).on('submit', function (e) {
+                e.preventDefault();
+
+                const runAjax = () => {
+                    const $btn = $(buttonSelector);
+                    const normalHtml = $btn.html();
+
+                    setAdminButtonState($btn, true, 'Đang xử lý...', normalHtml);
+
+                    $.ajax({
+                        url: actionUrl,
+                        type: 'POST',
+                        data: $(formSelector).serialize(),
+                        success: function (res) {
+                            setAdminButtonState($btn, false, '', normalHtml);
+
+                            if (res.success) {
+                                Swal.fire({
+                                    icon: 'success',
+                                    title: successTitle,
+                                    html: `
+                                        <div class="text-start">
+                                            <p class="mb-2">${res.message}</p>
+                                            ${res.roomCount ? `<p class="mb-0"><strong>Số phòng:</strong> ${res.roomCount}</p>` : ''}
+                                            ${res.deletedCount ? `<p class="mb-0"><strong>Số bản ghi đã xóa:</strong> ${res.deletedCount}</p>` : ''}
+                                        </div>
+                                    `,
+                                    confirmButtonText: 'Làm mới dashboard'
+                                }).then(() => {
+                                    location.reload();
+                                });
+                            } else {
+                                Swal.fire({
+                                    icon: 'error',
+                                    title: 'Không thành công',
+                                    text: res.message || 'Đã xảy ra lỗi không xác định.'
+                                });
+                            }
+                        },
+                        error: function () {
+                            setAdminButtonState($btn, false, '', normalHtml);
+
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Lỗi kết nối',
+                                text: 'Không thể kết nối đến máy chủ. Vui lòng thử lại.'
+                            });
+                        }
+                    });
+                };
+
+                if (confirmConfig) {
+                    Swal.fire(confirmConfig).then((result) => {
+                        if (result.isConfirmed) {
+                            runAjax();
+                        }
+                    });
+                } else {
+                    runAjax();
+                }
+            });
+        }
+
+        $(document).ready(function () {
+            setInterval(updateDashboard, 2000);
+
+            bindAdminSimulationForm(
+                '#formSystemDemo',
+                '#btnSystemDemo',
+                '@Url.Action("CreateSystemDemoData", "Admin")',
+                'Tạo demo thành công'
+            );
+
+            bindAdminSimulationForm(
+                '#formSafeScenario',
+                '#btnSafeScenario',
+                '@Url.Action("CreateSafeScenario", "Admin")',
+                'Đã tạo kịch bản an toàn'
+            );
+
+            bindAdminSimulationForm(
+                '#formWarningScenario',
+                '#btnWarningScenario',
+                '@Url.Action("CreateWarningScenario", "Admin")',
+                'Đã tạo kịch bản cảnh báo'
+            );
+
+            bindAdminSimulationForm(
+                '#formDangerScenario',
+                '#btnDangerScenario',
+                '@Url.Action("CreateDangerScenario", "Admin")',
+                'Đã tạo kịch bản nguy hiểm'
+            );
+
+            bindAdminSimulationForm(
+                '#formDeleteSystemDemo',
+                '#btnDeleteSystemDemo',
+                '@Url.Action("DeleteSystemDemoData", "Admin")',
+                'Đã xóa dữ liệu demo',
+                {
+                    title: 'Xóa toàn bộ dữ liệu demo admin?',
+                    text: 'Thao tác này sẽ xóa toàn bộ dữ liệu mô phỏng hệ thống do admin tạo.',
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonText: 'Xóa ngay',
+                    cancelButtonText: 'Hủy',
+                    confirmButtonColor: '#dc3545'
+                }
+            );
+        });
+    </script>
+}

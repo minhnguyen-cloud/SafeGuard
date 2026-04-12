@@ -1,0 +1,598 @@
+﻿<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SafeGuard - Hệ Thống Cảnh Báo Cháy</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+   
+    <link rel="shortcut icon" href="~/Content/images/Thuonghieu1.png" type="image/x-icon" />
+    <link rel="icon" href="~/Content/images/Thuonghieu1.png" type="image/x-icon" />
+
+    @{
+        // Cách lấy URL và Domain cho ASP.NET MVC Classic
+        var request = HttpContext.Current.Request;
+        var scheme = request.Url.Scheme; // Lấy http hoặc https
+        var host = request.Url.Host;     // Lấy tên miền (ví dụ: safeguard.vn)
+        var port = request.Url.Port;     // Lấy port (nếu có)
+
+        // Tạo đường dẫn tuyệt đối
+        string baseUrl = scheme + "://" + host + (port == 80 || port == 443 ? "" : ":" + port);
+        var currentUrl = request.Url.AbsoluteUri;
+        var imageUrl = baseUrl + "/Content/images/Thuonghieu.png";
+    }
+
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="@currentUrl">
+    <meta property="og:title" content="SafeGuard - Hệ Thống Cảnh Báo Cháy Thông Minh">
+    <meta property="og:description" content="Giám sát nhiệt độ thời gian thực, tích hợp AI phân tích rủi ro và quản lý dãy trọ thông minh.">
+    <meta property="og:image" content="@imageUrl">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+
+    <meta property="twitter:card" content="summary_large_image">
+    <meta property="twitter:url" content="@currentUrl">
+    <meta property="twitter:title" content="SafeGuard - Hệ Thống Cảnh Báo Cháy Thông Minh">
+    <meta property="twitter:image" content="@imageUrl">
+
+
+    <style>
+        :root {
+            --primary-blue: #003366;
+            --accent-red: #e63946;
+            --accent-orange: #ff9f1c;
+        }
+
+        .navbar-custom {
+            background: linear-gradient(90deg, var(--primary-blue) 0%, #00509e 100%);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            border-bottom: 3px solid var(--accent-orange);
+        }
+
+        .navbar-brand {
+            font-weight: bold;
+            color: white !important;
+            font-size: 1.5rem;
+            text-transform: uppercase;
+        }
+
+            .navbar-brand span {
+                color: var(--accent-orange);
+            }
+
+        .nav-link {
+            color: white !important;
+            font-weight: 500;
+            padding: 10px 15px !important;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+            .nav-link::after {
+                content: '';
+                position: absolute;
+                width: 0;
+                height: 2px;
+                bottom: 0;
+                left: 50%;
+                background-color: var(--accent-orange);
+                transition: all 0.3s ease;
+            }
+
+            .nav-link:hover {
+                color: var(--accent-orange) !important;
+                text-shadow: 0 0 8px rgba(255, 159, 28, 0.5);
+            }
+
+                .nav-link:hover::after {
+                    width: 100%;
+                    left: 0;
+                }
+
+        .btn-login {
+            background-color: transparent;
+            border: 2px solid white;
+            color: white;
+            border-radius: 20px;
+            transition: 0.3s;
+        }
+
+            .btn-login:hover {
+                background-color: var(--accent-orange);
+                border-color: var(--accent-orange);
+                color: white;
+            }
+
+        .pulse-button {
+            animation: pulse 2s infinite;
+        }
+
+        @@keyframes pulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(255, 193, 7, 0.7);
+            }
+
+            70% {
+                box-shadow: 0 0 0 20px rgba(255, 193, 7, 0);
+            }
+
+            100% {
+                box-shadow: 0 0 0 0 rgba(255, 193, 7, 0);
+            }
+        }
+
+        .icon-circle {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #ff416c, #ff4b2b);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.3s;
+        }
+
+        .carousel-item {
+            height: 80vh;
+            background-color: #000;
+        }
+
+            .carousel-item img {
+                width: 100%;
+                height: 100%;
+                object-fit: cover;
+                opacity: 0.6;
+            }
+
+        .carousel-caption {
+            top: 50%;
+            transform: translateY(-50%);
+            bottom: initial;
+            z-index: 10;
+        }
+
+            .carousel-caption h1 {
+                font-size: 3.5rem;
+                font-weight: bold;
+                text-shadow: 2px 2px 5px rgba(0,0,0,0.8);
+            }
+
+        .highlight-text {
+            color: var(--accent-orange);
+        }
+
+        @@media (max-width: 768px) {
+            .carousel-item {
+                height: 50vh;
+            }
+
+            .carousel-caption h1 {
+                font-size: 1.8rem !important;
+            }
+
+            .carousel-caption p {
+                font-size: 1rem !important;
+            }
+        }
+
+        .footer-custom {
+            background-color: #1a1a1a;
+            color: #d3d3d3;
+            padding: 40px 0 20px;
+            border-top: 4px solid var(--accent-red);
+        }
+
+            .footer-custom h5 {
+                color: white;
+                border-bottom: 2px solid var(--accent-orange);
+                padding-bottom: 10px;
+                display: inline-block;
+            }
+
+        .footer-links a {
+            color: #d3d3d3;
+            text-decoration: none;
+            transition: 0.3s;
+            display: block;
+            margin-bottom: 8px;
+        }
+
+            .footer-links a:hover {
+                color: var(--accent-orange);
+                padding-left: 5px;
+            }
+
+        .custom-input:focus {
+            box-shadow: none !important;
+            border-color: #ced4da !important;
+        }
+
+        .input-group:focus-within {
+            box-shadow: 0 0 0 0.25rem rgba(255, 159, 28, 0.25);
+            border-radius: 0.375rem;
+        }
+
+        .custom-eye {
+            cursor: pointer;
+            transition: color 0.3s;
+        }
+
+            .custom-eye:hover {
+                color: var(--accent-orange) !important;
+            }
+
+        #chat-fab {
+            position: fixed;
+            bottom: 25px;
+            right: 25px;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background-color: #ff9f1c;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            box-shadow: 0 5px 20px rgba(255, 159, 28, 0.4);
+            cursor: pointer;
+            z-index: 10000;
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+            #chat-fab:hover {
+                transform: scale(1.1) rotate(5deg);
+            }
+
+        #safeguard-chat-widget {
+            position: fixed;
+            bottom: 100px;
+            right: 25px;
+            width: 350px;
+            height: 500px;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            z-index: 9999;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(20px) scale(0.95);
+            transform-origin: bottom right;
+            transition: all 0.3s ease-in-out;
+        }
+
+            #safeguard-chat-widget.chat-open {
+                opacity: 1;
+                visibility: visible;
+                transform: translateY(0) scale(1);
+            }
+
+        #chat-header {
+            background: #003366;
+            color: white;
+            padding: 15px;
+            font-weight: bold;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        #chat-body {
+            flex: 1;
+            padding: 15px;
+            overflow-y: auto;
+            background: #f8f9fa;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        #chat-input-area {
+            padding: 12px;
+            background: white;
+            border-top: 1px solid #eee;
+            display: flex;
+            gap: 10px;
+        }
+
+        #user-input {
+            flex: 1;
+            border: 1px solid #dee2e6;
+            border-radius: 20px;
+            padding: 10px 15px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+            #user-input:focus {
+                border-color: #ff9f1c;
+            }
+
+        .message {
+            padding: 10px 15px;
+            border-radius: 15px;
+            max-width: 85%;
+            word-wrap: break-word;
+            font-size: 0.95rem;
+            line-height: 1.4;
+        }
+
+            .message.user {
+                background: #e3f2fd;
+                color: #003366;
+                align-self: flex-end;
+                border-bottom-right-radius: 4px;
+            }
+
+            .message.bot {
+                background: white;
+                color: #333;
+                align-self: flex-start;
+                border: 1px solid #eee;
+                border-bottom-left-radius: 4px;
+                box-shadow: 0 2px 5px rgba(0,0,0,0.02);
+            }
+
+        #btn-back-to-top {
+            position: fixed;
+            bottom: 100px;
+            right: 30px;
+            display: none;
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            background-color: #dc3545;
+            color: white;
+            border: 2px solid white;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+            z-index: 1000;
+            transition: all 0.3s ease;
+        }
+
+        #chatbot-launcher {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            z-index: 1000;
+        }
+
+        #btn-back-to-top:hover {
+            transform: scale(1.1);
+            background-color: #b02a37;
+        }
+    </style>
+</head>
+<body>
+
+    <nav class="navbar navbar-expand-lg navbar-custom sticky-top">
+        <div class="container">
+            <a class="navbar-brand" href="@Url.Action("Index", "Home")"><i class="fa-solid fa-fire-flame-curved"></i> Safe<span>Guard</span></a>
+            <button class="navbar-toggler bg-light" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav mx-auto">
+                    <li class="nav-item"><a class="nav-link" href="@Url.Action("Features", "Home")"><i class="fa-solid fa-star"></i> Tính Năng</a></li>
+                    <li class="nav-item"><a class="nav-link" href="@Url.Action("Benefits", "Home")"><i class="fa-solid fa-shield-halved"></i> Lợi Ích</a></li>
+                    <li class="nav-item"><a class="nav-link" href="@Url.Action("Devices", "Home")"><i class="fa-solid fa-video"></i> Thiết Bị</a></li>
+                    <li class="nav-item"><a class="nav-link" href="@Url.Action("News", "Home")"><i class="fa-regular fa-newspaper"></i> Tin Tức</a></li>
+                    <li class="nav-item"><a class="nav-link" href="@Url.Action("Contact", "Home")"><i class="fa-solid fa-envelope"></i> Liên Hệ</a></li>
+                </ul>
+
+                <ul class="navbar-nav ms-auto">
+                    @if (Session["UserEmail"] != null)
+                    {
+                        <li class="nav-item dropdown d-flex align-items-center">
+                            <a class="nav-link dropdown-toggle btn btn-warning text-dark fw-bold px-3 py-2" href="#" id="userMenu" role="button" data-bs-toggle="dropdown" aria-expanded="false" style="border-radius: 20px;">
+                                <i class="fa-solid fa-user-shield me-1"></i>
+                                @(Session["UserGroup"]?.ToString() == "ADMIN" ? "Quản lý:" : "Người thuê:") @Session["UserEmail"]
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-end shadow border-0 mt-2" aria-labelledby="userMenu">
+                                @{
+                                    string dashboardUrl = Session["UserGroup"]?.ToString() == "ADMIN"
+                                        ? Url.Action("Index", "Admin")
+                                        : Url.Action("Index", "Tenant");
+                                }
+                                <li><a class="dropdown-item py-2" href="@dashboardUrl"><i class="fa-solid fa-chart-line me-2"></i> Bảng điều khiển</a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item py-2 text-danger fw-bold" href="@Url.Action("Logout", "Account")"><i class="fa-solid fa-right-from-bracket me-2"></i> Đăng xuất</a></li>
+                            </ul>
+                        </li>
+                    }
+                    else
+                    {
+                        <li class="nav-item d-flex align-items-center">
+                            <a href="@Url.Action("Login", "Account")" class="btn btn-login px-4 py-2">Đăng Nhập</a>
+                        </li>
+                    }
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    @RenderBody()
+
+    <footer class="footer-custom">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-4 mb-4">
+                    <h5><i class="fa-solid fa-fire-flame-curved" style="color: var(--accent-orange)"></i> SafeGuard System</h5>
+                    <p class="mt-3">Giải pháp an toàn hiệu quả giúp phát hiện sớm nguy cơ cháy, cảnh báo kịp thời để bảo vệ tính mạng và tài sản cho khu phòng trọ và ký túc xá.</p>
+                </div>
+                <div class="col-md-4 mb-4">
+                    <h5>Liên Kết Nhanh</h5>
+                    <div class="footer-links mt-3">
+                        <a href="@Url.Action("Features", "Home")"><i class="fa-solid fa-angle-right"></i> Tính năng hệ thống</a>
+                        <a href="@Url.Action("Devices", "Home")"><i class="fa-solid fa-angle-right"></i> Thiết bị cảm biến</a>
+                        <a href="@Url.Action("Benefits", "Home")"><i class="fa-solid fa-angle-right"></i> Lợi Ích</a>
+                        <a href="@Url.Action("SafetyRegulations", "Home")"><i class="fa-solid fa-angle-right"></i> Quy định phòng cháy</a>
+                    </div>
+                </div>
+                <div class="col-md-4 mb-4">
+                    <h5>Liên Hệ Kỹ Thuật</h5>
+                    <p class="mt-3">
+                        <i class="fa-solid fa-location-dot me-2"></i>
+                        <a href="https://www.google.com/maps/search/?api=1&query=Ký+túc+xá+Đại+học+Nguyễn+Tất+Thành"
+                           target="_blank"
+                           style="color: inherit; text-decoration: none;">
+                            Ký túc xá Đại học Nguyễn Tất Thành
+                        </a>
+                    </p>
+
+                    <p>
+                        <i class="fa-solid fa-phone me-2"></i>
+                        <a href="tel:114" style="color: inherit; text-decoration: none;">
+                            Hotline Khẩn Cấp: 114
+                        </a>
+                    </p>
+
+                    <p>
+                        <i class="fa-solid fa-envelope me-2"></i>
+                        <a href="mailto:safeguard@gmail.com" style="color: inherit; text-decoration: none;">
+                            safeguard@gmail.com
+                        </a>
+                    </p>
+                </div>
+            </div>
+            <hr class="border-secondary">
+            <div class="text-center mt-3">
+                <p class="mb-0">&copy; @DateTime.Now.Year Bản quyền thuộc về Đội PiggyShy Khoa CNTT. Phát triển cho Cuộc thi KTPM.</p>
+            </div>
+        </div>
+    </footer>
+
+    <div id="chat-fab" onclick="toggleChat()">
+        <i class="fa-solid fa-robot"></i>
+    </div>
+
+    <div id="safeguard-chat-widget">
+        <div id="chat-header">
+            <span><i class="fa-solid fa-fire-extinguisher me-2 text-warning"></i> Tư Vấn PCCC 24/7</span>
+            <button onclick="toggleChat()" style="background:none; border:none; color:white; font-size:1.2rem; cursor:pointer;">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+        <div id="chat-body">
+            <div class="message bot">Xin chào! Dù bạn là ai, hệ thống AI của SafeGuard luôn sẵn sàng tư vấn cách phòng cháy chữa cháy và thoát hiểm. Bạn cần hỏi gì?</div>
+        </div>
+        <div id="chat-input-area">
+            <input type="text" id="user-input" placeholder="Nhập câu hỏi tại đây..." onkeypress="handleKeyPress(event)">
+            <button onclick="sendMessage()" style="background:#003366; border:none; color:white; border-radius:50%; width:40px; height:40px; cursor:pointer; display:flex; align-items:center; justify-content:center;">
+                <i class="fa-solid fa-paper-plane"></i>
+            </button>
+        </div>
+    </div>
+
+    <button type="button" class="btn btn-danger btn-floating btn-lg" id="btn-back-to-top">
+        <i class="fas fa-arrow-up"></i>
+    </button>
+
+    <script>
+        let mybutton = document.getElementById("btn-back-to-top");
+
+        window.onscroll = function () {
+            if (document.body.scrollTop > 300 || document.documentElement.scrollTop > 300) {
+                mybutton.style.opacity = "1";
+                mybutton.style.display = "block";
+            } else {
+                mybutton.style.opacity = "0";
+                setTimeout(() => {
+                    if (mybutton.style.opacity === "0") mybutton.style.display = "none";
+                }, 300);
+            }
+        };
+
+        mybutton.addEventListener("click", () => {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+    </script>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+    <script>
+        function toggleChat() {
+            var widget = document.getElementById('safeguard-chat-widget');
+            widget.classList.toggle('chat-open');
+        }
+
+        function sendMessage() {
+            var inputBody = $('#user-input');
+            var question = inputBody.val().trim();
+
+            if (question === "") return;
+
+            $('#chat-body').append('<div class="message user">' + question + '</div>');
+            inputBody.val('');
+            scrollChatToBottom();
+
+            $('#chat-body').append('<div class="message bot" id="loading-msg"><i class="fa-solid fa-ellipsis fa-fade"></i> AI đang phân tích...</div>');
+            scrollChatToBottom();
+
+            $.ajax({
+                url: '@Url.Action("Ask", "Chat")',
+                method: 'POST',
+                data: { question: question },
+                success: function (response) {
+                    $('#loading-msg').remove();
+
+                    if (response.success) {
+                        console.log("Dữ liệu lấy từ:", response.source);
+
+                        var cleanText = (response.reply || "").replace(/\*\*/g, '');
+                        var botReply = $('<div class="message bot"></div>').text(cleanText);
+                        $('#chat-body').append(botReply);
+                    } else {
+                        $('#chat-body').append('<div class="message bot text-danger"><i class="fa-solid fa-triangle-exclamation"></i> Lỗi: ' + (response.reply || 'Không xác định') + '</div>');
+                    }
+                    scrollChatToBottom();
+                },
+                error: function (xhr) {
+                    $('#loading-msg').remove();
+
+                    let msg = 'Mất kết nối tới máy chủ AI. Vui lòng thử lại.';
+                    if (xhr && xhr.responseText) {
+                        console.log(xhr.responseText);
+                    }
+
+                    $('#chat-body').append('<div class="message bot text-danger"><i class="fa-solid fa-wifi"></i> ' + msg + '</div>');
+                    scrollChatToBottom();
+                }
+            });
+        }
+
+        function scrollChatToBottom() {
+            var chatBody = document.getElementById('chat-body');
+            chatBody.scrollTop = chatBody.scrollHeight;
+        }
+
+        function handleKeyPress(e) {
+            if (e.key === 'Enter') sendMessage();
+        }
+
+        function togglePassword(inputId, iconSpan) {
+            var input = document.getElementById(inputId);
+            var icon = iconSpan.querySelector('i');
+
+            if (input.type === "password") {
+                input.type = "text";
+                icon.classList.remove('fa-eye');
+                icon.classList.add('fa-eye-slash');
+            } else {
+                input.type = "password";
+                icon.classList.remove('fa-eye-slash');
+                icon.classList.add('fa-eye');
+            }
+        }
+    </script>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    @RenderSection("Scripts", required: false)
+</body>
+</html>

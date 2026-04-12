@@ -1,0 +1,177 @@
+﻿@{
+    ViewBag.Title = "Phân Tích AI";
+    Layout = "~/Views/Shared/_DashboardLayout.cshtml";
+}
+
+<div class="container-fluid p-0">
+    <div class="row g-4 mb-4">
+        <div class="col-md-8 anim-fade-up">
+            <div class="custom-card p-4">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h6 class="card-title-custom mb-1">Nhiệt Độ 7 Ngày Qua (Phòng Bạn)</h6>
+                    <button class="btn btn-sm btn-light border text-primary" id="btnReloadAIChart" onclick="loadAIChart()">
+                        <i class="fa-solid fa-rotate-right"></i> Làm mới
+                    </button>
+                </div>
+                <div style="height: 300px;">
+                    <canvas id="tenantChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4 anim-fade-up delay-1">
+            <div class="custom-card p-4 bg-primary text-white border-0 shadow h-100" style="background: linear-gradient(135deg, #0d6efd, #0a58ca);">
+                <div class="d-flex align-items-center mb-3">
+                    <i class="fa-solid fa-wand-magic-sparkles fs-3 me-3 text-warning"></i>
+                    <h6 class="fw-bold mb-0 text-uppercase">AI Đánh Giá</h6>
+                </div>
+                <hr class="border-light opacity-25">
+                <ul class="list-unstyled mt-3 mb-0">
+                    <li class="mb-3 d-flex align-items-start">
+                        <i id="aiStatusIcon" class="fa-solid fa-circle-check text-success bg-white rounded-circle me-3 mt-1 d-flex justify-content-center align-items-center flex-shrink-0" style="width: 20px; height: 20px;"></i>
+                        <span id="aiMessageText">Đang phân tích dữ liệu...</span>
+                    </li>
+                    <li class="d-flex align-items-start">
+                        <i class="fa-solid fa-lightbulb text-warning bg-white rounded-circle me-3 mt-1 d-flex justify-content-center align-items-center flex-shrink-0" style="width: 20px; height: 20px;"></i>
+                        <span id="aiAdviceText">Vui lòng chờ trong giây lát...</span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        let myChart = null;
+        let isLoadingAIChart = false;
+
+        function resetAIStatus(message, advice, isDanger = false) {
+            $('#aiMessageText').text(message);
+            $('#aiAdviceText').text(advice);
+
+            if (isDanger) {
+                $('#aiStatusIcon')
+                    .removeClass('fa-circle-check text-success')
+                    .addClass('fa-triangle-exclamation text-danger');
+            } else {
+                $('#aiStatusIcon')
+                    .removeClass('fa-triangle-exclamation text-danger')
+                    .addClass('fa-circle-check text-success');
+            }
+        }
+
+        function renderEmptyChart() {
+            const ctxT = document.getElementById('tenantChart').getContext('2d');
+
+            if (myChart) myChart.destroy();
+
+            myChart = new Chart(ctxT, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Nhiệt độ (°C)',
+                        data: [],
+                        borderColor: '#0d6efd',
+                        backgroundColor: 'rgba(13, 110, 253, 0.12)',
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 3
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { beginAtZero: false },
+                        x: { grid: { display: false } }
+                    }
+                }
+            });
+        }
+
+        function loadAIChart() {
+            if (isLoadingAIChart) return;
+
+            isLoadingAIChart = true;
+            $('#btnReloadAIChart').prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-2"></span>Đang tải');
+
+            resetAIStatus("Đang thu thập dữ liệu từ cảm biến...", "Hệ thống AI đang tính toán...");
+
+            $.get('@Url.Action("GetRoomChartData", "Tenant")', function (res) {
+                if (res.success && res.values && res.values.length > 0) {
+                    const aiMessage = res.aiMessage || "AI đã phân tích xong.";
+                    const aiAdvice = res.aiAdvice || "Không có khuyến nghị thêm.";
+                    const isDanger = !!res.isAlert || aiMessage.toUpperCase().includes("NÓNG BẤT THƯỜNG");
+
+                    resetAIStatus(aiMessage, aiAdvice, isDanger);
+
+                    const ctxT = document.getElementById('tenantChart').getContext('2d');
+                    const gradT = ctxT.createLinearGradient(0, 0, 0, 300);
+                    gradT.addColorStop(0, 'rgba(13, 110, 253, 0.5)');
+                    gradT.addColorStop(1, 'rgba(13, 110, 253, 0)');
+
+                    if (myChart) myChart.destroy();
+
+                    const maxValue = Math.max(...res.values);
+                    const minValue = Math.min(...res.values);
+
+                    myChart = new Chart(ctxT, {
+                        type: 'line',
+                        data: {
+                            labels: res.labels || [],
+                            datasets: [{
+                                label: 'Nhiệt độ (°C)',
+                                data: res.values || [],
+                                borderColor: '#0d6efd',
+                                backgroundColor: gradT,
+                                borderWidth: 3,
+                                fill: true,
+                                tension: 0.4,
+                                pointBackgroundColor: '#fff',
+                                pointBorderColor: '#0d6efd',
+                                pointRadius: 4
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: { legend: { display: false } },
+                            scales: {
+                                y: {
+                                    min: Math.max(0, minValue - 3),
+                                    max: maxValue + 3
+                                },
+                                x: { grid: { display: false } }
+                            }
+                        }
+                    });
+                } else {
+                    resetAIStatus(
+                        "Chưa có đủ dữ liệu để AI phân tích.",
+                        "Hệ thống đang chờ cảm biến của phòng bạn gửi tín hiệu đầu tiên..."
+                    );
+                    renderEmptyChart();
+                }
+            }).fail(function () {
+                resetAIStatus(
+                    "Không thể tải dữ liệu AI.",
+                    "Vui lòng thử lại sau hoặc kiểm tra kết nối hệ thống."
+                );
+                renderEmptyChart();
+            }).always(function () {
+                isLoadingAIChart = false;
+                $('#btnReloadAIChart').prop('disabled', false).html('<i class="fa-solid fa-rotate-right"></i> Làm mới');
+            });
+        }
+
+        $(document).ready(function () {
+            renderEmptyChart();
+            loadAIChart();
+        });
+    </script>
+}

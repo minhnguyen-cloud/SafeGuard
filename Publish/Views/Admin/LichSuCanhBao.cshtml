@@ -1,0 +1,59 @@
+﻿@model IEnumerable<SafeGuard.Models.AlertHistoryViewModel>
+
+@{
+    ViewBag.Title = "Lịch Sử Cảnh Báo";
+    Layout = "~/Views/Shared/_DashboardLayout.cshtml";
+}
+
+<div class="container-fluid p-0">
+    <div class="custom-card p-4 anim-fade-up">
+        <div class="d-flex justify-content-between align-items-center mb-4 border-bottom pb-3">
+            <h6 class="card-title-custom mb-0">Nhật Ký Hệ Thống</h6>
+            <a href="@Url.Action("XuatExcelLichSu", "Admin")" class="btn btn-sm btn-outline-secondary">
+                <i class="fa-solid fa-download me-2"></i>Xuất Excel
+            </a>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead>
+                    <tr class="text-muted bg-light">
+                        <th>Thời Gian</th>
+                        <th>Phòng</th>
+                        <th>Mức Nhiệt Độ</th>
+                        <th>Mô Tả Cảnh Báo Hệ Thống</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (Model != null && Model.Any())
+                    {
+                        foreach (var item in Model)
+                        {
+                            <tr>
+                                <td class="fw-bold">@item.TimeStamp.ToString("dd/MM/yyyy HH:mm:ss")</td>
+                                <td>@item.RoomId</td>
+
+                                @if (item.Temperature >= 45)
+                                {
+                                    <td class="text-danger fw-bold">@item.Temperature°C</td>
+                                }
+                                else
+                                {
+                                    <td class="text-warning fw-bold">@item.Temperature°C</td>
+                                }
+
+                                <td>@item.Description</td>
+                            </tr>
+                        }
+                    }
+                    else
+                    {
+                        <tr>
+                            <td colspan="4" class="text-center text-muted py-4">Hệ thống an toàn. Chưa có cảnh báo nào được ghi nhận.</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
