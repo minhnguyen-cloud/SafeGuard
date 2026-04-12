@@ -16,9 +16,10 @@ jobs:
       - name: Show current directory
         shell: powershell
         run: |
+          Write-Host "GITHUB_WORKSPACE = $env:GITHUB_WORKSPACE"
           Get-Location
           Get-ChildItem
-          Get-ChildItem SafeGuard
+          Get-ChildItem .\SafeGuard
 
       - name: Show Docker version
         shell: powershell
@@ -32,20 +33,26 @@ jobs:
 
       - name: Restore NuGet packages
         shell: powershell
-        run: nuget restore .\SafeGuard\SafeGuard.sln
+        run: nuget restore "$env:GITHUB_WORKSPACE\SafeGuard\SafeGuard.sln"
 
       - name: Publish ASP.NET app
         shell: powershell
         run: |
-          msbuild .\SafeGuard\SafeGuard.sln `
+          $publishPath = "$env:GITHUB_WORKSPACE\Publish"
+          Write-Host "Publish path = $publishPath"
+          msbuild "$env:GITHUB_WORKSPACE\SafeGuard\SafeGuard.sln" `
             /p:Configuration=Release `
             /p:WebPublishMethod=FileSystem `
-            /p:PublishUrl=..\Publish `
+            /p:PublishUrl="$publishPath" `
             /p:DeleteExistingFiles=True
 
       - name: Show published files
         shell: powershell
-        run: dir .\Publish
+        run: |
+          $publishPath = "$env:GITHUB_WORKSPACE\Publish"
+          Write-Host "Checking publish path: $publishPath"
+          Get-ChildItem $publishPath
+          Test-Path $publishPath
 
       - name: Docker login
         shell: powershell
