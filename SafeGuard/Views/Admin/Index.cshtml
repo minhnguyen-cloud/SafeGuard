@@ -4,7 +4,6 @@
 }
 
 <style>
-    /* HIỆU ỨNG CHUYỂN ĐỘNG */
     .anim-fade-up {
         animation: fadeInUp 0.6s ease-out forwards;
         opacity: 0;
@@ -34,7 +33,6 @@
         }
     }
 
-    /* GIAO DIỆN "THỀM TRẮNG" CỰC ĐẸP */
     .custom-card {
         background-color: #ffffff;
         border-radius: 12px;
@@ -56,7 +54,6 @@
         letter-spacing: 0.5px;
     }
 
-    /* CSS TRẠNG THÁI */
     .status-dot {
         width: 10px;
         height: 10px;
@@ -101,16 +98,19 @@
                         <span class="text-muted small">Tổng Số Phòng:</span>
                         <strong class="fs-5 ms-2">@(ViewBag.TotalRooms ?? 0)</strong>
                     </div>
+
                     <div class="col-6 mb-2">
                         <span class="text-muted small">Cảnh Báo Hiện Tại:</span>
                         <strong id="summary-alerts" class="fs-5 ms-2 @(ViewBag.CurrentAlerts > 0 ? "text-danger" : "text-success")">
                             @(ViewBag.CurrentAlerts ?? 0)
                         </strong>
                     </div>
+
                     <div class="col-6">
                         <span class="text-muted small">Đang Hoạt Động:</span>
-                        <strong class="fs-5 ms-2">@(ViewBag.ActiveRooms ?? 0)</strong>
+                        <strong id="summary-active" class="fs-5 ms-2">@(ViewBag.ActiveRooms ?? 0)</strong>
                     </div>
+
                     <div class="col-6">
                         <span class="text-muted small">Thiết Bị Online:</span>
                         <strong id="summary-online" class="fs-5 ms-2 @(ViewBag.OnlineDevices == ViewBag.TotalRooms && ViewBag.TotalRooms > 0 ? "text-success" : "text-warning")">
@@ -125,7 +125,10 @@
             <div class="custom-card p-4 h-100">
                 <h6 class="card-title-custom">Trạng Thái Gần Đây</h6>
                 <ul class="list-unstyled mb-0 mt-3">
-                    @{ var recentActs = ViewBag.RecentActivities as List<SafeGuard.Controllers.ViewModels.RecentActivityVM>; }
+                    @{
+                        var recentActs = ViewBag.RecentActivities as List<SafeGuard.Controllers.ViewModels.RecentActivityVM>;
+                    }
+
                     @if (recentActs != null && recentActs.Count > 0)
                     {
                         foreach (var activity in recentActs)
@@ -165,7 +168,10 @@
                             </tr>
                         </thead>
                         <tbody id="alert-tbody">
-                            @{ var sensorList = ViewBag.SensorList as List<SafeGuard.Controllers.ViewModels.SensorDataVM>; }
+                            @{
+                                var sensorList = ViewBag.SensorList as List<SafeGuard.Controllers.ViewModels.SensorDataVM>;
+                            }
+
                             @if (sensorList != null && sensorList.Count > 0)
                             {
                                 foreach (var sensor in sensorList)
@@ -179,6 +185,12 @@
                                     </tr>
                                 }
                             }
+                            else
+                            {
+                                <tr>
+                                    <td colspan="4" class="text-center text-muted py-4">Chưa có dữ liệu cảm biến gần đây.</td>
+                                </tr>
+                            }
                         </tbody>
                     </table>
                 </div>
@@ -189,9 +201,9 @@
             <div class="custom-card p-4 h-100">
                 <h6 class="card-title-custom">Tạo Mã Kích Hoạt (Mã Mời)</h6>
                 <form method="post" action="@Url.Action("TaoMaMoi", "Admin")">
-
                     <select name="selectedRoom" class="form-select mb-3 mt-3 shadow-sm" required>
                         <option value="" selected disabled>-- Chọn Phòng --</option>
+
                         @if (ViewBag.RealRoomsList != null)
                         {
                             var realRooms = ViewBag.RealRoomsList as List<SafeGuard.Models.RoomDisplayViewModel>;
@@ -230,7 +242,7 @@
     <div class="row g-4">
         <div class="col-md-5 anim-fade-up delay-3">
             <div class="custom-card p-4 h-100">
-                <h6 class="card-title-custom mb-0">Phân Tích AI Tổng Quan</h6>
+                <h6 class="card-title-custom mb-0">Top Phòng Nhiệt Độ Cao Hiện Tại</h6>
                 <div class="mt-3" style="height: 180px;">
                     <canvas id="aiChart"></canvas>
                 </div>
@@ -239,7 +251,12 @@
 
         <div class="col-md-3 anim-fade-up delay-3">
             <div class="custom-card p-3 h-100 d-flex align-items-center justify-content-center">
-                <img src="~/Content/images/PiggyShy.png" alt="Bản quyền" class="img-fluid" style="max-height: 180px; object-fit: contain; transition: transform 0.3s ease;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+                <img src="~/Content/images/PiggyShy.png"
+                     alt="Bản quyền"
+                     class="img-fluid"
+                     style="max-height: 180px; object-fit: contain; transition: transform 0.3s ease;"
+                     onmouseover="this.style.transform='scale(1.05)'"
+                     onmouseout="this.style.transform='scale(1)'">
             </div>
         </div>
 
@@ -256,55 +273,82 @@
 @section Scripts {
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
-        // Hàm cập nhật Real-time (Tự động chạy ngầm)
         function updateDashboard() {
             $.get('@Url.Action("GetRealTimeSensorData", "Admin")', function (data) {
-                if (data) {
-                    let html = '';
-                    let alertCount = 0;
+                if (!data) return;
+
+                let html = '';
+                let alertCount = 0;
+
+                if (data.length === 0) {
+                    html = `
+                        <tr>
+                            <td colspan="4" class="text-center text-muted py-4">Chưa có dữ liệu cảm biến gần đây.</td>
+                        </tr>
+                    `;
+                } else {
                     data.forEach(sensor => {
                         if (sensor.IsAlert) alertCount++;
-                        html += `<tr>
-                            <td class="fw-bold ${sensor.IsAlert ? 'text-danger' : ''}">${sensor.RoomId}</td>
-                            <td><span class="status-dot ${sensor.IsAlert ? 'bg-red pulse' : 'bg-green'}"></span></td>
-                            <td class="${sensor.IsAlert ? 'text-danger fw-bold' : ''}">${sensor.Temp}°C</td>
-                            <td class="small text-muted">${sensor.Time}</td>
-                        </tr>`;
+
+                        html += `
+                            <tr>
+                                <td class="fw-bold ${sensor.IsAlert ? 'text-danger' : ''}">${sensor.RoomId}</td>
+                                <td><span class="status-dot ${sensor.IsAlert ? 'bg-red pulse' : 'bg-green'}"></span></td>
+                                <td class="${sensor.IsAlert ? 'text-danger fw-bold' : ''}">${sensor.Temp}°C</td>
+                                <td class="small text-muted">${sensor.Time}</td>
+                            </tr>
+                        `;
                     });
-                    $('#alert-tbody').html(html);
-                    $('#summary-online').text(data.length + '/' + @(ViewBag.TotalRooms ?? 0));
-                    $('#summary-alerts').text(alertCount).toggleClass('text-danger', alertCount > 0).toggleClass('text-success', alertCount === 0);
                 }
+
+                $('#alert-tbody').html(html);
+
+                const totalRooms = @(ViewBag.TotalRooms ?? 0);
+                $('#summary-online').text(data.length + '/' + totalRooms);
+
+                const alertEl = $('#summary-alerts');
+                alertEl
+                    .text(alertCount)
+                    .removeClass('text-danger text-success')
+                    .addClass(alertCount > 0 ? 'text-danger' : 'text-success');
+
+                const onlineEl = $('#summary-online');
+                onlineEl
+                    .removeClass('text-success text-warning')
+                    .addClass(data.length === totalRooms && totalRooms > 0 ? 'text-success' : 'text-warning');
             });
         }
 
-        $(document).ready(function() {
-            setInterval(updateDashboard, 2000); // Tự cập nhật mỗi 5 giây
+        $(document).ready(function () {
+            setInterval(updateDashboard, 2000);
         });
 
-        // Vẽ biểu đồ AI
+        const aiLabels = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(ViewBag.AIOverviewLabels ?? new List<string>()));
+        const aiTemps = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(ViewBag.AIOverviewTemps ?? new List<double>()));
+
         const ctx = document.getElementById('aiChart').getContext('2d');
-        const gradient = ctx.createLinearGradient(0, 0, 0, 150);
-        gradient.addColorStop(0, 'rgba(13, 110, 253, 0.2)');
-        gradient.addColorStop(1, 'rgba(13, 110, 253, 0)');
+
         new Chart(ctx, {
-            type: 'line',
+            type: 'bar',
             data: {
-                labels: ['0h', '4h', '8h', '12h', '16h', '20h', '24h'],
+                labels: aiLabels,
                 datasets: [{
-                    data: [25, 23, 28, 32, 30, 27, 24],
-                    borderColor: '#0d6efd',
-                    backgroundColor: gradient,
-                    borderWidth: 2,
-                    fill: true,
-                    tension: 0.4,
-                    pointRadius: 3
+                    label: 'Nhiệt độ (°C)',
+                    data: aiTemps,
+                    borderWidth: 1
                 }]
             },
             options: {
-                responsive: true, maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
-                scales: { y: { min: 20, max: 40 }, x: { grid: { display: false } } }
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
             }
         });
     </script>

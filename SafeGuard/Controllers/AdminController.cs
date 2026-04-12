@@ -24,71 +24,138 @@ namespace SafeGuard.Controllers
         public async Task<ActionResult> Index()
         {
             var client = GetClient();
+
             try
             {
+                // 1. Tổng số phòng
                 var roomsTable = Table.LoadTable(client, "Rooms");
-                var allRoomsDocs = await roomsTable.Scan(new ScanFilter()).GetNextSetAsync();
+                var allRoomsDocs = await roomsTable.Scan(new ScanFilter()).GetRemainingAsync();
                 ViewBag.TotalRooms = allRoomsDocs.Count;
 
+                // 2. Lấy danh sách tenant
                 var usersTable = Table.LoadTable(client, "Users");
                 var tenantFilter = new ScanFilter();
                 tenantFilter.AddCondition("role", ScanOperator.Equal, "TENANT");
-                var activeTenants = await usersTable.Scan(tenantFilter).GetNextSetAsync();
-                ViewBag.ActiveRooms = activeTenants.Count;
+                var tenants = await usersTable.Scan(tenantFilter).GetRemainingAsync();
 
+                // 3. Đang hoạt động = số PHÒNG khác nhau có tenant
+                var activeRoomIds = tenants
+                    .Where(u => u.ContainsKey("AssignedRoom") && !string.IsNullOrWhiteSpace(u["AssignedRoom"].AsString()))
+                    .Select(u => u["AssignedRoom"].AsString().Trim())
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+
+                ViewBag.ActiveRooms = activeRoomIds.Count;
+
+                // 4. Realtime 10 phút gần đây: dùng cho online / cảnh báo / bảng cảm biến
                 var historyTable = Table.LoadTable(client, "SafeDorm_History");
                 long tenMinsAgo = DateTimeOffset.UtcNow.AddMinutes(-10).ToUnixTimeSeconds();
+
                 var historyFilter = new ScanFilter();
                 historyFilter.AddCondition("timestamp", ScanOperator.GreaterThanOrEqual, tenMinsAgo);
-                var recentLogs = await historyTable.Scan(historyFilter).GetNextSetAsync();
+                var recentLogs = await historyTable.Scan(historyFilter).GetRemainingAsync();
 
-                var onlineRoomIds = recentLogs.Select(doc => doc["room_id"].AsString()).Distinct().ToList();
-                ViewBag.OnlineDevices = onlineRoomIds.Count;
+                var groupedLatestLogs = recentLogs
+                    .Where(doc => doc.ContainsKey("room_id") && doc.ContainsKey("timestamp") && doc.ContainsKey("temperature"))
+                    .GroupBy(doc => doc["room_id"].AsString())
+                    .Select(g => g.OrderByDescending(doc => doc["timestamp"].AsLong()).First())
+                    .ToList();
 
-                ViewBag.CurrentAlerts = recentLogs.Count(doc => doc["temperature"].AsDouble() >= 38);
+                ViewBag.OnlineDevices = groupedLatestLogs.Count;
 
-                // 5. TRẠNG THÁI GẦN ĐÂY
-                ViewBag.RecentActivities = activeTenants
-                    .Where(u => u.ContainsKey("AssignedRoom") && !string.IsNullOrEmpty(u["AssignedRoom"].AsString()))
+                // Cảnh báo hiện tại = số phòng có log mới nhất >= 38 trong 10 phút gần đây
+                ViewBag.CurrentAlerts = groupedLatestLogs.Count(doc => doc["temperature"].AsDouble() >= 38);
+
+                // 5. Trạng thái gần đây
+                ViewBag.RecentActivities = tenants
+                    .Where(u => u.ContainsKey("AssignedRoom") && !string.IsNullOrWhiteSpace(u["AssignedRoom"].AsString()))
                     .OrderByDescending(u => u.ContainsKey("createdAt") ? u["createdAt"].AsString() : "")
                     .Take(4)
                     .Select(u => new RecentActivityVM
                     {
                         Name = u.ContainsKey("fullName") ? u["fullName"].AsString() : "Sinh viên",
                         Room = u["AssignedRoom"].AsString(),
-                        Time = u.ContainsKey("createdAt") ? DateTime.Parse(u["createdAt"].AsString()).ToString("HH:mm - dd/MM") : ""
-                    }).ToList();
+                        Time = u.ContainsKey("createdAt") && !string.IsNullOrWhiteSpace(u["createdAt"].AsString())
+                            ? DateTime.Parse(u["createdAt"].AsString()).ToString("HH:mm - dd/MM")
+                            : ""
+                    })
+                    .ToList();
 
-                // 6. BẢNG CẢM BIẾN THEO PHÒNG
-                ViewBag.SensorList = recentLogs
-                    .GroupBy(doc => doc["room_id"].AsString())
-                    .Select(g => {
-                        var latest = g.OrderByDescending(doc => doc["timestamp"].AsLong()).First();
-                        return new SensorDataVM
-                        {
-                            RoomId = latest["room_id"].AsString(),
-                            Temp = latest["temperature"].AsDouble(),
-                            Time = DateTimeOffset.FromUnixTimeSeconds(latest["timestamp"].AsLong()).ToLocalTime().ToString("hh:mm tt")
-                        };
-                    }).ToList();
+                // 6. Bảng cảm biến theo phòng (realtime 10 phút)
+                ViewBag.SensorList = groupedLatestLogs
+                    .Select(latest => new SensorDataVM
+                    {
+                        RoomId = latest["room_id"].AsString(),
+                        Temp = latest["temperature"].AsDouble(),
+                        Time = DateTimeOffset.FromUnixTimeSeconds(latest["timestamp"].AsLong())
+                            .ToLocalTime()
+                            .ToString("hh:mm tt")
+                    })
+                    .OrderBy(x => x.RoomId)
+                    .ToList();
 
-                // 7. LẤY DÃY VÀ PHÒNG THẬT CHO DROPDOWN TẠO MÃ
+                // 7. Lấy dãy thật cho dropdown tạo mã
                 var tableFacilities = Table.LoadTable(client, "Facilities");
                 var blocks = await tableFacilities.Query(new QueryFilter("PK", QueryOperator.Equal, "BLOCK")).GetRemainingAsync();
-                ViewBag.Blocks = blocks.Select(b => b["BlockId"].AsString()).ToList();
+                ViewBag.Blocks = blocks
+                    .Where(b => b.ContainsKey("BlockId"))
+                    .Select(b => b["BlockId"].AsString())
+                    .Distinct()
+                    .OrderBy(x => x)
+                    .ToList();
 
-                // TRUYỀN DANH SÁCH PHÒNG THẬT LÊN VIEW
-                ViewBag.RealRoomsList = allRoomsDocs.Select(r => new SafeGuard.Models.RoomDisplayViewModel
-                {
-                    BlockName = r.ContainsKey("BlockId") ? r["BlockId"].AsString() : "",
-                    RoomId = r.ContainsKey("RoomId") ? r["RoomId"].AsString() : ""
-                }).OrderBy(x => x.BlockName).ThenBy(x => x.RoomId).ToList();
+                // 8. Truyền danh sách phòng thật lên View
+                ViewBag.RealRoomsList = allRoomsDocs
+                    .Select(r => new SafeGuard.Models.RoomDisplayViewModel
+                    {
+                        BlockName = r.ContainsKey("BlockId") ? r["BlockId"].AsString() : "",
+                        RoomId = r.ContainsKey("RoomId") ? r["RoomId"].AsString() : ""
+                    })
+                    .Where(x => !string.IsNullOrWhiteSpace(x.BlockName) && !string.IsNullOrWhiteSpace(x.RoomId))
+                    .OrderBy(x => x.BlockName)
+                    .ThenBy(x => x.RoomId)
+                    .ToList();
 
+                // 9. Chart tổng quan AI: lấy từ TOÀN BỘ history, không giới hạn 10 phút
+                var allHistoryDocs = await historyTable.Scan(new ScanFilter()).GetRemainingAsync();
+
+                var latestHistoryByRoom = allHistoryDocs
+                    .Where(doc => doc.ContainsKey("room_id") && doc.ContainsKey("timestamp") && doc.ContainsKey("temperature"))
+                    .GroupBy(doc => doc["room_id"].AsString())
+                    .Select(g => g.OrderByDescending(doc => doc["timestamp"].AsLong()).First())
+                    .OrderByDescending(doc => doc["temperature"].AsDouble())
+                    .ToList();
+
+                // Ưu tiên hiện các phòng đang nóng, nếu không có thì lấy top 5 phòng nhiệt độ cao nhất
+                var hotRoomsForChart = latestHistoryByRoom
+                    .Where(x => x["temperature"].AsDouble() >= 38)
+                    .ToList();
+
+                var finalChartRooms = hotRoomsForChart.Any()
+                    ? hotRoomsForChart
+                    : latestHistoryByRoom.Take(5).ToList();
+
+                ViewBag.AIOverviewLabels = finalChartRooms
+                    .Select(x => x["room_id"].AsString())
+                    .ToList();
+
+                ViewBag.AIOverviewTemps = finalChartRooms
+                    .Select(x => x["temperature"].AsDouble())
+                    .ToList();
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine("Lỗi AWS: " + ex.Message);
-                ViewBag.TotalRooms = 0; ViewBag.ActiveRooms = 0; ViewBag.OnlineDevices = 0; ViewBag.CurrentAlerts = 0;
+                System.Diagnostics.Debug.WriteLine("Lỗi AWS ở Index: " + ex.Message);
+                ViewBag.TotalRooms = 0;
+                ViewBag.ActiveRooms = 0;
+                ViewBag.OnlineDevices = 0;
+                ViewBag.CurrentAlerts = 0;
+                ViewBag.RecentActivities = new List<RecentActivityVM>();
+                ViewBag.SensorList = new List<SensorDataVM>();
+                ViewBag.Blocks = new List<string>();
+                ViewBag.RealRoomsList = new List<SafeGuard.Models.RoomDisplayViewModel>();
+                ViewBag.AIOverviewLabels = new List<string>();
+                ViewBag.AIOverviewTemps = new List<double>();
             }
 
             return View();
@@ -103,6 +170,7 @@ namespace SafeGuard.Controllers
             try
             {
                 var client = GetClient();
+
                 var tableFacilities = Table.LoadTable(client, "Facilities");
                 ViewBag.Blocks = await tableFacilities.Query(new QueryFilter("PK", QueryOperator.Equal, "BLOCK")).GetRemainingAsync();
 
@@ -112,26 +180,49 @@ namespace SafeGuard.Controllers
                 var tableUsers = Table.LoadTable(client, "Users");
                 var allUsers = await tableUsers.Scan(new ScanFilter()).GetRemainingAsync();
 
+                var tenantUsers = allUsers
+                    .Where(u => u.ContainsKey("role") &&
+                                string.Equals(u["role"].AsString(), "TENANT", StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+
                 var roomList = new List<RoomDisplayViewModel>();
+
                 foreach (var r in allRooms)
                 {
-                    string bId = r["BlockId"].AsString();
-                    string rId = r["RoomId"].AsString();
+                    string bId = r.ContainsKey("BlockId") ? r["BlockId"].AsString() : "";
+                    string rId = r.ContainsKey("RoomId") ? r["RoomId"].AsString() : "";
+
+                    if (string.IsNullOrWhiteSpace(bId) || string.IsNullOrWhiteSpace(rId))
+                        continue;
+
                     string fullId = $"{bId}-{rId}";
 
-                    var owner = allUsers.FirstOrDefault(u => u.ContainsKey("AssignedRoom") && u["AssignedRoom"].AsString() == fullId);
+                    var owner = tenantUsers.FirstOrDefault(u =>
+                        u.ContainsKey("AssignedRoom") &&
+                        string.Equals(u["AssignedRoom"].AsString(), fullId, StringComparison.OrdinalIgnoreCase));
+
                     roomList.Add(new RoomDisplayViewModel
                     {
-                        RoomName = "Phòng " + bId + "-" + rId,
+                        RoomName = "Phòng " + fullId,
                         BlockName = bId,
                         RoomId = rId,
-                        OwnerEmail = owner != null ? (owner.ContainsKey("fullName") ? owner["fullName"].AsString() : owner["userID"].AsString()) : "Chưa có người thuê",
+                        OwnerEmail = owner != null
+                            ? (owner.ContainsKey("fullName") ? owner["fullName"].AsString() : owner["userID"].AsString())
+                            : "Chưa có người thuê",
                         IsOnline = owner != null
                     });
                 }
-                ViewBag.Rooms = roomList.OrderBy(r => r.BlockName).ThenBy(r => r.RoomId).ToList();
+
+                ViewBag.Rooms = roomList
+                    .OrderBy(r => r.BlockName)
+                    .ThenBy(r => r.RoomId)
+                    .ToList();
             }
-            catch (Exception ex) { TempData["ErrorMessage"] = "Lỗi lấy dữ liệu: " + ex.Message; }
+            catch (Exception ex)
+            {
+                TempData["ErrorMessage"] = "Lỗi lấy dữ liệu: " + ex.Message;
+            }
+
             return View();
         }
 
@@ -140,11 +231,15 @@ namespace SafeGuard.Controllers
         {
             try
             {
-                blockId = blockId?.Trim(); roomNumber = roomNumber?.Trim();
-                if (string.IsNullOrEmpty(blockId) || string.IsNullOrEmpty(roomNumber)) return RedirectToAction("QuanLyPhong");
+                blockId = blockId?.Trim();
+                roomNumber = roomNumber?.Trim();
+
+                if (string.IsNullOrEmpty(blockId) || string.IsNullOrEmpty(roomNumber))
+                    return RedirectToAction("QuanLyPhong");
 
                 var client = GetClient();
                 var table = Table.LoadTable(client, "Rooms");
+
                 var existingRoom = await table.GetItemAsync(blockId, roomNumber);
                 if (existingRoom != null)
                 {
@@ -153,11 +248,19 @@ namespace SafeGuard.Controllers
                 }
 
                 var item = new Document();
-                item["BlockId"] = blockId; item["RoomId"] = roomNumber; item["CreatedAt"] = DateTime.Now.ToString("O");
+                item["BlockId"] = blockId;
+                item["RoomId"] = roomNumber;
+                item["CreatedAt"] = DateTime.Now.ToString("O");
+
                 await table.PutItemAsync(item);
+
                 TempData["SuccessMessage"] = $"Đã thêm phòng {roomNumber} vào dãy {blockId} thành công!";
             }
-            catch (Exception ex) { TempData["ErrorMessage"] = "Lỗi từ AWS: " + ex.Message; }
+            catch (Exception ex)
+            {
+                TempData["ErrorMessage"] = "Lỗi từ AWS: " + ex.Message;
+            }
+
             return RedirectToAction("QuanLyPhong");
         }
 
@@ -169,11 +272,9 @@ namespace SafeGuard.Controllers
                 var client = GetClient();
                 string fullRoomId = $"{blockId}-{roomId}";
 
-                // 1. Xóa phòng khỏi bảng Rooms
                 var tableRooms = Table.LoadTable(client, "Rooms");
                 await tableRooms.DeleteItemAsync(blockId, roomId);
 
-                // 2. Đá TẤT CẢ người thuê ra khỏi phòng
                 var usersTable = Table.LoadTable(client, "Users");
                 var scanFilter = new ScanFilter();
                 scanFilter.AddCondition("AssignedRoom", ScanOperator.Equal, fullRoomId);
@@ -182,10 +283,9 @@ namespace SafeGuard.Controllers
                 foreach (var user in usersInRoom)
                 {
                     user.Remove("AssignedRoom");
-                    await usersTable.PutItemAsync(user); // Ghi đè toàn bộ để ép DB xóa cột
+                    await usersTable.PutItemAsync(user);
                 }
 
-                // 3. Xóa sạch các Mã Kích Hoạt của phòng này
                 var invitesTable = Table.LoadTable(client, "RoomInvites");
                 var inviteFilter = new ScanFilter();
                 inviteFilter.AddCondition("RoomId", ScanOperator.Equal, fullRoomId);
@@ -196,11 +296,19 @@ namespace SafeGuard.Controllers
                     await invitesTable.DeleteItemAsync(inv["InviteCode"].AsString());
                 }
 
-                return Json(new { success = true, message = $"Đã xóa vĩnh viễn phòng {fullRoomId} và dọn dẹp dữ liệu!" });
+                return Json(new
+                {
+                    success = true,
+                    message = $"Đã xóa vĩnh viễn phòng {fullRoomId} và dọn dẹp dữ liệu!"
+                });
             }
             catch (Exception ex)
             {
-                return Json(new { success = false, message = "Lỗi hệ thống: " + ex.Message });
+                return Json(new
+                {
+                    success = false,
+                    message = "Lỗi hệ thống: " + ex.Message
+                });
             }
         }
 
@@ -213,28 +321,60 @@ namespace SafeGuard.Controllers
             try
             {
                 var client = GetClient();
+
                 var tableFacilities = Table.LoadTable(client, "Facilities");
                 var blocks = await tableFacilities.Query(new QueryFilter("PK", QueryOperator.Equal, "BLOCK")).GetRemainingAsync();
+
                 var tableRooms = Table.LoadTable(client, "Rooms");
                 var allRooms = await tableRooms.Scan(new ScanFilter()).GetRemainingAsync();
+
                 var tableUsers = Table.LoadTable(client, "Users");
                 var allUsers = await tableUsers.Scan(new ScanFilter()).GetRemainingAsync();
 
+                var tenantUsers = allUsers
+                    .Where(u => u.ContainsKey("role") &&
+                                string.Equals(u["role"].AsString(), "TENANT", StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+
                 foreach (var block in blocks)
                 {
-                    string bId = block["BlockId"].AsString();
-                    var roomsInBlock = allRooms.Where(r => r.ContainsKey("BlockId") && r["BlockId"].AsString() == bId).ToList();
+                    string bId = block.ContainsKey("BlockId") ? block["BlockId"].AsString() : "";
+                    if (string.IsNullOrWhiteSpace(bId))
+                        continue;
+
+                    var roomsInBlock = allRooms
+                        .Where(r => r.ContainsKey("BlockId") &&
+                                    string.Equals(r["BlockId"].AsString(), bId, StringComparison.OrdinalIgnoreCase))
+                        .ToList();
+
                     block["TotalRooms"] = roomsInBlock.Count;
-                    int activeRooms = roomsInBlock.Count(room => allUsers.Any(u => u.ContainsKey("AssignedRoom") && u["AssignedRoom"].AsString() == $"{bId}-{room["RoomId"].AsString()}"));
+
+                    int activeRooms = roomsInBlock.Count(room =>
+                        tenantUsers.Any(u =>
+                            u.ContainsKey("AssignedRoom") &&
+                            string.Equals(
+                                u["AssignedRoom"].AsString(),
+                                $"{bId}-{room["RoomId"].AsString()}",
+                                StringComparison.OrdinalIgnoreCase
+                            )
+                        )
+                    );
+
                     block["ActiveRooms"] = activeRooms;
                 }
-                ViewBag.Blocks = blocks.OrderBy(b => b["BlockName"].AsString()).ToList();
 
-                // MỚI THÊM: Truyền danh sách phòng và user sang View để hiển thị Popup Chi Tiết
+                ViewBag.Blocks = blocks
+                    .OrderBy(b => b.ContainsKey("BlockName") ? b["BlockName"].AsString() : "")
+                    .ToList();
+
                 ViewBag.AllRooms = allRooms;
-                ViewBag.AllUsers = allUsers;
+                ViewBag.AllUsers = tenantUsers;
             }
-            catch (Exception ex) { TempData["ErrorMessage"] = "Lỗi: " + ex.Message; }
+            catch (Exception ex)
+            {
+                TempData["ErrorMessage"] = "Lỗi: " + ex.Message;
+            }
+
             return View();
         }
 
@@ -244,28 +384,41 @@ namespace SafeGuard.Controllers
             try
             {
                 var client = GetClient();
+
                 string blockId = blockName.Trim().ToUpper();
-                if (blockId.Contains(" ")) blockId = blockId.Split(' ').Last();
+                if (blockId.Contains(" "))
+                    blockId = blockId.Split(' ').Last();
 
                 var tableFacilities = Table.LoadTable(client, "Facilities");
+
                 var blockItem = new Document();
                 blockItem["PK"] = "BLOCK";
                 blockItem["SK"] = $"BLOCK#{Guid.NewGuid().ToString().Substring(0, 5)}";
-                blockItem["BlockId"] = blockId; blockItem["BlockName"] = blockName;
-                blockItem["Address"] = address; blockItem["TotalRooms"] = numberOfRooms; blockItem["ActiveRooms"] = 0;
+                blockItem["BlockId"] = blockId;
+                blockItem["BlockName"] = blockName;
+                blockItem["Address"] = address;
+                blockItem["TotalRooms"] = numberOfRooms;
+                blockItem["ActiveRooms"] = 0;
+
                 await tableFacilities.PutItemAsync(blockItem);
 
                 var tableRooms = Table.LoadTable(client, "Rooms");
                 for (int i = 1; i <= numberOfRooms; i++)
                 {
                     var roomItem = new Document();
-                    roomItem["BlockId"] = blockId; roomItem["RoomId"] = $"10{i}"; roomItem["CreatedAt"] = DateTime.Now.ToString("O");
+                    roomItem["BlockId"] = blockId;
+                    roomItem["RoomId"] = $"10{i}";
+                    roomItem["CreatedAt"] = DateTime.Now.ToString("O");
                     await tableRooms.PutItemAsync(roomItem);
                 }
-                // ĐÃ SỬA CÂU THÔNG BÁO Ở ĐÂY
+
                 TempData["SuccessMessage"] = $"Đã thêm dãy trọ {blockName} thành công!";
             }
-            catch (Exception ex) { TempData["ErrorMessage"] = "Lỗi: " + ex.Message; }
+            catch (Exception ex)
+            {
+                TempData["ErrorMessage"] = "Lỗi: " + ex.Message;
+            }
+
             return RedirectToAction("QuanLyDayTro");
         }
 
@@ -278,21 +431,40 @@ namespace SafeGuard.Controllers
             try
             {
                 var client = GetClient();
+
                 var tableInvites = Table.LoadTable(client, "RoomInvites");
                 ViewBag.InviteList = await tableInvites.Scan(new ScanFilter()).GetRemainingAsync();
+
                 var tableRooms = Table.LoadTable(client, "Rooms");
                 var allRooms = await tableRooms.Scan(new ScanFilter()).GetRemainingAsync();
 
                 var roomList = new List<RoomDisplayViewModel>();
                 foreach (var r in allRooms)
                 {
-                    string bId = r["BlockId"].AsString();
-                    string rId = r["RoomId"].AsString();
-                    roomList.Add(new RoomDisplayViewModel { RoomName = "Phòng " + bId + "-" + rId, BlockName = bId, RoomId = rId });
+                    string bId = r.ContainsKey("BlockId") ? r["BlockId"].AsString() : "";
+                    string rId = r.ContainsKey("RoomId") ? r["RoomId"].AsString() : "";
+
+                    if (string.IsNullOrWhiteSpace(bId) || string.IsNullOrWhiteSpace(rId))
+                        continue;
+
+                    roomList.Add(new RoomDisplayViewModel
+                    {
+                        RoomName = "Phòng " + bId + "-" + rId,
+                        BlockName = bId,
+                        RoomId = rId
+                    });
                 }
-                ViewBag.Rooms = roomList.OrderBy(r => r.BlockName).ThenBy(r => r.RoomId).ToList();
+
+                ViewBag.Rooms = roomList
+                    .OrderBy(r => r.BlockName)
+                    .ThenBy(r => r.RoomId)
+                    .ToList();
             }
-            catch (Exception ex) { TempData["ErrorMessage"] = "Lỗi: " + ex.Message; }
+            catch (Exception ex)
+            {
+                TempData["ErrorMessage"] = "Lỗi: " + ex.Message;
+            }
+
             return View();
         }
 
@@ -302,16 +474,30 @@ namespace SafeGuard.Controllers
             try
             {
                 string newInviteCode = $"{selectedRoom}-{Guid.NewGuid().ToString().Substring(0, 6).ToUpper()}";
+
                 var client = GetClient();
                 var table = Table.LoadTable(client, "RoomInvites");
+
                 var item = new Document();
-                item["InviteCode"] = newInviteCode; item["RoomId"] = selectedRoom;
-                item["ExpireHours"] = expireHours; item["IsUsed"] = false; item["CreatedAt"] = DateTime.UtcNow.ToString("O");
+                item["InviteCode"] = newInviteCode;
+                item["RoomId"] = selectedRoom;
+                item["ExpireHours"] = expireHours;
+                item["IsUsed"] = false;
+                item["CreatedAt"] = DateTime.UtcNow.ToString("O");
+
                 await table.PutItemAsync(item);
+
                 TempData["SuccessMessage"] = $"Tạo mã thành công: {newInviteCode}";
-                return Request.UrlReferrer?.AbsolutePath.Contains("Admin/Index") == true ? RedirectToAction("Index") : RedirectToAction("TaoMaKichHoat");
+
+                return Request.UrlReferrer?.AbsolutePath.Contains("Admin/Index") == true
+                    ? RedirectToAction("Index")
+                    : RedirectToAction("TaoMaKichHoat");
             }
-            catch (Exception ex) { TempData["ErrorMessage"] = "Lỗi: " + ex.Message; return RedirectToAction("TaoMaKichHoat"); }
+            catch (Exception ex)
+            {
+                TempData["ErrorMessage"] = "Lỗi: " + ex.Message;
+                return RedirectToAction("TaoMaKichHoat");
+            }
         }
 
         // ==========================================
@@ -320,58 +506,108 @@ namespace SafeGuard.Controllers
         public async Task<ActionResult> LichSuCanhBao()
         {
             var alertList = new List<AlertHistoryViewModel>();
+
             try
             {
                 var client = GetClient();
                 var table = Table.LoadTable(client, "SafeDorm_History");
-                var documentList = await table.Scan(new ScanFilter()).GetNextSetAsync();
+                var documentList = await table.Scan(new ScanFilter()).GetRemainingAsync();
+
                 foreach (var doc in documentList)
                 {
+                    if (!doc.ContainsKey("temperature") || !doc.ContainsKey("timestamp") || !doc.ContainsKey("room_id"))
+                        continue;
+
                     double temp = doc["temperature"].AsDouble();
                     if (temp >= 38)
                     {
-                        DateTime timeStamp = new DateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc).AddSeconds(doc["timestamp"].AsLong()).ToLocalTime();
-                        string description = temp >= 50 ? "[KHẨN CẤP] Nguy cơ cháy nổ cao!" : temp >= 45 ? "Nhiệt độ tăng cao bất thường." : "Cảnh báo ngưỡng 1.";
-                        alertList.Add(new AlertHistoryViewModel { TimeStamp = timeStamp, RoomId = "Phòng " + doc["room_id"].AsString(), Temperature = temp, Description = description });
+                        DateTime timeStamp = new DateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                            .AddSeconds(doc["timestamp"].AsLong())
+                            .ToLocalTime();
+
+                        string description = temp >= 50
+                            ? "[KHẨN CẤP] Nguy cơ cháy nổ cao!"
+                            : temp >= 45
+                                ? "Nhiệt độ tăng cao bất thường."
+                                : "Cảnh báo ngưỡng 1.";
+
+                        alertList.Add(new AlertHistoryViewModel
+                        {
+                            TimeStamp = timeStamp,
+                            RoomId = "Phòng " + doc["room_id"].AsString(),
+                            Temperature = temp,
+                            Description = description
+                        });
                     }
                 }
             }
-            catch (Exception) { }
+            catch (Exception)
+            {
+            }
+
             return View(alertList.OrderByDescending(x => x.TimeStamp).ToList());
         }
 
         public async Task<ActionResult> XuatExcelLichSu()
         {
             var alertList = new List<AlertHistoryViewModel>();
+
             try
             {
                 var client = GetClient();
                 var table = Table.LoadTable(client, "SafeDorm_History");
-                var documentList = await table.Scan(new ScanFilter()).GetNextSetAsync();
+                var documentList = await table.Scan(new ScanFilter()).GetRemainingAsync();
+
                 foreach (var doc in documentList)
                 {
+                    if (!doc.ContainsKey("temperature") || !doc.ContainsKey("timestamp") || !doc.ContainsKey("room_id"))
+                        continue;
+
                     double temp = doc["temperature"].AsDouble();
                     if (temp >= 38)
                     {
-                        DateTime timeStamp = DateTimeOffset.FromUnixTimeSeconds(doc["timestamp"].AsLong()).ToLocalTime().DateTime;
-                        string desc = temp >= 50 ? "[KHẨN CẤP] Nguy cơ cháy nổ" : temp >= 45 ? "Nhiệt độ tăng cao bất thường" : "Cảnh báo ngưỡng 1";
-                        alertList.Add(new AlertHistoryViewModel { TimeStamp = timeStamp, RoomId = "Phòng " + doc["room_id"].AsString(), Temperature = temp, Description = desc });
+                        DateTime timeStamp = DateTimeOffset
+                            .FromUnixTimeSeconds(doc["timestamp"].AsLong())
+                            .ToLocalTime()
+                            .DateTime;
+
+                        string desc = temp >= 50
+                            ? "[KHẨN CẤP] Nguy cơ cháy nổ"
+                            : temp >= 45
+                                ? "Nhiệt độ tăng cao bất thường"
+                                : "Cảnh báo ngưỡng 1";
+
+                        alertList.Add(new AlertHistoryViewModel
+                        {
+                            TimeStamp = timeStamp,
+                            RoomId = "Phòng " + doc["room_id"].AsString(),
+                            Temperature = temp,
+                            Description = desc
+                        });
                     }
                 }
             }
-            catch (Exception) { }
+            catch (Exception)
+            {
+            }
 
             var builder = new StringBuilder();
             builder.AppendLine("Thời Gian,Phòng,Mức Nhiệt Độ,Mô Tả Cảnh Báo");
+
             foreach (var item in alertList.OrderByDescending(x => x.TimeStamp))
             {
                 builder.AppendLine($"{item.TimeStamp:dd/MM/yyyy HH:mm:ss},{item.RoomId},{item.Temperature},\"{item.Description}\"");
             }
-            return File(Encoding.UTF8.GetPreamble().Concat(Encoding.UTF8.GetBytes(builder.ToString())).ToArray(), "text/csv", $"LichSuCanhBao_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
+
+            return File(
+                Encoding.UTF8.GetPreamble().Concat(Encoding.UTF8.GetBytes(builder.ToString())).ToArray(),
+                "text/csv",
+                $"LichSuCanhBao_{DateTime.Now:yyyyMMdd_HHmmss}.csv"
+            );
         }
 
         // ==========================================
-        // LẤY DANH SÁCH THÀNH VIÊN TRONG PHÒNG (DÙNG CHO POPUP AJAX)
+        // LẤY DANH SÁCH THÀNH VIÊN TRONG PHÒNG
         // ==========================================
         [HttpGet]
         public async Task<JsonResult> GetRoomMembers(string roomId)
@@ -383,10 +619,12 @@ namespace SafeGuard.Controllers
 
                 var scanFilter = new ScanFilter();
                 scanFilter.AddCondition("AssignedRoom", ScanOperator.Equal, roomId);
+
                 var search = usersTable.Scan(scanFilter);
                 var documentList = await search.GetRemainingAsync();
 
-                var members = documentList.Select(doc => new {
+                var members = documentList.Select(doc => new
+                {
                     FullName = doc.ContainsKey("fullName") ? doc["fullName"].AsString() : "Chưa cập nhật",
                     Email = doc.ContainsKey("email") ? doc["email"].AsString() : (doc.ContainsKey("userID") ? doc["userID"].AsString() : "N/A")
                 }).ToList();
@@ -399,7 +637,9 @@ namespace SafeGuard.Controllers
             }
         }
 
-        // Dùng cho AJAX load lại bảng cảm biến Real-time ở trang Tổng quan
+        // ==========================================
+        // AJAX LOAD BẢNG CẢM BIẾN REAL-TIME
+        // ==========================================
         [HttpGet]
         public async Task<JsonResult> GetRealTimeSensorData()
         {
@@ -411,55 +651,31 @@ namespace SafeGuard.Controllers
                 long tenMinsAgo = DateTimeOffset.UtcNow.AddMinutes(-10).ToUnixTimeSeconds();
                 var historyFilter = new ScanFilter();
                 historyFilter.AddCondition("timestamp", ScanOperator.GreaterThanOrEqual, tenMinsAgo);
-                var recentLogs = await historyTable.Scan(historyFilter).GetNextSetAsync();
 
-                var usersTable = Table.LoadTable(client, "Users"); // Mở bảng Users để tra email
+                var recentLogs = await historyTable.Scan(historyFilter).GetRemainingAsync();
 
                 var sensorList = new List<object>();
 
-                // Nhóm theo phòng và chỉ lấy bản ghi mới nhất
-                var groupedLogs = recentLogs.GroupBy(doc => doc["room_id"].AsString());
+                var groupedLogs = recentLogs
+                    .Where(doc => doc.ContainsKey("room_id") && doc.ContainsKey("timestamp") && doc.ContainsKey("temperature"))
+                    .GroupBy(doc => doc["room_id"].AsString());
 
                 foreach (var g in groupedLogs)
                 {
                     var latest = g.OrderByDescending(doc => doc["timestamp"].AsLong()).First();
+
                     string rId = latest["room_id"].AsString();
                     double temp = latest["temperature"].AsDouble();
+
                     bool isAlert = temp >= 38;
-                    bool isEmergency = temp >= 50;
-
-                    // --- BẮT ĐẦU LUỒNG GỬI EMAIL KHẨN CẤP ---
-                    if (isEmergency)
-                    {
-                        // Tránh spam mail mỗi giây: Check Session xem đã gửi mail trong vòng 10 phút chưa
-                        string sessionKey = $"EmailSent_{rId}";
-                        if (Session[sessionKey] == null)
-                        {
-                            // 1. Quét tìm ai đang ở phòng này
-                            var uFilter = new ScanFilter();
-                            uFilter.AddCondition("AssignedRoom", ScanOperator.Contains, rId);
-                            var usersInRoom = await usersTable.Scan(uFilter).GetNextSetAsync();
-
-                            // 2. Nếu có người ở, lôi email ra và gửi
-                            if (usersInRoom.Count > 0)
-                            {
-                                string targetEmail = usersInRoom[0].ContainsKey("email") ? usersInRoom[0]["email"].AsString() : usersInRoom[0]["userID"].AsString();
-
-                                // GỌI HÀM GỬI EMAIL KHÔNG ĐỢI (Chạy ngầm để web không bị giật)
-                                _ = SendEmergencyEmail(targetEmail, rId, temp);
-
-                                // Đánh dấu là đã gửi để 10 phút sau mới gửi tiếp (tránh spam)
-                                Session[sessionKey] = DateTime.Now.AddMinutes(10);
-                            }
-                        }
-                    }
-                    // --- KẾT THÚC LUỒNG EMAIL ---
 
                     sensorList.Add(new
                     {
                         RoomId = rId,
                         Temp = temp,
-                        Time = DateTimeOffset.FromUnixTimeSeconds(latest["timestamp"].AsLong()).ToLocalTime().ToString("hh:mm tt"),
+                        Time = DateTimeOffset.FromUnixTimeSeconds(latest["timestamp"].AsLong())
+                            .ToLocalTime()
+                            .ToString("hh:mm tt"),
                         IsAlert = isAlert
                     });
                 }
@@ -472,6 +688,166 @@ namespace SafeGuard.Controllers
                 return Json(null, JsonRequestBehavior.AllowGet);
             }
         }
+
+        // ==========================================
+        // 6. BÁO CÁO AI & THỐNG KÊ
+        // ==========================================
+        [HttpGet]
+        public ActionResult BaoCaoAI()
+        {
+            return View();
+        }
+
+        [HttpGet]
+        public async Task<JsonResult> GetBaoCaoAIData(string roomId = null)
+        {
+            try
+            {
+                var client = GetClient();
+                var historyTable = Table.LoadTable(client, "SafeDorm_History");
+                var docs = await historyTable.Scan(new ScanFilter()).GetRemainingAsync();
+
+                var records = docs
+                    .Where(d => d.ContainsKey("room_id") && d.ContainsKey("timestamp") && d.ContainsKey("temperature"))
+                    .Select(d => new BaoCaoNhietDoRecord
+                    {
+                        RoomId = d["room_id"].AsString(),
+                        Timestamp = d["timestamp"].AsLong(),
+                        Temperature = d["temperature"].AsDouble()
+                    })
+                    .OrderBy(r => r.Timestamp)
+                    .ToList();
+
+                if (!records.Any())
+                {
+                    return Json(new
+                    {
+                        success = true,
+                        totalRooms = 0,
+                        alertRoomsCount = 0,
+                        hottestRoom = "--",
+                        hottestTemp = 0,
+                        selectedRoom = "",
+                        selectedRoomLabels = new List<string>(),
+                        selectedRoomTemps = new List<double>(),
+                        hotRooms = new List<object>(),
+                        blockStats = new List<object>(),
+                        aiSummary = "Chưa có dữ liệu cảm biến trong hệ thống."
+                    }, JsonRequestBehavior.AllowGet);
+                }
+
+                var latestByRoom = records
+                    .GroupBy(r => r.RoomId)
+                    .Select(g => g.OrderByDescending(x => x.Timestamp).First())
+                    .OrderByDescending(x => x.Temperature)
+                    .ToList();
+
+                var hotRooms = latestByRoom
+                    .Where(x => x.Temperature >= 38)
+                    .OrderByDescending(x => x.Temperature)
+                    .ToList();
+
+                if (string.IsNullOrWhiteSpace(roomId))
+                {
+                    roomId = hotRooms.FirstOrDefault()?.RoomId ?? latestByRoom.First().RoomId;
+                }
+
+                var selectedRoomHistory = records
+                    .Where(x => string.Equals(x.RoomId, roomId, StringComparison.OrdinalIgnoreCase))
+                    .OrderByDescending(x => x.Timestamp)
+                    .Take(10)
+                    .OrderBy(x => x.Timestamp)
+                    .ToList();
+
+                var blockStats = hotRooms
+                    .GroupBy(x => GetBlockName(x.RoomId))
+                    .Select(g => new
+                    {
+                        BlockName = g.Key,
+                        AlertCount = g.Count(),
+                        MaxTemp = g.Max(x => x.Temperature)
+                    })
+                    .OrderByDescending(x => x.AlertCount)
+                    .ThenByDescending(x => x.MaxTemp)
+                    .ToList();
+
+                var hottest = latestByRoom.First();
+
+                string aiSummary;
+                if (hotRooms.Any())
+                {
+                    aiSummary =
+                        $"Hệ thống phát hiện <b>{hotRooms.Count}</b> phòng đang có nhiệt độ cao bất thường. " +
+                        $"Phòng nóng nhất hiện tại là <b>{hottest.RoomId}</b> với mức <b>{hottest.Temperature}°C</b>. " +
+                        $"Dãy cần chú ý nhất là <b>{blockStats.FirstOrDefault()?.BlockName ?? "Không rõ"}</b>. " +
+                        $"Ưu tiên kiểm tra các phòng vượt ngưỡng 38°C trước.";
+                }
+                else
+                {
+                    aiSummary =
+                        $"Hiện tại chưa có phòng nào vượt ngưỡng cảnh báo 38°C. " +
+                        $"Phòng có nhiệt độ cao nhất là <b>{hottest.RoomId}</b> với mức <b>{hottest.Temperature}°C</b>. " +
+                        $"Hệ thống đang ở trạng thái tương đối ổn định.";
+                }
+
+                return Json(new
+                {
+                    success = true,
+                    totalRooms = latestByRoom.Count,
+                    alertRoomsCount = hotRooms.Count,
+                    hottestRoom = hottest.RoomId,
+                    hottestTemp = hottest.Temperature,
+                    selectedRoom = roomId,
+
+                    selectedRoomLabels = selectedRoomHistory
+                        .Select(x => DateTimeOffset.FromUnixTimeSeconds(x.Timestamp).ToLocalTime().ToString("HH:mm"))
+                        .ToList(),
+
+                    selectedRoomTemps = selectedRoomHistory
+                        .Select(x => x.Temperature)
+                        .ToList(),
+
+                    hotRooms = hotRooms.Select(x => new
+                    {
+                        roomId = x.RoomId,
+                        temperature = x.Temperature,
+                        blockName = GetBlockName(x.RoomId),
+                        time = DateTimeOffset.FromUnixTimeSeconds(x.Timestamp).ToLocalTime().ToString("HH:mm dd/MM")
+                    }).ToList(),
+
+                    blockStats = blockStats,
+
+                    aiSummary = aiSummary
+                }, JsonRequestBehavior.AllowGet);
+            }
+            catch (Exception ex)
+            {
+                return Json(new
+                {
+                    success = false,
+                    message = ex.Message
+                }, JsonRequestBehavior.AllowGet);
+            }
+        }
+
+        private string GetBlockName(string roomId)
+        {
+            if (string.IsNullOrWhiteSpace(roomId))
+                return "Không rõ";
+
+            if (roomId.Contains("-"))
+                return roomId.Split('-')[0].Trim().ToUpper();
+
+            return "Chưa gán dãy";
+        }
+
+        private class BaoCaoNhietDoRecord
+        {
+            public string RoomId { get; set; }
+            public long Timestamp { get; set; }
+            public double Temperature { get; set; }
+        }
+
         // ==========================================
         // HÀM HỖ TRỢ: GỬI EMAIL CẢNH BÁO
         // ==========================================
@@ -479,7 +855,6 @@ namespace SafeGuard.Controllers
         {
             try
             {
-                // Thay bằng Email và Mật khẩu ứng dụng (App Password) của bạn
                 string botEmail = "adminsafeguard@gmail.com";
                 string botPassword = "sofq imon enbq uexp";
 
@@ -510,6 +885,7 @@ namespace SafeGuard.Controllers
                     smtp.EnableSsl = true;
                     await smtp.SendMailAsync(message);
                 }
+
                 System.Diagnostics.Debug.WriteLine("Đã gửi email khẩn cấp thành công tới: " + toEmail);
             }
             catch (Exception ex)
@@ -517,16 +893,22 @@ namespace SafeGuard.Controllers
                 System.Diagnostics.Debug.WriteLine("Lỗi gửi email: " + ex.Message);
             }
         }
-
-        public ActionResult BaoCaoAI() => View();
     }
 }
 
-// ======================================================================
-// GÓI CÁC CLASS MODEL XUỐNG ĐÂY ĐỂ ĐẢM BẢO KHÔNG LỖI THIẾU FILE
-// ======================================================================
 namespace SafeGuard.Controllers.ViewModels
 {
-    public class RecentActivityVM { public string Name { get; set; } public string Room { get; set; } public string Time { get; set; } }
-    public class SensorDataVM { public string RoomId { get; set; } public double Temp { get; set; } public string Time { get; set; } }
+    public class RecentActivityVM
+    {
+        public string Name { get; set; }
+        public string Room { get; set; }
+        public string Time { get; set; }
+    }
+
+    public class SensorDataVM
+    {
+        public string RoomId { get; set; }
+        public double Temp { get; set; }
+        public string Time { get; set; }
+    }
 }

@@ -4,81 +4,178 @@
 }
 
 <style>
-    .room-card {
-        transition: 0.3s;
+    .summary-card {
+        border-radius: 16px;
+        padding: 20px;
+        background: #fff;
+        border: 1px solid #e9ecef;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.04);
+        height: 100%;
+    }
+
+    .summary-label {
+        font-size: 0.85rem;
+        color: #6c757d;
+        text-transform: uppercase;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+    }
+
+    .summary-value {
+        font-size: 2rem;
+        font-weight: 800;
+        color: #212529;
+        line-height: 1.2;
+    }
+
+    .room-pill {
         cursor: pointer;
-        min-width: 110px;
+        transition: all 0.25s ease;
+        border-radius: 14px;
+        padding: 14px 16px;
+        min-width: 140px;
         border: 2px solid transparent;
+        color: #fff;
     }
 
-        .room-card:hover {
-            transform: translateY(-3px);
-            filter: brightness(1.1);
+        .room-pill:hover {
+            transform: translateY(-2px);
         }
 
-    .room-active {
-        border-color: #212529 !important;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-        scale: 1.05;
+        .room-pill.active {
+            border-color: #212529 !important;
+            box-shadow: 0 6px 16px rgba(0,0,0,0.18);
+        }
+
+    .temp-normal {
+        background: linear-gradient(135deg, #198754, #20c997);
     }
 
-    .bg-danger-alert {
-        background-color: #dc3545 !important;
-        animation: pulse-red 2s infinite;
+    .temp-warning {
+        background: linear-gradient(135deg, #ffc107, #fd7e14);
+        color: #212529 !important;
     }
 
-    @@keyframes pulse-red {
-        0% {
-            box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.7);
-        }
+    .temp-danger {
+        background: linear-gradient(135deg, #dc3545, #b02a37);
+    }
 
-        70% {
-            box-shadow: 0 0 0 10px rgba(220, 53, 69, 0);
-        }
+    .panel-card {
+        background: #fff;
+        border-radius: 16px;
+        border: 1px solid #e9ecef;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.04);
+    }
 
-        100% {
-            box-shadow: 0 0 0 0 rgba(220, 53, 69, 0);
-        }
+    .ai-card-dark {
+        background: linear-gradient(180deg, #1f2329, #15181c);
+        color: #fff;
+        border-radius: 16px;
+        min-height: 100%;
+    }
+
+    .empty-box {
+        border: 2px dashed #dee2e6;
+        border-radius: 16px;
+        padding: 30px;
+        text-align: center;
+        color: #6c757d;
+        background: #fafafa;
     }
 </style>
 
 <div class="container-fluid p-0">
+    <div class="row g-4 mb-4">
+        <div class="col-md-3">
+            <div class="summary-card">
+                <div class="summary-label">Tổng Phòng Có Dữ Liệu</div>
+                <div id="totalRooms" class="summary-value">0</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="summary-card">
+                <div class="summary-label">Phòng Đang Cảnh Báo</div>
+                <div id="alertRoomsCount" class="summary-value text-danger">0</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="summary-card">
+                <div class="summary-label">Phòng Nóng Nhất</div>
+                <div id="hottestRoom" class="summary-value">--</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="summary-card">
+                <div class="summary-label">Nhiệt Độ Cao Nhất</div>
+                <div id="hottestTemp" class="summary-value text-danger">0°C</div>
+            </div>
+        </div>
+    </div>
+
     <div class="row mb-4">
         <div class="col-12">
-            <div class="custom-card p-4 shadow-sm border-0">
+            <div class="panel-card p-4">
                 <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h6 class="fw-bold mb-0"><i class="fa-solid fa-layer-group me-2 text-primary"></i>Sơ Đồ Nhiệt Độ Dãy Trọ</h6>
-                    <span class="badge bg-light text-dark border">Real-time Data</span>
+                    <h5 class="fw-bold mb-0">
+                        <i class="fa-solid fa-fire text-danger me-2"></i>
+                        Các Phòng Có Nhiệt Độ Cao
+                    </h5>
+                    <span class="badge bg-light text-dark border">Chỉ hiển thị phòng >= 38°C</span>
                 </div>
-                <div id="roomHeatmap" class="d-flex flex-wrap gap-3">
-                    <div class="text-muted small italic">Đang kết nối hệ thống AWS IoT...</div>
+
+                <div id="hotRoomList" class="d-flex flex-wrap gap-3">
+                    <div class="text-muted">Đang tải dữ liệu...</div>
                 </div>
             </div>
         </div>
     </div>
 
     <div class="row g-4">
-        <div class="col-md-8">
-            <div class="custom-card p-4 border-0 shadow-sm">
-                <div class="d-flex justify-content-between align-items-center mb-4">
-                    <h6 id="chartTitle" class="fw-bold mb-0 text-primary">Lịch sử nhiệt độ Phòng 101</h6>
-                    <button class="btn btn-primary btn-sm rounded-pill px-3 shadow-sm" onclick="loadData(true)">
-                        <i class="fa-solid fa-robot me-1"></i> Yêu cầu AI Phân Tích
+        <div class="col-lg-8">
+            <div class="panel-card p-4 mb-4">
+                <h5 class="fw-bold text-danger mb-3">
+                    <i class="fa-solid fa-chart-column me-2"></i>
+                    Biểu Đồ Các Phòng Nhiệt Độ Cao Hiện Tại
+                </h5>
+                <div style="height: 320px;">
+                    <canvas id="hotRoomsChart"></canvas>
+                </div>
+            </div>
+
+            <div class="panel-card p-4">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 id="historyTitle" class="fw-bold text-primary mb-0">
+                        <i class="fa-solid fa-chart-line me-2"></i>
+                        Lịch Sử Nhiệt Độ
+                    </h5>
+                    <button class="btn btn-outline-primary btn-sm rounded-pill" onclick="loadBaoCaoAIData(currentRoomId)">
+                        <i class="fa-solid fa-rotate-right me-1"></i>Làm mới
                     </button>
                 </div>
-                <div style="height: 320px;"><canvas id="tempChart"></canvas></div>
-                <div class="mt-2 text-center text-muted small italic">Trục ngang hiển thị các lần đo gần nhất từ cảm biến</div>
+                <div style="height: 320px;">
+                    <canvas id="roomHistoryChart"></canvas>
+                </div>
             </div>
         </div>
 
-        <div class="col-md-4">
-            <div id="ai-card" class="custom-card p-4 bg-dark text-white border-0 shadow h-100 transition-3">
-                <h6 class="fw-bold mb-3 text-warning text-uppercase small tracking-wider">
+        <div class="col-lg-4">
+            <div class="panel-card p-4 mb-4">
+                <h5 class="fw-bold text-warning mb-3">
+                    <i class="fa-solid fa-building-circle-exclamation me-2"></i>
+                    Cảnh Báo Theo Dãy
+                </h5>
+                <div style="height: 320px;">
+                    <canvas id="blockChart"></canvas>
+                </div>
+            </div>
+
+            <div class="ai-card-dark p-4 shadow">
+                <h6 class="fw-bold mb-3 text-warning text-uppercase">
                     <i class="fa-solid fa-microchip me-2"></i>SafeGuard AI Core
                 </h6>
-                <hr class="border-secondary">
-                <div id="ai-box" class="mt-3" style="line-height: 1.8; font-size: 0.95rem; color: #f8f9fa;">
-                    Đang tải dữ liệu phòng...
+                <hr class="border-secondary" />
+                <div id="aiSummaryBox" style="line-height:1.9; font-size:0.96rem;">
+                    Đang phân tích dữ liệu cảm biến...
                 </div>
             </div>
         </div>
@@ -88,86 +185,165 @@
 @section Scripts {
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
-        let currentRoom = "101";
-        const ctx = document.getElementById('tempChart').getContext('2d');
+        let currentRoomId = null;
+        let hotRoomsChart = null;
+        let roomHistoryChart = null;
+        let blockChart = null;
 
-        let myChart = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: ['-', '-', '-', '-', '-', '-', '-'],
-                datasets: [{
-                    label: 'Nhiệt độ (°C)',
-                    data: [0, 0, 0, 0, 0, 0, 0],
-                    borderColor: '#ff4d4d',
-                    backgroundColor: 'rgba(255, 77, 77, 0.1)',
-                    borderWidth: 3,
-                    fill: true,
-                    tension: 0.4,
-                    pointRadius: 5,
-                    pointBackgroundColor: '#fff'
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
-                scales: {
-                    y: { min: 10, max: 70, grid: { color: '#f0f0f0' } },
-                    x: { grid: { display: false } }
-                }
-            }
-        });
+        function getTempClass(temp) {
+            if (temp >= 45) return "temp-danger";
+            if (temp >= 38) return "temp-warning";
+            return "temp-normal";
+        }
 
-        async function loadData(askAi = false) {
-            const aiBox = document.getElementById('ai-box');
-            const aiCard = document.getElementById('ai-card');
-            const heatmap = document.getElementById('roomHeatmap');
-
-            if (askAi) {
-                aiBox.innerHTML = '<div class="d-flex align-items-center"><div class="spinner-border spinner-border-sm text-warning me-3"></div><span>SafeGuard AI Core đang phân tích sâu...</span></div>';
+        function loadBaoCaoAIData(roomId = null) {
+            let url = '@Url.Action("GetBaoCaoAIData", "Admin")';
+            if (roomId) {
+                url += '?roomId=' + encodeURIComponent(roomId);
             }
 
-            try {
-                const apiBase = "https://sbptpcca47.execute-api.ap-southeast-1.amazonaws.com/analyze";
-                const response = await fetch(`${apiBase}?room_id=${currentRoom}&ask_ai=${askAi}`);
-                const data = await response.json();
+            fetch(url)
+                .then(res => res.json())
+                .then(data => {
+                    if (!data.success) {
+                        document.getElementById("aiSummaryBox").innerHTML =
+                            `<span class="text-warning">Lỗi tải dữ liệu: ${data.message || 'Không xác định'}</span>`;
+                        return;
+                    }
 
-                // 1. Cập nhật Heatmap
-                const rooms = ["101", "102", "103", "104"];
-                heatmap.innerHTML = "";
-                rooms.forEach(r => {
-                    let temp = (r === data.current_room) ? (data.chart_data[data.chart_data.length - 1] || 0) : 30;
-                    let colorClass = temp > 40 ? "bg-danger" : (temp > 35 ? "bg-warning text-dark" : "bg-success");
-                    let activeClass = (r === currentRoom) ? "room-active" : "";
-                    heatmap.innerHTML += `<div onclick="selectRoom('${r}')" class="room-card p-3 text-white rounded shadow-sm ${colorClass} ${activeClass}"><div class="small opacity-75">Phòng</div><div class="fw-bold fs-4">${r}</div><div class="small opacity-75">${temp}°C</div></div>`;
+                    document.getElementById("totalRooms").innerText = data.totalRooms;
+                    document.getElementById("alertRoomsCount").innerText = data.alertRoomsCount;
+                    document.getElementById("hottestRoom").innerText = data.hottestRoom || "--";
+                    document.getElementById("hottestTemp").innerText = `${data.hottestTemp || 0}°C`;
+                    document.getElementById("aiSummaryBox").innerHTML = data.aiSummary || "Chưa có phân tích.";
+
+                    currentRoomId = data.selectedRoom;
+
+                    document.getElementById("historyTitle").innerHTML =
+                        `<i class="fa-solid fa-chart-line me-2"></i>Lịch Sử Nhiệt Độ ${data.selectedRoom || ""}`;
+
+                    const hotRoomList = document.getElementById("hotRoomList");
+                    hotRoomList.innerHTML = "";
+
+                    if (!data.hotRooms || data.hotRooms.length === 0) {
+                        hotRoomList.innerHTML = `
+                            <div class="empty-box w-100">
+                                <i class="fa-solid fa-circle-check text-success me-2"></i>
+                                Hiện chưa có phòng nào vượt ngưỡng 38°C.
+                            </div>
+                        `;
+                    } else {
+                        data.hotRooms.forEach(room => {
+                            const div = document.createElement("div");
+                            div.className = `room-pill ${getTempClass(room.temperature)} ${room.roomId === currentRoomId ? 'active' : ''}`;
+                            div.innerHTML = `
+                                <div class="small opacity-75">Dãy ${room.blockName}</div>
+                                <div class="fs-4 fw-bold">${room.roomId}</div>
+                                <div class="small fw-semibold">${room.temperature}°C</div>
+                                <div class="small opacity-75">${room.time}</div>
+                            `;
+                            div.onclick = () => loadBaoCaoAIData(room.roomId);
+                            hotRoomList.appendChild(div);
+                        });
+                    }
+
+                    const hotLabels = (data.hotRooms || []).map(x => x.roomId);
+                    const hotTemps = (data.hotRooms || []).map(x => x.temperature);
+
+                    if (hotRoomsChart) hotRoomsChart.destroy();
+                    hotRoomsChart = new Chart(document.getElementById("hotRoomsChart"), {
+                        type: 'bar',
+                        data: {
+                            labels: hotLabels,
+                            datasets: [{
+                                label: 'Nhiệt độ (°C)',
+                                data: hotTemps,
+                                borderWidth: 1
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: { display: false }
+                            },
+                            scales: {
+                                y: {
+                                    beginAtZero: true
+                                }
+                            }
+                        }
+                    });
+
+                    if (roomHistoryChart) roomHistoryChart.destroy();
+                    roomHistoryChart = new Chart(document.getElementById("roomHistoryChart"), {
+                        type: 'line',
+                        data: {
+                            labels: data.selectedRoomLabels || [],
+                            datasets: [{
+                                label: 'Nhiệt độ (°C)',
+                                data: data.selectedRoomTemps || [],
+                                fill: true,
+                                tension: 0.35,
+                                borderWidth: 3,
+                                pointRadius: 4
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: { display: false }
+                            },
+                            scales: {
+                                y: {
+                                    beginAtZero: false
+                                }
+                            }
+                        }
+                    });
+
+                    const blockLabels = (data.blockStats || []).map(x => x.BlockName);
+                    const blockCounts = (data.blockStats || []).map(x => x.AlertCount);
+
+                    if (blockChart) blockChart.destroy();
+                    blockChart = new Chart(document.getElementById("blockChart"), {
+                        type: 'bar',
+                        data: {
+                            labels: blockLabels,
+                            datasets: [{
+                                label: 'Số phòng cảnh báo',
+                                data: blockCounts,
+                                borderWidth: 1
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            indexAxis: 'y',
+                            plugins: {
+                                legend: { display: false }
+                            },
+                            scales: {
+                                x: {
+                                    beginAtZero: true,
+                                    ticks: {
+                                        precision: 0
+                                    }
+                                }
+                            }
+                        }
+                    });
+                })
+                .catch(err => {
+                    console.error(err);
+                    document.getElementById("aiSummaryBox").innerHTML =
+                        `<span class="text-warning">Không thể kết nối dữ liệu báo cáo AI.</span>`;
                 });
-
-                // 2. Cập nhật biểu đồ
-                document.getElementById('chartTitle').innerHTML = `<i class="fa-solid fa-chart-line me-2"></i>Lịch sử nhiệt độ Phòng ${currentRoom}`;
-                if (data.labels) myChart.data.labels = data.labels;
-                if (data.chart_data) myChart.data.datasets[0].data = data.chart_data;
-                myChart.update();
-
-                // 3. Cập nhật AI
-                aiBox.innerHTML = data.ai_analysis;
-                const latestTemp = data.chart_data[data.chart_data.length - 1];
-                if (latestTemp > 40) {
-                    aiCard.className = "custom-card p-4 bg-danger-alert text-white border-0 shadow h-100";
-                } else {
-                    aiCard.className = "custom-card p-4 bg-dark text-white border-0 shadow h-100";
-                }
-
-            } catch (err) {
-                console.error("Lỗi:", err);
-                aiBox.innerHTML = `<span class="text-warning small"><i class="fa-solid fa-circle-exclamation me-2"></i>Lỗi kết nối AWS.</span>`;
-            }
         }
 
-        function selectRoom(id) {
-            currentRoom = id;
-            loadData(false);
-        }
-
-        document.addEventListener("DOMContentLoaded", () => loadData(false));
+        document.addEventListener("DOMContentLoaded", function () {
+            loadBaoCaoAIData();
+        });
     </script>
 }

@@ -9,7 +9,7 @@
             <div class="custom-card p-4">
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <h6 class="card-title-custom mb-1">Nhiệt Độ 7 Ngày Qua (Phòng Bạn)</h6>
-                    <button class="btn btn-sm btn-light border text-primary" onclick="loadAIChart()">
+                    <button class="btn btn-sm btn-light border text-primary" id="btnReloadAIChart" onclick="loadAIChart()">
                         <i class="fa-solid fa-rotate-right"></i> Làm mới
                     </button>
                 </div>
@@ -45,42 +45,88 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
         let myChart = null;
+        let isLoadingAIChart = false;
+
+        function resetAIStatus(message, advice, isDanger = false) {
+            $('#aiMessageText').text(message);
+            $('#aiAdviceText').text(advice);
+
+            if (isDanger) {
+                $('#aiStatusIcon')
+                    .removeClass('fa-circle-check text-success')
+                    .addClass('fa-triangle-exclamation text-danger');
+            } else {
+                $('#aiStatusIcon')
+                    .removeClass('fa-triangle-exclamation text-danger')
+                    .addClass('fa-circle-check text-success');
+            }
+        }
+
+        function renderEmptyChart() {
+            const ctxT = document.getElementById('tenantChart').getContext('2d');
+
+            if (myChart) myChart.destroy();
+
+            myChart = new Chart(ctxT, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Nhiệt độ (°C)',
+                        data: [],
+                        borderColor: '#0d6efd',
+                        backgroundColor: 'rgba(13, 110, 253, 0.12)',
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 3
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { beginAtZero: false },
+                        x: { grid: { display: false } }
+                    }
+                }
+            });
+        }
 
         function loadAIChart() {
-            // Set trạng thái chờ
-            $('#aiMessageText').text("Đang thu thập dữ liệu từ cảm biến...");
-            $('#aiAdviceText').text("Hệ thống AI đang tính toán...");
+            if (isLoadingAIChart) return;
 
-            // Gọi API lấy dữ liệu
+            isLoadingAIChart = true;
+            $('#btnReloadAIChart').prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-2"></span>Đang tải');
+
+            resetAIStatus("Đang thu thập dữ liệu từ cảm biến...", "Hệ thống AI đang tính toán...");
+
             $.get('@Url.Action("GetRoomChartData", "Tenant")', function (res) {
                 if (res.success && res.values && res.values.length > 0) {
+                    const aiMessage = res.aiMessage || "AI đã phân tích xong.";
+                    const aiAdvice = res.aiAdvice || "Không có khuyến nghị thêm.";
+                    const isDanger = !!res.isAlert || aiMessage.toUpperCase().includes("NÓNG BẤT THƯỜNG");
 
-                    // 1. Cập nhật câu chữ AI
-                    $('#aiMessageText').text(res.aiMessage);
-                    $('#aiAdviceText').text(res.aiAdvice);
+                    resetAIStatus(aiMessage, aiAdvice, isDanger);
 
-                    // 2. Cập nhật Icon (Nếu nóng bất thường thì đổi icon check xanh thành cảnh báo đỏ)
-                    if(res.aiMessage.includes("NÓNG BẤT THƯỜNG")) {
-                        $('#aiStatusIcon').removeClass('fa-circle-check text-success').addClass('fa-triangle-exclamation text-danger');
-                    } else {
-                        $('#aiStatusIcon').removeClass('fa-triangle-exclamation text-danger').addClass('fa-circle-check text-success');
-                    }
-
-                    // 3. Vẽ lại biểu đồ bằng dữ liệu thật
                     const ctxT = document.getElementById('tenantChart').getContext('2d');
                     const gradT = ctxT.createLinearGradient(0, 0, 0, 300);
                     gradT.addColorStop(0, 'rgba(13, 110, 253, 0.5)');
                     gradT.addColorStop(1, 'rgba(13, 110, 253, 0)');
 
-                    if (myChart) myChart.destroy(); // Xóa chart cũ trước khi vẽ chart mới
+                    if (myChart) myChart.destroy();
+
+                    const maxValue = Math.max(...res.values);
+                    const minValue = Math.min(...res.values);
 
                     myChart = new Chart(ctxT, {
                         type: 'line',
                         data: {
-                            labels: res.labels, // Giờ/Ngày động
+                            labels: res.labels || [],
                             datasets: [{
                                 label: 'Nhiệt độ (°C)',
-                                data: res.values, // Nhiệt độ động
+                                data: res.values || [],
                                 borderColor: '#0d6efd',
                                 backgroundColor: gradT,
                                 borderWidth: 3,
@@ -96,22 +142,35 @@
                             maintainAspectRatio: false,
                             plugins: { legend: { display: false } },
                             scales: {
-                                y: { min: 20, max: 50 }, // Set max 50 để thấy rõ các mức nhiệt cháy nổ
+                                y: {
+                                    min: Math.max(0, minValue - 3),
+                                    max: maxValue + 3
+                                },
                                 x: { grid: { display: false } }
                             }
                         }
                     });
-
                 } else {
-                    // Xử lý khi phòng chưa có dữ liệu cảm biến
-                    $('#aiMessageText').text("Chưa có đủ dữ liệu để AI phân tích.");
-                    $('#aiAdviceText').text("Hệ thống đang chờ cảm biến của phòng bạn gửi tín hiệu đầu tiên...");
+                    resetAIStatus(
+                        "Chưa có đủ dữ liệu để AI phân tích.",
+                        "Hệ thống đang chờ cảm biến của phòng bạn gửi tín hiệu đầu tiên..."
+                    );
+                    renderEmptyChart();
                 }
+            }).fail(function () {
+                resetAIStatus(
+                    "Không thể tải dữ liệu AI.",
+                    "Vui lòng thử lại sau hoặc kiểm tra kết nối hệ thống."
+                );
+                renderEmptyChart();
+            }).always(function () {
+                isLoadingAIChart = false;
+                $('#btnReloadAIChart').prop('disabled', false).html('<i class="fa-solid fa-rotate-right"></i> Làm mới');
             });
         }
 
-        $(document).ready(function() {
-            // Tự động vẽ biểu đồ khi vừa vào trang
+        $(document).ready(function () {
+            renderEmptyChart();
             loadAIChart();
         });
     </script>
