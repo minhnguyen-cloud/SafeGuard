@@ -15,6 +15,7 @@ using Amazon.S3.Transfer;
 using System.IO;
 using System.Configuration;
 using Amazon.Runtime;
+using System.Globalization;
 
 namespace SafeGuard.Controllers
 {
@@ -197,6 +198,110 @@ namespace SafeGuard.Controllers
             if (resultsEmail.Count > 0) return resultsEmail[0]["userID"].AsString();
 
             return sessionValue; // Trả về mặc định nếu không tìm thấy
+        }
+        private readonly Random _random = new Random();
+
+        private async Task<string> GetOrAssignDemoRoomAsync(AmazonDynamoDBClient client, string realUserId)
+        {
+            var usersTable = Table.LoadTable(client, "Users");
+            var roomsTable = Table.LoadTable(client, "Rooms");
+
+            var userDoc = await usersTable.GetItemAsync(realUserId);
+            if (userDoc == null)
+                throw new Exception("Không tìm thấy người dùng trong hệ thống.");
+
+            // Nếu đã có phòng thật rồi thì giữ nguyên
+            if (userDoc.ContainsKey("AssignedRoom") && !string.IsNullOrWhiteSpace(userDoc["AssignedRoom"].AsString()))
+            {
+                return userDoc["AssignedRoom"].AsString().Trim();
+            }
+
+            // Lấy danh sách phòng có sẵn trong bảng Rooms
+            var allRooms = await roomsTable.Scan(new ScanFilter()).GetRemainingAsync();
+
+            var availableRooms = allRooms
+                .Where(r => r.ContainsKey("BlockId") && r.ContainsKey("RoomId"))
+                .Select(r => $"{r["BlockId"].AsString().Trim()}-{r["RoomId"].AsString().Trim()}")
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            if (!availableRooms.Any())
+                throw new Exception("Hiện chưa có phòng nào trong hệ thống để gán dữ liệu mẫu.");
+
+            // Random 1 phòng bất kỳ từ bảng Rooms
+            var selectedRoom = availableRooms[_random.Next(availableRooms.Count)];
+
+            userDoc["AssignedRoom"] = selectedRoom;
+            userDoc["DemoAssignedRoom"] = true;
+            userDoc["DemoAssignedRoomId"] = selectedRoom;
+            userDoc["DemoAssignedAt"] = DateTime.UtcNow.ToString("O");
+
+            await usersTable.UpdateItemAsync(userDoc);
+
+            Session["AssignedRoom"] = selectedRoom;
+
+            return selectedRoom;
+        }
+
+        private async Task<string> GetCurrentRoomForDemoAsync(AmazonDynamoDBClient client, string realUserId)
+        {
+            var usersTable = Table.LoadTable(client, "Users");
+            var userDoc = await usersTable.GetItemAsync(realUserId);
+
+            if (userDoc == null)
+                throw new Exception("Không tìm thấy người dùng.");
+
+            if (userDoc.ContainsKey("AssignedRoom") && !string.IsNullOrWhiteSpace(userDoc["AssignedRoom"].AsString()))
+            {
+                string existingRoom = userDoc["AssignedRoom"].AsString().Trim();
+
+                // Nếu user đã có phòng thật thì dọn cờ demo cũ để tránh xóa nhầm sau này
+                bool needUpdate = false;
+
+                if (userDoc.ContainsKey("DemoAssignedRoom"))
+                {
+                    userDoc.Remove("DemoAssignedRoom");
+                    needUpdate = true;
+                }
+
+                if (userDoc.ContainsKey("DemoAssignedAt"))
+                {
+                    userDoc.Remove("DemoAssignedAt");
+                    needUpdate = true;
+                }
+
+                if (userDoc.ContainsKey("DemoAssignedRoomId"))
+                {
+                    userDoc.Remove("DemoAssignedRoomId");
+                    needUpdate = true;
+                }
+
+                if (needUpdate)
+                    await usersTable.UpdateItemAsync(userDoc);
+
+                Session["AssignedRoom"] = existingRoom;
+                return existingRoom;
+            }
+
+            return await GetOrAssignDemoRoomAsync(client, realUserId);
+        }
+
+        private List<double> BuildProfessionalDemoTemperatureSeries()
+        {
+            // Dữ liệu tăng dần có chủ đích để demo đẹp hơn
+            return new List<double> { 29, 30, 31, 33, 35, 37, 39, 42, 45, 50 };
+        }
+
+        private string BuildTemperatureDescription(double temp)
+        {
+            if (temp >= 50)
+                return "Mức nguy hiểm cao. Hệ thống khuyến nghị kiểm tra thiết bị điện ngay lập tức.";
+            if (temp >= 45)
+                return "Nhiệt độ tăng cao bất thường. Cần theo dõi sát tình trạng phòng.";
+            if (temp >= 38)
+                return "Nhiệt độ bắt đầu vượt ngưỡng cảnh báo. Hệ thống đang tăng cường giám sát.";
+            return "Nhiệt độ ổn định, phòng đang ở trạng thái an toàn.";
         }
 
         // ==========================================
@@ -400,6 +505,16 @@ namespace SafeGuard.Controllers
                     if (userDoc != null)
                     {
                         userDoc["AssignedRoom"] = roomId;
+
+                        if (userDoc.ContainsKey("DemoAssignedRoom"))
+                            userDoc.Remove("DemoAssignedRoom");
+
+                        if (userDoc.ContainsKey("DemoAssignedAt"))
+                            userDoc.Remove("DemoAssignedAt");
+
+                        if (userDoc.ContainsKey("DemoAssignedRoomId"))
+                            userDoc.Remove("DemoAssignedRoomId");
+
                         await usersTable.UpdateItemAsync(userDoc);
                     }
                     else // Đề phòng lỗi sâu
@@ -524,21 +639,164 @@ namespace SafeGuard.Controllers
         // ==========================================
         // 7. TẠO DỮ LIỆU GIẢ 
         // ==========================================
-        [HttpGet]
-        public async Task<ActionResult> TaoDuLieuGia()
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<JsonResult> CreateDemoData()
         {
-            string roomId = Session["AssignedRoom"] != null ? Session["AssignedRoom"].ToString() : "C-107";
+            if (Session["UserEmail"] == null)
+            {
+                return Json(new { success = false, message = "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại." });
+            }
+
             try
             {
-                var table = Table.LoadTable(new AmazonDynamoDBClient(Amazon.RegionEndpoint.APSoutheast1), "SafeDorm_History");
-                for (int i = 6; i >= 0; i--)
+                var client = new AmazonDynamoDBClient(Amazon.RegionEndpoint.APSoutheast1);
+                string realUserId = await GetRealUserIdAsync(client, Session["UserEmail"].ToString());
+
+                string roomId = await GetCurrentRoomForDemoAsync(client, realUserId);
+
+                var historyTable = Table.LoadTable(client, "SafeDorm_History");
+
+                // Xóa dữ liệu demo cũ của chính user/phòng này trước khi tạo mới
+                var existingDocs = await historyTable.Query(new QueryFilter("room_id", QueryOperator.Equal, roomId)).GetRemainingAsync();
+
+                var oldDemoDocs = existingDocs
+                    .Where(d =>
+                        d.ContainsKey("isDemo")
+                        && d["isDemo"].AsBoolean()
+                        && d.ContainsKey("demoUserId")
+                        && string.Equals(d["demoUserId"].AsString(), realUserId, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+
+                foreach (var doc in oldDemoDocs)
                 {
-                    var doc = new Document { ["room_id"] = roomId, ["timestamp"] = DateTime.Now.AddDays(-i).ToString("yyyy-MM-dd HH:mm:ss"), ["temperature"] = i == 0 ? 45 : new Random().Next(25, 32) };
-                    await table.PutItemAsync(doc);
+                    await historyTable.DeleteItemAsync(doc["room_id"].AsString(), doc["timestamp"].AsLong());
                 }
-                return Content($"Tạo dữ liệu cho {roomId} thành công!");
+
+                // Tạo chuỗi dữ liệu demo mới
+                var temps = BuildProfessionalDemoTemperatureSeries();
+
+                long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+                long start = now - ((temps.Count - 1) * 60); // mỗi điểm cách nhau 1 phút
+
+                for (int i = 0; i < temps.Count; i++)
+                {
+                    var doc = new Document();
+                    doc["room_id"] = roomId;
+                    doc["timestamp"] = start + (i * 60);
+                    doc["temperature"] = temps[i];
+                    doc["isDemo"] = true;
+                    doc["demoUserId"] = realUserId;
+                    doc["source"] = "SIMULATOR";
+                    doc["description"] = BuildTemperatureDescription(temps[i]);
+                    doc["createdAt"] = DateTime.UtcNow.ToString("O", CultureInfo.InvariantCulture);
+
+                    await historyTable.PutItemAsync(doc);
+                }
+
+                return Json(new
+                {
+                    success = true,
+                    roomId = roomId,
+                    points = temps.Count,
+                    message = $"Đã tạo {temps.Count} mốc dữ liệu mẫu thành công cho phòng {roomId}."
+                });
             }
-            catch (Exception ex) { return Content("Lỗi: " + ex.Message); }
+            catch (Exception ex)
+            {
+                return Json(new
+                {
+                    success = false,
+                    message = "Không thể tạo dữ liệu mẫu: " + ex.Message
+                });
+            }
+        }
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<JsonResult> DeleteDemoData()
+        {
+            if (Session["UserEmail"] == null)
+            {
+                return Json(new { success = false, message = "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại." });
+            }
+
+            try
+            {
+                var client = new AmazonDynamoDBClient(Amazon.RegionEndpoint.APSoutheast1);
+                string realUserId = await GetRealUserIdAsync(client, Session["UserEmail"].ToString());
+
+                var usersTable = Table.LoadTable(client, "Users");
+                var historyTable = Table.LoadTable(client, "SafeDorm_History");
+
+                var userDoc = await usersTable.GetItemAsync(realUserId);
+                if (userDoc == null)
+                    return Json(new { success = false, message = "Không tìm thấy thông tin người dùng." });
+
+                string roomId = userDoc.ContainsKey("AssignedRoom") ? userDoc["AssignedRoom"].AsString() : "";
+
+                if (string.IsNullOrWhiteSpace(roomId))
+                {
+                    return Json(new { success = true, message = "Không có dữ liệu mẫu để xóa." });
+                }
+
+                var roomDocs = await historyTable.Query(new QueryFilter("room_id", QueryOperator.Equal, roomId)).GetRemainingAsync();
+
+                var demoDocs = roomDocs
+                    .Where(d =>
+                        d.ContainsKey("isDemo")
+                        && d["isDemo"].AsBoolean()
+                        && d.ContainsKey("demoUserId")
+                        && string.Equals(d["demoUserId"].AsString(), realUserId, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+
+                foreach (var doc in demoDocs)
+                {
+                    await historyTable.DeleteItemAsync(doc["room_id"].AsString(), doc["timestamp"].AsLong());
+                }
+
+                bool demoAssignedRoom = userDoc.ContainsKey("DemoAssignedRoom") && userDoc["DemoAssignedRoom"].AsBoolean();
+                string currentAssignedRoom = userDoc.ContainsKey("AssignedRoom") ? userDoc["AssignedRoom"].AsString() : "";
+                string demoAssignedRoomId = userDoc.ContainsKey("DemoAssignedRoomId") ? userDoc["DemoAssignedRoomId"].AsString() : "";
+
+                if (demoAssignedRoom)
+                {
+                    // Chỉ xóa AssignedRoom nếu phòng hiện tại đúng là phòng demo đã auto gán
+                    if (!string.IsNullOrWhiteSpace(currentAssignedRoom) &&
+                        !string.IsNullOrWhiteSpace(demoAssignedRoomId) &&
+                        string.Equals(currentAssignedRoom, demoAssignedRoomId, StringComparison.OrdinalIgnoreCase))
+                    {
+                        userDoc.Remove("AssignedRoom");
+                        Session["AssignedRoom"] = null;
+                    }
+
+                    userDoc.Remove("DemoAssignedRoom");
+
+                    if (userDoc.ContainsKey("DemoAssignedAt"))
+                        userDoc.Remove("DemoAssignedAt");
+
+                    if (userDoc.ContainsKey("DemoAssignedRoomId"))
+                        userDoc.Remove("DemoAssignedRoomId");
+
+                    await usersTable.UpdateItemAsync(userDoc);
+                }
+
+                return Json(new
+                {
+                    success = true,
+                    deletedCount = demoDocs.Count,
+                    message = demoDocs.Count > 0
+                        ? $"Đã xóa {demoDocs.Count} bản ghi dữ liệu mẫu."
+                        : "Không tìm thấy dữ liệu mẫu để xóa."
+                });
+            }
+            catch (Exception ex)
+            {
+                return Json(new
+                {
+                    success = false,
+                    message = "Không thể xóa dữ liệu mẫu: " + ex.Message
+                });
+            }
         }
     }
 }

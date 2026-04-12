@@ -123,6 +123,36 @@
         </div>
         <i class="fa-solid fa-leaf position-absolute @bannerText opacity-25" style="font-size: 8rem; right: -20px; top: -30px; transform: rotate(15deg);"></i>
     </div>
+    <div class="premium-card p-4 mb-4 anim-fade-up">
+        <div class="d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-3">
+            <div>
+                <h6 class="fw-bold text-muted mb-2 text-uppercase" style="letter-spacing: 1px;">
+                    Mô phỏng dữ liệu kiểm thử
+                </h6>
+                <p class="text-muted mb-0 small">
+                    Tạo nhanh chuỗi dữ liệu mẫu để kiểm tra dashboard, cảnh báo nhiệt độ và lịch sử hệ thống.
+                </p>
+            </div>
+
+            <div class="d-flex flex-wrap gap-2">
+                @using (Html.BeginForm("CreateDemoData", "Tenant", FormMethod.Post, new { id = "createDemoForm", @class = "m-0" }))
+                {
+                    @Html.AntiForgeryToken()
+                    <button type="submit" id="btnCreateDemo" class="btn btn-primary fw-bold rounded-pill px-4 shadow-sm">
+                        <i class="fa-solid fa-wand-magic-sparkles me-2"></i>Tạo dữ liệu mẫu
+                    </button>
+                }
+
+                @using (Html.BeginForm("DeleteDemoData", "Tenant", FormMethod.Post, new { id = "deleteDemoForm", @class = "m-0" }))
+                {
+                    @Html.AntiForgeryToken()
+                    <button type="submit" id="btnDeleteDemo" class="btn btn-outline-danger fw-bold rounded-pill px-4 shadow-sm">
+                        <i class="fa-solid fa-trash-can me-2"></i>Xóa dữ liệu mẫu
+                    </button>
+                }
+            </div>
+        </div>
+    </div>
 
     <div class="row g-4 mb-4">
 
@@ -172,6 +202,128 @@
                 </a>
             </div>
         </div>
+        @section Scripts {
+            <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+            <script>
+        $(document).ready(function () {
 
+            function setButtonState($btn, loading, loadingText, normalHtml) {
+                if (loading) {
+                    $btn.prop('disabled', true);
+                    $btn.data('original-html', normalHtml);
+                    $btn.html('<span class="spinner-border spinner-border-sm me-2"></span>' + loadingText);
+                } else {
+                    $btn.prop('disabled', false);
+                    $btn.html($btn.data('original-html') || normalHtml);
+                }
+            }
+
+            $('#createDemoForm').on('submit', function (e) {
+                e.preventDefault();
+
+                const $btn = $('#btnCreateDemo');
+                const normalHtml = $btn.html();
+
+                setButtonState($btn, true, 'Đang tạo...', normalHtml);
+
+                $.ajax({
+                    url: '@Url.Action("CreateDemoData", "Tenant")',
+                    type: 'POST',
+                    data: $(this).serialize(),
+                    success: function (res) {
+                        setButtonState($btn, false, '', normalHtml);
+
+                        if (res.success) {
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'Tạo dữ liệu thành công',
+                                html: `
+                                    <div class="text-start">
+                                        <p class="mb-2"><strong>Phòng:</strong> ${res.roomId}</p>
+                                        <p class="mb-0"><strong>Số mốc dữ liệu:</strong> ${res.points}</p>
+                                    </div>
+                                `,
+                                confirmButtonText: 'Làm mới dashboard'
+                            }).then(() => {
+                                location.reload();
+                            });
+                        } else {
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Không thể tạo dữ liệu',
+                                text: res.message || 'Đã xảy ra lỗi không xác định.'
+                            });
+                        }
+                    },
+                    error: function () {
+                        setButtonState($btn, false, '', normalHtml);
+
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Lỗi kết nối',
+                            text: 'Không thể kết nối đến máy chủ. Vui lòng thử lại.'
+                        });
+                    }
+                });
+            });
+
+            $('#deleteDemoForm').on('submit', function (e) {
+                e.preventDefault();
+
+                Swal.fire({
+                    title: 'Xóa dữ liệu mẫu?',
+                    text: 'Thao tác này sẽ xóa toàn bộ dữ liệu demo của bạn và có thể gỡ phòng demo nếu hệ thống đã tự gán.',
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonText: 'Xóa dữ liệu',
+                    cancelButtonText: 'Hủy',
+                    confirmButtonColor: '#dc3545'
+                }).then((result) => {
+                    if (!result.isConfirmed) return;
+
+                    const $btn = $('#btnDeleteDemo');
+                    const normalHtml = $btn.html();
+
+                    setButtonState($btn, true, 'Đang xóa...', normalHtml);
+
+                    $.ajax({
+                        url: '@Url.Action("DeleteDemoData", "Tenant")',
+                        type: 'POST',
+                        data: $('#deleteDemoForm').serialize(),
+                        success: function (res) {
+                            setButtonState($btn, false, '', normalHtml);
+
+                            if (res.success) {
+                                Swal.fire({
+                                    icon: 'success',
+                                    title: 'Xóa thành công',
+                                    text: res.message
+                                }).then(() => {
+                                    location.reload();
+                                });
+                            } else {
+                                Swal.fire({
+                                    icon: 'error',
+                                    title: 'Không thể xóa dữ liệu',
+                                    text: res.message || 'Đã xảy ra lỗi không xác định.'
+                                });
+                            }
+                        },
+                        error: function () {
+                            setButtonState($btn, false, '', normalHtml);
+
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Lỗi kết nối',
+                                text: 'Không thể kết nối đến máy chủ. Vui lòng thử lại.'
+                            });
+                        }
+                    });
+                });
+            });
+
+        });
+            </script>
+        }
     </div>
 </div>
