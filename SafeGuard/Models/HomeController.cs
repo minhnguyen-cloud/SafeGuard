@@ -50,7 +50,7 @@ namespace SafeGuard.Models
                 string myEmail = "adminsafeguard@gmail.com";
 
                 // MẬT KHẨU ỨNG DỤNG CỦA GOOGLE (Bắt buộc)
-                string myAppPassword = "ofgtexdtngkjtjep";
+                string myAppPassword = "kwpy uypm pjzx pgxv";
 
                 var mail = new MailMessage(myEmail, myEmail);
                 mail.Subject = "SAFEGUARD - LIÊN HỆ MỚI: " + subject;
