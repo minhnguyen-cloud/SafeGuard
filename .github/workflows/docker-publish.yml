@@ -13,6 +13,18 @@ jobs:
       - name: Checkout source code
         uses: actions/checkout@v4
 
+      - name: Show workspace
+        shell: powershell
+        run: |
+          Write-Host "GITHUB_WORKSPACE = $env:GITHUB_WORKSPACE"
+          Get-Location
+          Get-ChildItem $env:GITHUB_WORKSPACE
+          Get-ChildItem "$env:GITHUB_WORKSPACE\SafeGuard"
+
+      - name: Show Docker version
+        shell: powershell
+        run: docker version
+
       - name: Setup MSBuild
         uses: microsoft/setup-msbuild@v2
 
@@ -23,47 +35,35 @@ jobs:
         shell: powershell
         run: nuget restore "$env:GITHUB_WORKSPACE\SafeGuard\SafeGuard.sln"
 
-      - name: Auto-create Publish Profile
+      - name: Build ASP.NET web project
+        shell: powershell
+        run: msbuild "$env:GITHUB_WORKSPACE\SafeGuard\SafeGuard.csproj" /p:Configuration=Release
+
+      - name: Create Publish folder manually
         shell: powershell
         run: |
-          $profileDir = "$env:GITHUB_WORKSPACE\SafeGuard\Properties\PublishProfiles"
-          New-Item -ItemType Directory -Force -Path $profileDir | Out-Null
-          $pubxml = @"
-          <?xml version=""1.0"" encoding=""utf-8""?>
-          <Project>
-            <PropertyGroup>
-              <WebPublishMethod>FileSystem</WebPublishMethod>
-              <PublishProvider>FileSystem</PublishProvider>
-              <DeleteExistingFiles>true</DeleteExistingFiles>
-              <LaunchSiteAfterPublish>false</LaunchSiteAfterPublish>
-              <LastUsedBuildConfiguration>Release</LastUsedBuildConfiguration>
-              <ExcludeApp_Data>false</ExcludeApp_Data>
-              <publishUrl>$env:GITHUB_WORKSPACE\Publish</publishUrl>
-            </PropertyGroup>
-          </Project>
-          "@
-          Set-Content -Path "$profileDir\CI.pubxml" -Value $pubxml
-          Write-Host "Đã tự động tạo file CI.pubxml thành công!"
+          $projectPath = "$env:GITHUB_WORKSPACE\SafeGuard"
+          $publishPath = "$env:GITHUB_WORKSPACE\Publish"
 
-      - name: Publish ASP.NET web project
-        shell: powershell
-        run: |
-          msbuild "$env:GITHUB_WORKSPACE\SafeGuard\SafeGuard.csproj" `
-            /p:Configuration=Release `
-            /p:DeployOnBuild=true `
-            /p:PublishProfile=CI
+          if (Test-Path $publishPath) {
+            Remove-Item -Recurse -Force $publishPath
+          }
 
-      - name: Verify Publish Folder
+          New-Item -ItemType Directory -Force -Path $publishPath | Out-Null
+
+          Copy-Item "$projectPath\bin" -Destination "$publishPath\bin" -Recurse -Force
+          Copy-Item "$projectPath\Content" -Destination "$publishPath\Content" -Recurse -Force
+          Copy-Item "$projectPath\Views" -Destination "$publishPath\Views" -Recurse -Force
+          Copy-Item "$projectPath\Global.asax" -Destination "$publishPath\Global.asax" -Force
+          Copy-Item "$projectPath\Web.config" -Destination "$publishPath\Web.config" -Force
+
+      - name: Show published files
         shell: powershell
         run: |
           $publishPath = "$env:GITHUB_WORKSPACE\Publish"
-          if (Test-Path $publishPath) {
-            Write-Host "Tuyệt vời! Đã tìm thấy thư mục Publish."
-            Get-ChildItem $publishPath
-          } else {
-            Write-Error "Lỗi: Thư mục Publish vẫn không xuất hiện!"
-            exit 1
-          }
+          Write-Host "Checking publish path: $publishPath"
+          Get-ChildItem $publishPath
+          Get-ChildItem "$publishPath\bin" | Select-Object -First 5
 
       - name: Docker login
         shell: powershell
@@ -73,8 +73,10 @@ jobs:
         shell: powershell
         run: docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/safeguard-web:latest -t ${{ secrets.DOCKERHUB_USERNAME }}/safeguard-web:${{ github.run_number }} .
 
-      - name: Push to Docker Hub
+      - name: Push latest tag
         shell: powershell
-        run: |
-          docker push ${{ secrets.DOCKERHUB_USERNAME }}/safeguard-web:latest
-          docker push ${{ secrets.DOCKERHUB_USERNAME }}/safeguard-web:${{ github.run_number }}
+        run: docker push ${{ secrets.DOCKERHUB_USERNAME }}/safeguard-web:latest
+
+      - name: Push numbered tag
+        shell: powershell
+        run: docker push ${{ secrets.DOCKERHUB_USERNAME }}/safeguard-web:${{ github.run_number }}
