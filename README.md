@@ -33,7 +33,6 @@ Cùng với tốc độ đô thị hóa nhanh, công tác phòng cháy chữa ch
 
 ## 📸 Demo hệ thống
 
-> ⚠️ (Bạn thay bằng ảnh thật của bạn)
 
 ![Dashboard](./docs/dashboard.png)
 ![IoT Device](./docs/device.jpg)
