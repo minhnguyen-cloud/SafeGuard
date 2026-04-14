@@ -35,9 +35,9 @@ Cùng với tốc độ đô thị hóa nhanh, công tác phòng cháy chữa ch
 
 
 ![Dashboard](./docs/dashboard.png)
-![IoT Device](./docs/device.jpg)
+![IoT Device](./docs/device.png)
 
-🎥 Video demo: https://your-demo-link.com
+🎥 Video demo: https://www.youtube.com/watch?v=vL-gFQpYTa8
 
 ---
 
