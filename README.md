@@ -38,6 +38,7 @@ Cùng với tốc độ đô thị hóa nhanh, công tác phòng cháy chữa ch
 ![IoT Device](./docs/device.png)
 
 🎥 Video demo: https://www.youtube.com/watch?v=vL-gFQpYTa8
+
 Link web : http://safeguard.io.vn/
 
 ---
