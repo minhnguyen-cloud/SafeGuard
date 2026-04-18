@@ -3,6 +3,7 @@ using Amazon.DynamoDBv2.DocumentModel;
 using SafeGuard.Filters;
 using SafeGuard.Models;
 using SafeGuard.Controllers.ViewModels;
+using SafeGuard.Services;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -17,6 +18,7 @@ namespace SafeGuard.Controllers
     {
         private AmazonDynamoDBClient GetClient() => new AmazonDynamoDBClient(Amazon.RegionEndpoint.APSoutheast1);
         private readonly Random _random = new Random();
+        private readonly FirebaseAlertService _firebaseAlertService = new FirebaseAlertService();
 
         private async Task<List<string>> GetAvailableRoomIdsAsync(AmazonDynamoDBClient client)
         {
@@ -104,6 +106,12 @@ namespace SafeGuard.Controllers
                 .ToList();
 
             var baseTemps = GetScenarioTemperatures(scenario);
+            var firebaseAlerts = new List<FirebaseAlertPayload>();
+            string scenarioLabel =
+                string.Equals(scenario, "safe", StringComparison.OrdinalIgnoreCase) ? "an toàn" :
+                string.Equals(scenario, "warning", StringComparison.OrdinalIgnoreCase) ? "cảnh báo" :
+                string.Equals(scenario, "danger", StringComparison.OrdinalIgnoreCase) ? "nguy hiểm" :
+                "mặc định";
             long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
 
             for (int roomIndex = 0; roomIndex < selectedRooms.Count; roomIndex++)
@@ -127,14 +135,32 @@ namespace SafeGuard.Controllers
                     doc["createdAt"] = DateTime.UtcNow.ToString("O");
 
                     await historyTable.PutItemAsync(doc);
+
+                    if (temp >= 50)
+                    {
+                        firebaseAlerts.Add(new FirebaseAlertPayload
+                        {
+                            AlarmStatus = 1,
+                            Source = "ADMIN_DEMO",
+                            RoomId = roomId,
+                            ActorRole = "ADMIN",
+                            Scenario = scenarioLabel,
+                            Temperature = temp,
+                            Threshold = 50,
+                            Note = $"Admin demo đã kích hoạt cảnh báo nhiệt độ cao tại phòng {roomId}."
+                        });
+                    }
                 }
             }
 
-            string scenarioLabel =
-                string.Equals(scenario, "safe", StringComparison.OrdinalIgnoreCase) ? "an toàn" :
-                string.Equals(scenario, "warning", StringComparison.OrdinalIgnoreCase) ? "cảnh báo" :
-                string.Equals(scenario, "danger", StringComparison.OrdinalIgnoreCase) ? "nguy hiểm" :
-                "mặc định";
+            if (firebaseAlerts.Any())
+            {
+                await _firebaseAlertService.PublishAlertsAsync(firebaseAlerts, "ADMIN_DEMO", "ADMIN");
+            }
+            else
+            {
+                await _firebaseAlertService.ClearAlertsAsync("ADMIN_DEMO", "ADMIN", note: "Admin demo chưa vượt ngưỡng 50 độ C.");
+            }
 
             return (true, $"Đã tạo dữ liệu demo hệ thống theo kịch bản {scenarioLabel} cho {selectedRooms.Count} phòng.", selectedRooms.Count);
         }
@@ -881,6 +907,7 @@ namespace SafeGuard.Controllers
             {
                 var client = GetClient();
                 int deletedCount = await DeleteAdminDemoInternal(client);
+                await _firebaseAlertService.ClearAlertsAsync("ADMIN_DEMO", "ADMIN", note: "Admin đã xóa dữ liệu demo.");
 
                 return Json(new
                 {

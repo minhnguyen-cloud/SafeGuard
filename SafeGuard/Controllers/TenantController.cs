@@ -16,6 +16,7 @@ using System.IO;
 using System.Configuration;
 using Amazon.Runtime;
 using System.Globalization;
+using SafeGuard.Services;
 
 namespace SafeGuard.Controllers
 {
@@ -56,6 +57,8 @@ namespace SafeGuard.Controllers
     [RoleAuthorize(Role = "TENANT")]
     public class TenantController : Controller
     {
+        private readonly FirebaseAlertService _firebaseAlertService = new FirebaseAlertService();
+
         [HttpGet]
         public async Task<ActionResult> Index()
         {
@@ -290,7 +293,7 @@ namespace SafeGuard.Controllers
         private List<double> BuildProfessionalDemoTemperatureSeries()
         {
             // Dữ liệu tăng dần có chủ đích để demo đẹp hơn
-            return new List<double> { 29, 30, 31, 33, 35, 37, 39, 42, 45, 50 };
+            return new List<double> { 29, 30, 31, 33, 35, 37, 39, 42, 45, 52 };
         }
 
         private string BuildTemperatureDescription(double temp)
@@ -675,6 +678,7 @@ namespace SafeGuard.Controllers
 
                 // Tạo chuỗi dữ liệu demo mới
                 var temps = BuildProfessionalDemoTemperatureSeries();
+                var firebaseAlerts = new List<FirebaseAlertPayload>();
 
                 long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
                 long start = now - ((temps.Count - 1) * 60); // mỗi điểm cách nhau 1 phút
@@ -692,6 +696,30 @@ namespace SafeGuard.Controllers
                     doc["createdAt"] = DateTime.UtcNow.ToString("O", CultureInfo.InvariantCulture);
 
                     await historyTable.PutItemAsync(doc);
+
+                    if (temps[i] >= 50)
+                    {
+                        firebaseAlerts.Add(new FirebaseAlertPayload
+                        {
+                            AlarmStatus = 1,
+                            Source = "TENANT_DEMO",
+                            RoomId = roomId,
+                            ActorRole = "TENANT",
+                            Scenario = "demo",
+                            Temperature = temps[i],
+                            Threshold = 50,
+                            Note = $"Người thuê vừa tạo dữ liệu demo vượt ngưỡng 50 độ C tại phòng {roomId}."
+                        });
+                    }
+                }
+
+                if (firebaseAlerts.Any())
+                {
+                    await _firebaseAlertService.PublishAlertsAsync(firebaseAlerts, "TENANT_DEMO", "TENANT");
+                }
+                else
+                {
+                    await _firebaseAlertService.ClearAlertsAsync("TENANT_DEMO", "TENANT", roomId, "Tenant demo chưa vượt ngưỡng 50 độ C.");
                 }
 
                 return Json(new
@@ -779,6 +807,8 @@ namespace SafeGuard.Controllers
 
                     await usersTable.UpdateItemAsync(userDoc);
                 }
+
+                await _firebaseAlertService.ClearAlertsAsync("TENANT_DEMO", "TENANT", roomId, "Người thuê đã xóa dữ liệu demo.");
 
                 return Json(new
                 {

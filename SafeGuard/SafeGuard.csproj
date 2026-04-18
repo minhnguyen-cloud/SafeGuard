@@ -185,6 +185,7 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Services\ChatbotService.cs" />
     <Compile Include="Services\CognitoAuthService.cs" />
+    <Compile Include="Services\FirebaseAlertService.cs" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="Views\web.config" />
