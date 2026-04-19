@@ -265,6 +265,13 @@
     </PropertyGroup>
     <Error Condition="!Exists('packages\Microsoft.CodeDom.Providers.DotNetCompilerPlatform.2.0.1\build\net46\Microsoft.CodeDom.Providers.DotNetCompilerPlatform.props')" Text="$([System.String]::Format('$(ErrorText)', 'packages\Microsoft.CodeDom.Providers.DotNetCompilerPlatform.2.0.1\build\net46\Microsoft.CodeDom.Providers.DotNetCompilerPlatform.props'))" />
   </Target>
+  <ItemGroup>
+    <RoslynCompilerFiles Include="$(RoslynToolPath)\**\*.*" />
+  </ItemGroup>
+  <Target Name="CopyRoslynCompilerFiles" AfterTargets="Build">
+    <MakeDir Directories="$(OutputPath)\roslyn" />
+    <Copy SourceFiles="@(RoslynCompilerFiles)" DestinationFiles="@(RoslynCompilerFiles->'$(OutputPath)\roslyn\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
+  </Target>
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.
   <Target Name="BeforeBuild">
