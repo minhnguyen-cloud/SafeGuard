@@ -11,6 +11,16 @@
 
             <p class="text-muted">Mã xác nhận đã được gửi đến: <strong class="text-dark">@Model.DisplayEmail</strong></p>
 
+            @if (TempData["ConfirmMessage"] != null)
+            {
+                <div class="alert alert-success small fw-bold mb-3">@TempData["ConfirmMessage"]</div>
+            }
+
+            @if (TempData["ConfirmError"] != null)
+            {
+                <div class="alert alert-danger small fw-bold mb-3">@TempData["ConfirmError"]</div>
+            }
+
             @using (Html.BeginForm("ConfirmSignUp", "Account", FormMethod.Post))
             {
                 @Html.AntiForgeryToken()
@@ -33,6 +43,16 @@
                     @Html.PasswordFor(m => m.AdminCode, new { @class = "form-control", placeholder = "Chỉ dành cho Chủ trọ/Ban quản lý KTX" })
                 </div>
                 <button type="submit" class="btn w-100 py-3 rounded-pill text-white fw-bold" style="background-color: var(--accent-orange);">XÁC NHẬN NGAY</button>
+            }
+
+            @using (Html.BeginForm("ResendConfirmationCode", "Account", FormMethod.Post, new { @class = "mt-3" }))
+            {
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="username" value="@Model.Username" />
+                <input type="hidden" name="displayEmail" value="@Model.DisplayEmail" />
+                <button type="submit" class="btn btn-link text-decoration-none fw-bold">
+                    Không nhận được mã? Gửi lại mã xác nhận
+                </button>
             }
         </div>
     </div>

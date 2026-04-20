@@ -48,6 +48,15 @@ namespace SafeGuard.Services
             await _client.ConfirmSignUpAsync(request);
         }
 
+        public async Task ResendConfirmationCodeAsync(string username)
+        {
+            await _client.ResendConfirmationCodeAsync(new ResendConfirmationCodeRequest
+            {
+                ClientId = _clientId,
+                Username = username
+            });
+        }
+
         // 3. Đăng nhập (Dùng luồng USER_PASSWORD_AUTH cho Public Client)
         public async Task<InitiateAuthResponse> LoginAsync(string username, string password)
         {

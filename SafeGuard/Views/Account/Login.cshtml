@@ -18,6 +18,16 @@
                         <p class="text-muted mt-2 mb-0">Hệ thống quản lý SafeGuard</p>
                     </div>
                     <div class="card-body p-4 p-md-5 pt-0">
+                        @if (TempData["Success"] != null)
+                        {
+                            <div class="alert alert-success small fw-bold">@TempData["Success"]</div>
+                        }
+
+                        @if (TempData["Warning"] != null)
+                        {
+                            <div class="alert alert-warning small fw-bold">@TempData["Warning"]</div>
+                        }
+
                         @using (Html.BeginForm("Login", "Account", FormMethod.Post))
                         {
                             @Html.AntiForgeryToken()
