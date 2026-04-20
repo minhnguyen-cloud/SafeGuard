@@ -180,7 +180,7 @@
                     }
                     else
                     {
-                        <tr><td colspan="3" class="text-center py-4 text-muted">Chưa có dữ liệu lịch sử.</td></tr>
+                        <tr id="tenantAlertEmptyRow"><td colspan="3" class="text-center py-4 text-muted">Chưa có dữ liệu lịch sử.</td></tr>
                     }
                 </tbody>
             </table>
@@ -192,7 +192,6 @@
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             const filterBtns = document.querySelectorAll('.filter-btn');
-            const rows = document.querySelectorAll('.alert-row');
             const searchInput = document.getElementById('searchInput');
 
             let currentFilter = 'all';
@@ -225,6 +224,7 @@
             }
 
             function applyFilters() {
+                const rows = document.querySelectorAll('.alert-row');
                 rows.forEach(row => {
                     const rowType = row.getAttribute('data-type') || '';
                     const rowText = row.innerText.toLowerCase();
@@ -251,6 +251,119 @@
 
             updateFilterButtonStyles();
             applyFilters();
+
+            window.applyTenantAlertFilters = applyFilters;
+        });
+
+        const tenantHistoryRoom = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(ViewBag.RoomId ?? ""));
+
+        function getTenantAlertField(data) {
+            for (let i = 1; i < arguments.length; i++) {
+                const key = arguments[i];
+                if (data[key] !== undefined && data[key] !== null) {
+                    return data[key];
+                }
+            }
+
+            return '';
+        }
+
+        function escapeTenantAlertText(value) {
+            return String(value || '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        function formatTenantAlertTimeParts(value) {
+            const numericValue = Number(value);
+            const date = value
+                ? (!Number.isNaN(numericValue) ? new Date((numericValue < 1000000000000 ? numericValue * 1000 : numericValue)) : new Date(value))
+                : new Date();
+
+            if (Number.isNaN(date.getTime())) {
+                return { date: 'Hôm nay', time: 'Vừa xong' };
+            }
+
+            return {
+                date: date.toLocaleDateString('vi-VN'),
+                time: date.toLocaleTimeString('vi-VN', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit',
+                    hour12: false
+                })
+            };
+        }
+
+        function prependTenantAlertRealtime(data) {
+            const roomId = getTenantAlertField(data, 'roomId', 'RoomId');
+            if (tenantHistoryRoom && roomId && roomId.toUpperCase() !== tenantHistoryRoom.toUpperCase()) {
+                return;
+            }
+
+            const tbody = document.getElementById('alertTableBody');
+            if (!tbody) return;
+
+            const temperature = getTenantAlertField(data, 'temperature', 'Temperature');
+            const alertLevel = (getTenantAlertField(data, 'alertLevel', 'AlertLevel') || '').toUpperCase();
+            const timestamp = getTenantAlertField(data, 'timestamp', 'Timestamp', 'triggeredAt', 'TriggeredAt');
+            const message = getTenantAlertField(data, 'message', 'Message') || 'Hệ thống vừa ghi nhận cảnh báo mới.';
+            const alertType = alertLevel === 'FIRE' || alertLevel === 'DANGER' ? 'fire' : 'high_temp';
+            const timeParts = formatTenantAlertTimeParts(timestamp);
+
+            const emptyRow = document.getElementById('tenantAlertEmptyRow');
+            if (emptyRow) {
+                emptyRow.remove();
+            }
+
+            const tr = document.createElement('tr');
+            tr.className = 'alert-row tenant-alert-row-new';
+            tr.setAttribute('data-type', alertType);
+            tr.innerHTML =
+                '<td>' +
+                    '<div class="fw-bold text-dark mb-1">' + escapeTenantAlertText(timeParts.date) + '</div>' +
+                    '<div class="text-muted small"><i class="fa-regular fa-clock me-1"></i>' + escapeTenantAlertText(timeParts.time) + '</div>' +
+                '</td>' +
+                '<td>' +
+                    '<div class="d-flex align-items-center">' +
+                        '<i class="fa-solid ' + (alertType === 'fire' ? 'fa-fire text-danger fa-fade' : 'fa-temperature-arrow-up text-warning') + ' fs-4 me-2"></i>' +
+                        '<h5 class="fw-black ' + (alertType === 'fire' ? 'text-danger' : 'text-warning') + ' mb-0">' +
+                            escapeTenantAlertText(temperature !== '' ? temperature + '°C' : 'N/A') +
+                        '</h5>' +
+                    '</div>' +
+                '</td>' +
+                '<td>' +
+                    '<span class="fw-bold text-dark">' + (alertType === 'fire' ? 'Cảnh báo nguy cơ cháy' : 'Nhiệt độ cao bất thường') + '</span>' +
+                    '<div class="text-muted small mt-1">' + escapeTenantAlertText(message) + '</div>' +
+                '</td>';
+
+            tbody.prepend(tr);
+
+            if (window.applyTenantAlertFilters) {
+                window.applyTenantAlertFilters();
+            }
+
+            setTimeout(function () {
+                tr.classList.remove('tenant-alert-row-new');
+            }, 5000);
+        }
+
+        window.addEventListener('safeguard:realtime', function (e) {
+            const data = e.detail || {};
+
+            if (data.type === 'alert_triggered') {
+                prependTenantAlertRealtime(data);
+            }
         });
     </script>
 }
+
+<style>
+    .tenant-alert-row-new {
+        background: #fff1f2 !important;
+        box-shadow: 0 8px 20px rgba(220, 53, 69, 0.12) !important;
+    }
+</style>

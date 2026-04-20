@@ -1,5 +1,6 @@
 ﻿using SafeGuard.Models;
 using SafeGuard.Services;
+using Amazon.CognitoIdentityProvider.Model;
 using System;
 using System.Net.Http; // Thêm thư viện này để gọi API
 using System.Threading.Tasks;
@@ -100,13 +101,46 @@ namespace SafeGuard.Controllers
         {
             if (!ModelState.IsValid) return View(model);
 
+            bool accountConfirmed = false;
+
             try
             {
-                // 1. Xác nhận mã 6 số (Khi dòng này chạy thành công, Lambda 1 sẽ tự động lưu user vào DynamoDB với quyền TENANT)
                 await _cognito.ConfirmSignUpAsync(model.Username, model.Code);
+                accountConfirmed = true;
+            }
+            catch (NotAuthorizedException ex)
+            {
+                if (ex.Message.IndexOf("CONFIRMED", StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    accountConfirmed = true;
+                }
+                else
+                {
+                    ModelState.AddModelError("", "Lỗi xác nhận: " + ex.Message);
+                    return View(model);
+                }
+            }
+            catch (CodeMismatchException)
+            {
+                ModelState.AddModelError("", "Mã xác nhận không đúng. Vui lòng kiểm tra email hoặc bấm gửi lại mã.");
+                return View(model);
+            }
+            catch (ExpiredCodeException)
+            {
+                ModelState.AddModelError("", "Mã xác nhận đã hết hạn. Vui lòng bấm gửi lại mã để nhận mã mới.");
+                return View(model);
+            }
+            catch (Exception ex)
+            {
+                ModelState.AddModelError("", "Lỗi xác nhận: " + ex.Message);
+                return View(model);
+            }
 
-                // 2. Kiểm tra xem người dùng có nhập mã Quản lý không để gọi Lambda 2 (Nâng quyền)
-                if (!string.IsNullOrEmpty(model.AdminCode))
+            if (accountConfirmed)
+            {
+                string adminCode = (model.AdminCode ?? "").Trim();
+
+                if (!string.IsNullOrEmpty(adminCode))
                 {
                     try
                     {
@@ -117,7 +151,7 @@ namespace SafeGuard.Controllers
                             {
                                 userID = model.Username, // Khớp với cách bạn setup Cognito
                                 username = model.Username,
-                                upgradeCode = model.AdminCode
+                                upgradeCode = adminCode
                             };
 
                             var jsonPayload = System.Text.Json.JsonSerializer.Serialize(payload);
@@ -136,28 +170,63 @@ namespace SafeGuard.Controllers
                             }
                             else
                             {
-                                // Kích hoạt email thành công nhưng mã Admin sai
-                                ModelState.AddModelError("", "Kích hoạt tài khoản thành công, nhưng mã nâng cấp không hợp lệ hoặc đã hết hạn.");
-                                return View(model);
+                                await _cognito.AddUserToGroupAsync(model.Username, "TENANT");
+                                TempData["Warning"] = "Tài khoản đã được kích hoạt, nhưng mã quản lý không hợp lệ hoặc đã hết hạn. Tài khoản hiện được đưa vào nhóm Người thuê.";
+                                return RedirectToAction("Login");
                             }
                         }
                     }
                     catch (Exception apiEx)
                     {
-                        ModelState.AddModelError("", "Lỗi khi gọi API nâng cấp: " + apiEx.Message);
-                        return View(model);
+                        try
+                        {
+                            await _cognito.AddUserToGroupAsync(model.Username, "TENANT");
+                        }
+                        catch { }
+
+                        TempData["Warning"] = "Tài khoản đã được kích hoạt, nhưng chưa nâng quyền Quản lý được: " + apiEx.Message;
+                        return RedirectToAction("Login");
                     }
                 }
 
-                // Nếu không nhập mã Admin thì báo thành công bình thường (User là Tenant)
+                await _cognito.AddUserToGroupAsync(model.Username, "TENANT");
                 TempData["Success"] = "Kích hoạt tài khoản thành công! Vui lòng đăng nhập.";
                 return RedirectToAction("Login");
             }
+
+            ModelState.AddModelError("", "Không thể xác nhận tài khoản. Vui lòng thử lại.");
+            return View(model);
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<ActionResult> ResendConfirmationCode(string username, string displayEmail)
+        {
+            if (string.IsNullOrWhiteSpace(username))
+            {
+                TempData["ConfirmError"] = "Không tìm thấy tài khoản để gửi lại mã.";
+                return RedirectToAction("Register");
+            }
+
+            try
+            {
+                await _cognito.ResendConfirmationCodeAsync(username);
+                TempData["ConfirmMessage"] = "Đã gửi lại mã xác nhận mới. Vui lòng kiểm tra email.";
+            }
+            catch (LimitExceededException)
+            {
+                TempData["ConfirmError"] = "Bạn vừa yêu cầu gửi mã quá nhiều lần. Vui lòng chờ một lúc rồi thử lại.";
+            }
+            catch (InvalidParameterException ex)
+            {
+                TempData["ConfirmError"] = "Không thể gửi lại mã: " + ex.Message;
+            }
             catch (Exception ex)
             {
-                ModelState.AddModelError("", "Lỗi xác nhận: " + ex.Message);
-                return View(model);
+                TempData["ConfirmError"] = "Lỗi gửi lại mã: " + ex.Message;
             }
+
+            return RedirectToAction("ConfirmSignUp", new { username = username, email = displayEmail });
         }
 
         // ==========================

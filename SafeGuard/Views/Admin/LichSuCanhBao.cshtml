@@ -24,12 +24,12 @@
                         <th>Mô Tả Cảnh Báo Hệ Thống</th>
                     </tr>
                 </thead>
-                <tbody>
+                <tbody id="alertHistoryBody">
                     @if (Model != null && Model.Any())
                     {
                         foreach (var item in Model)
                         {
-                            <tr>
+                            <tr class="alert-history-row">
                                 <td class="fw-bold">@item.TimeStamp.ToString("dd/MM/yyyy HH:mm:ss")</td>
                                 <td>@item.RoomId</td>
 
@@ -48,7 +48,7 @@
                     }
                     else
                     {
-                        <tr>
+                        <tr id="alertHistoryEmptyRow">
                             <td colspan="4" class="text-center text-muted py-4">Hệ thống an toàn. Chưa có cảnh báo nào được ghi nhận.</td>
                         </tr>
                     }
@@ -57,3 +57,111 @@
         </div>
     </div>
 </div>
+
+@section Scripts {
+    <script>
+        function getAlertHistoryField(data) {
+            for (let i = 1; i < arguments.length; i++) {
+                const key = arguments[i];
+                if (data[key] !== undefined && data[key] !== null) {
+                    return data[key];
+                }
+            }
+
+            return '';
+        }
+
+        function escapeAlertHistoryText(value) {
+            return String(value || '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        function formatAlertHistoryTime(value) {
+            if (!value) {
+                return new Date().toLocaleString('vi-VN', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit',
+                    hour12: false
+                });
+            }
+
+            const numericValue = Number(value);
+            const date = !Number.isNaN(numericValue)
+                ? new Date((numericValue < 1000000000000 ? numericValue * 1000 : numericValue))
+                : new Date(value);
+
+            if (Number.isNaN(date.getTime())) {
+                return value;
+            }
+
+            return date.toLocaleString('vi-VN', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: false
+            });
+        }
+
+        function prependAlertHistoryRealtime(data) {
+            const tbody = document.getElementById('alertHistoryBody');
+            if (!tbody) return;
+
+            const roomId = getAlertHistoryField(data, 'roomId', 'RoomId') || 'Chưa rõ phòng';
+            const temperature = getAlertHistoryField(data, 'temperature', 'Temperature');
+            const alertLevel = (getAlertHistoryField(data, 'alertLevel', 'AlertLevel') || '').toUpperCase();
+            const timestamp = getAlertHistoryField(data, 'timestamp', 'Timestamp', 'triggeredAt', 'TriggeredAt');
+            const message = getAlertHistoryField(data, 'message', 'Message')
+                || (alertLevel === 'FIRE' ? 'Cảnh báo cháy khẩn cấp.'
+                    : alertLevel === 'DANGER' ? 'Nhiệt độ tăng cao bất thường.'
+                    : 'Cảnh báo ngưỡng nhiệt độ.');
+
+            const emptyRow = document.getElementById('alertHistoryEmptyRow');
+            if (emptyRow) {
+                emptyRow.remove();
+            }
+
+            const tr = document.createElement('tr');
+            tr.className = 'alert-history-row alert-history-row-new';
+            tr.innerHTML =
+                '<td class="fw-bold">' + escapeAlertHistoryText(formatAlertHistoryTime(timestamp)) + '</td>' +
+                '<td>' + escapeAlertHistoryText(roomId.toString().startsWith('Phòng ') ? roomId : 'Phòng ' + roomId) + '</td>' +
+                '<td class="' + (Number(temperature || 0) >= 45 ? 'text-danger' : 'text-warning') + ' fw-bold">' +
+                    escapeAlertHistoryText(temperature !== '' ? temperature + '°C' : 'N/A') +
+                '</td>' +
+                '<td>' + escapeAlertHistoryText(message) + '</td>';
+
+            tbody.prepend(tr);
+
+            setTimeout(function () {
+                tr.classList.remove('alert-history-row-new');
+            }, 5000);
+        }
+
+        window.addEventListener('safeguard:realtime', function (e) {
+            const data = e.detail || {};
+
+            if (data.type === 'alert_triggered') {
+                prependAlertHistoryRealtime(data);
+            }
+        });
+    </script>
+}
+
+<style>
+    .alert-history-row-new {
+        background: #fff1f2;
+        box-shadow: inset 4px 0 0 #ef4444;
+        transition: background 0.25s ease;
+    }
+</style>

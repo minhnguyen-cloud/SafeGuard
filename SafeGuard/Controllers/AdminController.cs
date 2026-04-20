@@ -177,12 +177,16 @@ namespace SafeGuard.Controllers
                 ViewBag.TotalRooms = allRoomsDocs.Count;
 
                 var usersTable = Table.LoadTable(client, "Users");
-                var tenantFilter = new ScanFilter();
-                tenantFilter.AddCondition("role", ScanOperator.Equal, "TENANT");
-                var tenants = await usersTable.Scan(tenantFilter).GetRemainingAsync();
-
-                var activeRoomIds = tenants
+                var allUserDocs = await usersTable.Scan(new ScanFilter()).GetRemainingAsync();
+                var tenants = allUserDocs
+                    .Where(u => u.ContainsKey("role") &&
+                                string.Equals(u["role"].AsString(), "TENANT", StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+                var usersWithAssignedRoom = allUserDocs
                     .Where(u => u.ContainsKey("AssignedRoom") && !string.IsNullOrWhiteSpace(u["AssignedRoom"].AsString()))
+                    .ToList();
+
+                var activeRoomIds = usersWithAssignedRoom
                     .Select(u => u["AssignedRoom"].AsString().Trim())
                     .Distinct(StringComparer.OrdinalIgnoreCase)
                     .ToList();
@@ -205,17 +209,29 @@ namespace SafeGuard.Controllers
                 ViewBag.OnlineDevices = groupedLatestLogs.Count;
                 ViewBag.CurrentAlerts = groupedLatestLogs.Count(doc => doc["temperature"].AsDouble() >= 38);
 
-                ViewBag.RecentActivities = tenants
-                    .Where(u => u.ContainsKey("AssignedRoom") && !string.IsNullOrWhiteSpace(u["AssignedRoom"].AsString()))
-                    .OrderByDescending(u => u.ContainsKey("createdAt") ? u["createdAt"].AsString() : "")
+                ViewBag.RecentActivities = usersWithAssignedRoom
+                    .OrderByDescending(u => u.ContainsKey("AssignedRoomAt")
+                        ? u["AssignedRoomAt"].AsString()
+                        : (u.ContainsKey("createdAt") ? u["createdAt"].AsString() : ""))
                     .Take(4)
                     .Select(u => new RecentActivityVM
                     {
-                        Name = u.ContainsKey("fullName") ? u["fullName"].AsString() : "Sinh viên",
+                        Name = u.ContainsKey("fullName") && !string.IsNullOrWhiteSpace(u["fullName"].AsString())
+                            ? u["fullName"].AsString()
+                            : (u.ContainsKey("username") && !string.IsNullOrWhiteSpace(u["username"].AsString())
+                                ? u["username"].AsString()
+                                : (u.ContainsKey("email") && !string.IsNullOrWhiteSpace(u["email"].AsString())
+                                    ? u["email"].AsString()
+                                    : (u.ContainsKey("userID") && !string.IsNullOrWhiteSpace(u["userID"].AsString())
+                                        ? u["userID"].AsString()
+                                        : "Người thuê"))),
                         Room = u["AssignedRoom"].AsString(),
-                        Time = u.ContainsKey("createdAt") && !string.IsNullOrWhiteSpace(u["createdAt"].AsString())
+                        Time = u.ContainsKey("AssignedRoomAt") && !string.IsNullOrWhiteSpace(u["AssignedRoomAt"].AsString())
+                            ? DateTime.Parse(u["AssignedRoomAt"].AsString()).ToString("HH:mm - dd/MM")
+                            : (u.ContainsKey("createdAt") && !string.IsNullOrWhiteSpace(u["createdAt"].AsString())
                             ? DateTime.Parse(u["createdAt"].AsString()).ToString("HH:mm - dd/MM")
                             : ""
+                            )
                     })
                     .ToList();
 
@@ -557,7 +573,17 @@ namespace SafeGuard.Controllers
                 var client = GetClient();
 
                 var tableInvites = Table.LoadTable(client, "RoomInvites");
-                ViewBag.InviteList = await tableInvites.Scan(new ScanFilter()).GetRemainingAsync();
+                var inviteList = await tableInvites.Scan(new ScanFilter()).GetRemainingAsync();
+                ViewBag.InviteList = inviteList
+                    .OrderBy(inv => inv.ContainsKey("IsUsed") && inv["IsUsed"].AsBoolean())
+                    .ThenByDescending(inv =>
+                    {
+                        DateTime createdAt;
+                        return inv.ContainsKey("CreatedAt") && DateTime.TryParse(inv["CreatedAt"].AsString(), out createdAt)
+                            ? createdAt
+                            : DateTime.MinValue;
+                    })
+                    .ToList();
 
                 var tableRooms = Table.LoadTable(client, "Rooms");
                 var allRooms = await tableRooms.Scan(new ScanFilter()).GetRemainingAsync();
@@ -610,6 +636,18 @@ namespace SafeGuard.Controllers
                 item["CreatedAt"] = DateTime.UtcNow.ToString("O");
 
                 await table.PutItemAsync(item);
+
+                if (Request.IsAjaxRequest())
+                {
+                    return Json(new
+                    {
+                        success = true,
+                        message = $"Tạo mã thành công: {newInviteCode}",
+                        inviteCode = newInviteCode,
+                        roomId = selectedRoom,
+                        createdAt = item["CreatedAt"].AsString()
+                    });
+                }
 
                 TempData["SuccessMessage"] = $"Tạo mã thành công: {newInviteCode}";
 
@@ -752,6 +790,63 @@ namespace SafeGuard.Controllers
             catch (Exception ex)
             {
                 return Json(new { success = false, message = ex.Message }, JsonRequestBehavior.AllowGet);
+            }
+        }
+
+        [HttpGet]
+        public async Task<JsonResult> GetDashboardSummary()
+        {
+            try
+            {
+                var client = GetClient();
+                var usersTable = Table.LoadTable(client, "Users");
+                var allUserDocs = await usersTable.Scan(new ScanFilter()).GetRemainingAsync();
+
+                var usersWithAssignedRoom = allUserDocs
+                    .Where(u => u.ContainsKey("AssignedRoom") && !string.IsNullOrWhiteSpace(u["AssignedRoom"].AsString()))
+                    .ToList();
+
+                var activeRooms = usersWithAssignedRoom
+                    .Select(u => u["AssignedRoom"].AsString().Trim())
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .Count();
+
+                var recentActivities = usersWithAssignedRoom
+                    .OrderByDescending(u => u.ContainsKey("AssignedRoomAt")
+                        ? u["AssignedRoomAt"].AsString()
+                        : (u.ContainsKey("createdAt") ? u["createdAt"].AsString() : ""))
+                    .Take(4)
+                    .Select(u => new
+                    {
+                        name = u.ContainsKey("fullName") && !string.IsNullOrWhiteSpace(u["fullName"].AsString())
+                            ? u["fullName"].AsString()
+                            : (u.ContainsKey("username") && !string.IsNullOrWhiteSpace(u["username"].AsString())
+                                ? u["username"].AsString()
+                                : (u.ContainsKey("email") && !string.IsNullOrWhiteSpace(u["email"].AsString())
+                                    ? u["email"].AsString()
+                                    : (u.ContainsKey("userID") && !string.IsNullOrWhiteSpace(u["userID"].AsString())
+                                        ? u["userID"].AsString()
+                                        : "Người thuê"))),
+                        room = u["AssignedRoom"].AsString(),
+                        time = u.ContainsKey("AssignedRoomAt") && !string.IsNullOrWhiteSpace(u["AssignedRoomAt"].AsString())
+                            ? DateTime.Parse(u["AssignedRoomAt"].AsString()).ToString("HH:mm - dd/MM")
+                            : (u.ContainsKey("createdAt") && !string.IsNullOrWhiteSpace(u["createdAt"].AsString())
+                                ? DateTime.Parse(u["createdAt"].AsString()).ToString("HH:mm - dd/MM")
+                                : "")
+                    })
+                    .ToList();
+
+                return Json(new
+                {
+                    success = true,
+                    activeRooms = activeRooms,
+                    recentActivities = recentActivities
+                }, JsonRequestBehavior.AllowGet);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine("Lỗi Dashboard Summary: " + ex.Message);
+                return Json(new { success = false }, JsonRequestBehavior.AllowGet);
             }
         }
 

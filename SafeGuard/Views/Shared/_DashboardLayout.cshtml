@@ -257,11 +257,11 @@
             top: 0;
             z-index: 1055;
             margin: 0 1.5rem 1rem;
-            padding: 1rem 1.25rem;
-            border-radius: 16px;
-            background: linear-gradient(135deg, #fff1f2, #fecaca);
-            border: 1px solid #f87171;
-            color: #991b1b;
+            padding: 1rem 1.15rem;
+            border-radius: 8px;
+            background: linear-gradient(135deg, #fff1f2 0%, #fee2e2 52%, #fecaca 100%);
+            border: 1px solid #ef4444;
+            color: #7f1d1d;
             box-shadow: 0 12px 24px rgba(220, 38, 38, 0.16);
         }
 
@@ -270,17 +270,62 @@
             align-items: center;
             justify-content: space-between;
             gap: 16px;
+            animation: fadeInUp 0.25s ease;
         }
 
         .firebase-alert-banner__title {
             font-weight: 800;
             text-transform: uppercase;
             letter-spacing: 0.04em;
+            color: #991b1b;
         }
 
         .firebase-alert-banner__meta {
             font-size: 0.92rem;
             color: #7f1d1d;
+        }
+
+        .firebase-alert-banner__message {
+            font-size: 1rem;
+            font-weight: 600;
+            color: #7f1d1d;
+        }
+
+        #firebaseAlertDismiss {
+            flex-shrink: 0;
+            border-color: #b91c1c;
+            color: #991b1b;
+            background: rgba(255, 255, 255, 0.5);
+        }
+
+        #firebaseAlertDismiss:hover {
+            color: #ffffff;
+            background: #b91c1c;
+        }
+
+        .safeguard-alert-popup {
+            border-radius: 8px !important;
+            border: 1px solid #fecaca !important;
+            box-shadow: 0 24px 60px rgba(127, 29, 29, 0.22) !important;
+        }
+
+        .safeguard-popup-body {
+            text-align: left;
+            padding: 4px 10px 0;
+            color: #7f1d1d;
+        }
+
+        .safeguard-popup-body strong {
+            color: #991b1b;
+        }
+
+        .safeguard-popup-meta {
+            margin-top: 10px;
+            padding: 10px 12px;
+            border-radius: 8px;
+            background: #fee2e2;
+            border: 1px solid #fecaca;
+            font-size: 0.95rem;
         }
     </style>
 </head>
@@ -373,7 +418,7 @@
                     <div class="firebase-alert-banner__title">
                         <i class="fa-solid fa-triangle-exclamation me-2"></i>CẢNH BÁO NHIỆT ĐỘ TỪ SAFEGUARD
                     </div>
-                    <div id="firebaseAlertMessage" class="mt-1">
+                    <div id="firebaseAlertMessage" class="firebase-alert-banner__message mt-1">
                         Hệ thống đang kiểm tra tín hiệu cảnh báo.
                     </div>
                     <div id="firebaseAlertMeta" class="firebase-alert-banner__meta mt-2"></div>
@@ -422,8 +467,26 @@
             const $firebaseBanner = $('#firebaseAlertBanner');
             const $firebaseMessage = $('#firebaseAlertMessage');
             const $firebaseMeta = $('#firebaseAlertMeta');
-            let lastAlertKey = '';
-            let isDismissed = false;
+            const storedRealtimeAlertKey = 'SafeGuard.ActiveRealtimeAlert';
+            const storedDismissedAlertKey = 'SafeGuard.DismissedAlertKey';
+            window.safeGuardAlertState = window.safeGuardAlertState || {
+                lastAlertKey: '',
+                dismissedAlertKey: '',
+                activeRealtimeAlertKey: '',
+                lastPopupKey: '',
+                lastPopupAt: 0,
+                popupCooldownUntil: 0,
+                popupRoomCooldowns: {},
+                bannerSource: '',
+                hasConnectedWebSocket: false,
+                wsConnected: false
+            };
+            const alertState = window.safeGuardAlertState;
+            try {
+                alertState.dismissedAlertKey = sessionStorage.getItem(storedDismissedAlertKey) || alertState.dismissedAlertKey || '';
+            } catch (e) {
+                alertState.dismissedAlertKey = alertState.dismissedAlertKey || '';
+            }
 
             function buildAlertKey(alerts) {
                 return (alerts || []).map(function (payload) {
@@ -436,9 +499,19 @@
                 }).join('||');
             }
 
-            function hideFirebaseAlert() {
+            function hideFirebaseAlert(force) {
+                if (!force && alertState.activeRealtimeAlertKey && alertState.dismissedAlertKey !== alertState.activeRealtimeAlertKey) {
+                    return;
+                }
+
                 $firebaseBanner.removeClass('show');
+
+                if (force) {
+                    alertState.bannerSource = '';
+                }
             }
+
+            window.hideSafeGuardAlertBanner = hideFirebaseAlert;
 
             function formatVietnamAlertTime(utcIsoString) {
                 if (!utcIsoString) {
@@ -462,6 +535,223 @@
                 }).format(utcDate);
             }
 
+            window.buildRealtimeAlertKey = function (data) {
+                if (data && data.alertKey) {
+                    return data.alertKey;
+                }
+
+                return [
+                    data.type || '',
+                    data.roomId || '',
+                    data.temperature || '',
+                    data.timestamp || '',
+                    data.alertLevel || ''
+                ].join('|');
+            };
+
+            function parseAlertTime(value) {
+                if (value === undefined || value === null || value === '') {
+                    return null;
+                }
+
+                if (typeof value === 'number') {
+                    return value < 1000000000000 ? value * 1000 : value;
+                }
+
+                const numericValue = Number(value);
+                if (!Number.isNaN(numericValue) && value.toString().trim() !== '') {
+                    return numericValue < 1000000000000 ? numericValue * 1000 : numericValue;
+                }
+
+                const parsedTime = Date.parse(value);
+                return Number.isNaN(parsedTime) ? null : parsedTime;
+            }
+
+            function isRecentFirebaseAlert(payload) {
+                const alertTime = parseAlertTime(payload.TriggeredAt || payload.timestamp || payload.Timestamp);
+
+                if (!alertTime) {
+                    return false;
+                }
+
+                const ageMs = Date.now() - alertTime;
+                return ageMs >= 0 && ageMs <= 10 * 60 * 1000;
+            }
+
+            function normalizeFirebaseAlertForStorage(alerts, systemNote) {
+                const firstAlert = alerts && alerts.length ? alerts[0] : {};
+                const maxTemperature = Math.max.apply(null, (alerts || []).map(function (x) { return Number(x.Temperature || 0); }));
+                const roomList = (alerts || []).map(function (x) { return x.RoomId || 'Chưa rõ phòng'; });
+                const roomSummary = roomList.slice(0, 5).join(', ') + (roomList.length > 5 ? '...' : '');
+                const level = maxTemperature >= 50 ? 'FIRE' : (maxTemperature >= 45 ? 'DANGER' : 'WARNING');
+
+                return {
+                    type: 'alert_triggered',
+                    source: 'firebase',
+                    alertKey: buildAlertKey(alerts),
+                    roomId: firstAlert.RoomId || roomSummary || 'Chưa rõ phòng',
+                    temperature: maxTemperature,
+                    alertLevel: level,
+                    triggeredAt: firstAlert.TriggeredAt || new Date().toISOString(),
+                    message: firstAlert.Note || systemNote || ('Đang có ' + (alerts || []).length + ' phòng cảnh báo. Mức cao nhất: ' + maxTemperature + '°C.')
+                };
+            }
+
+            window.isFreshSafeGuardRealtimeEvent = function (data) {
+                const eventTime = parseAlertTime(data.timestamp || data.TriggeredAt || data.triggeredAt);
+
+                if (!eventTime) {
+                    return true;
+                }
+
+                const ageMs = Date.now() - eventTime;
+                return ageMs >= -60 * 1000 && ageMs <= 10 * 60 * 1000;
+            };
+
+            function rememberRealtimeAlert(data) {
+                try {
+                    sessionStorage.setItem(storedRealtimeAlertKey, JSON.stringify({
+                        storedAt: new Date().toISOString(),
+                        data: data
+                    }));
+                } catch (e) {
+                    console.warn('[SafeGuard] Cannot store realtime alert', e);
+                }
+            }
+
+            function forgetRealtimeAlert() {
+                try {
+                    sessionStorage.removeItem(storedRealtimeAlertKey);
+                } catch (e) {
+                    console.warn('[SafeGuard] Cannot clear realtime alert', e);
+                }
+            }
+
+            function forgetDismissedAlertKey() {
+                try {
+                    sessionStorage.removeItem(storedDismissedAlertKey);
+                } catch (e) {
+                    console.warn('[SafeGuard] Cannot clear dismissed alert key', e);
+                }
+            }
+
+            function restoreRealtimeAlertBanner() {
+                try {
+                    const raw = sessionStorage.getItem(storedRealtimeAlertKey);
+                    if (!raw) {
+                        return;
+                    }
+
+                    const stored = JSON.parse(raw);
+                    const data = stored && stored.data ? stored.data : null;
+                    if (!data || data.type === 'room_joined') {
+                        forgetRealtimeAlert();
+                        return;
+                    }
+
+                    const currentKey = window.buildRealtimeAlertKey(data);
+                    if (alertState.dismissedAlertKey === currentKey) {
+                        return;
+                    }
+
+                    window.showPersistentRealtimeBanner(data, false);
+                } catch (e) {
+                    forgetRealtimeAlert();
+                }
+            }
+
+            window.showPersistentRealtimeBanner = function (data, shouldRemember) {
+                const roomId = data.roomId || 'Chưa rõ phòng';
+                const tempText = data.temperature != null ? (data.temperature + '°C') : 'N/A';
+                const level = (data.alertLevel || '').toUpperCase();
+
+                alertState.activeRealtimeAlertKey = window.buildRealtimeAlertKey(data);
+                alertState.bannerSource = 'websocket';
+
+                if (shouldRemember !== false) {
+                    rememberRealtimeAlert(data);
+                }
+
+                if ($firebaseBanner.length) {
+                    $firebaseMessage.text(data.message || ('Phòng ' + roomId + ' đang có cảnh báo an toàn.'));
+                    $firebaseMeta.text(
+                        'Phòng: ' + roomId +
+                        ' | Nhiệt độ: ' + tempText +
+                        (level ? ' | Mức: ' + level : '')
+                    );
+                    $firebaseBanner.addClass('show');
+                }
+            };
+
+            window.clearRealtimeBannerIfRecovered = function (data) {
+                const level = (data.alertLevel || '').toUpperCase();
+                if (level === 'NORMAL') {
+                    alertState.activeRealtimeAlertKey = '';
+                    alertState.dismissedAlertKey = '';
+                    forgetRealtimeAlert();
+                    forgetDismissedAlertKey();
+                    hideFirebaseAlert(true);
+                }
+            };
+
+            window.showSafeGuardRealtimePopup = function (data, options) {
+                if (!window.Swal) {
+                    return;
+                }
+
+                options = options || {};
+
+                const level = (data.alertLevel || '').toUpperCase();
+                const currentKey = options.popupKey || window.buildRealtimeAlertKey(data);
+                const roomPopupKey = options.roomPopupKey || [
+                    data.type || '',
+                    data.roomId || '',
+                    level || ''
+                ].join('|');
+                const now = Date.now();
+                const globalCooldownMs = options.globalCooldownMs || 60000;
+                const roomCooldownMs = options.roomCooldownMs || 300000;
+
+                alertState.popupRoomCooldowns = alertState.popupRoomCooldowns || {};
+
+                if (window.Swal.isVisible && window.Swal.isVisible()) {
+                    return;
+                }
+
+                if (alertState.lastPopupKey === currentKey) {
+                    return;
+                }
+
+                if (alertState.popupCooldownUntil && now < alertState.popupCooldownUntil) {
+                    return;
+                }
+
+                if (alertState.popupRoomCooldowns[roomPopupKey] && now < alertState.popupRoomCooldowns[roomPopupKey]) {
+                    return;
+                }
+
+                alertState.lastPopupKey = currentKey;
+                alertState.lastPopupAt = now;
+                alertState.popupCooldownUntil = now + globalCooldownMs;
+                alertState.popupRoomCooldowns[roomPopupKey] = now + roomCooldownMs;
+
+                Swal.fire({
+                    icon: options.icon || 'warning',
+                    title: options.title || 'Cảnh báo từ SafeGuard',
+                    html: options.html || '',
+                    confirmButtonText: 'Đã hiểu',
+                    confirmButtonColor: options.confirmButtonColor || '#b91c1c',
+                    background: '#fff7f7',
+                    color: '#7f1d1d',
+                    showClass: {
+                        popup: 'animate__animated animate__fadeInDown'
+                    },
+                    customClass: {
+                        popup: 'safeguard-alert-popup'
+                    }
+                });
+            };
+
             function showFirebaseAlert(alerts, systemNote) {
                 const firstAlert = alerts[0] || {};
                 const roomList = alerts.map(function (x) { return x.RoomId || 'Chưa rõ phòng'; });
@@ -471,24 +761,21 @@
                 const triggeredAt = formatVietnamAlertTime(firstAlert.TriggeredAt || '');
                 const alertKey = buildAlertKey(alerts);
 
-                if (isDismissed && lastAlertKey === alertKey) {
+                if (alertState.dismissedAlertKey === alertKey) {
                     return;
                 }
 
                 $firebaseMessage.text(`${note} Đang có ${alerts.length} phòng cảnh báo. Mức cao nhất: ${maxTemperature}°C.`);
                 $firebaseMeta.text(`Phòng: ${roomSummary}${triggeredAt ? ' | Thời gian: ' + triggeredAt : ''}`);
                 $firebaseBanner.addClass('show');
+                alertState.bannerSource = 'firebase';
+                alertState.activeRealtimeAlertKey = alertKey;
+                rememberRealtimeAlert(normalizeFirebaseAlertForStorage(alerts, systemNote));
 
-                if (lastAlertKey !== alertKey) {
-                    lastAlertKey = alertKey;
-                    isDismissed = false;
-
-                    Swal.fire({
-                        icon: 'warning',
-                        title: 'Cảnh báo nhiệt độ cao',
-                        text: `${alerts.length} phòng đang vượt 50°C. Danh sách: ${roomSummary}.`,
-                        confirmButtonText: 'Đã hiểu'
-                    });
+                if (alertState.lastAlertKey !== alertKey) {
+                    alertState.lastAlertKey = alertKey;
+                    alertState.dismissedAlertKey = '';
+                    forgetDismissedAlertKey();
                 }
             }
 
@@ -498,11 +785,21 @@
                 }) : [];
 
                 return activeAlerts
-                    .filter(function (x) { return x && Number(x.Temperature || 0) >= 50; })
+                    .filter(function (x) { return x && Number(x.Temperature || 0) >= 50 && isRecentFirebaseAlert(x); })
                     .sort(function (a, b) { return Number(b.Temperature || 0) - Number(a.Temperature || 0); });
             }
 
-            function syncFirebaseAlert() {
+            function syncFirebaseAlert(forceInitialSync) {
+                const shouldCheckFirebase =
+                    forceInitialSync ||
+                    alertState.bannerSource === 'firebase' ||
+                    !alertState.activeRealtimeAlertKey ||
+                    (!alertState.wsConnected && !alertState.hasConnectedWebSocket);
+
+                if (!shouldCheckFirebase) {
+                    return;
+                }
+
                 if (!firebaseDbUrl) {
                     hideFirebaseAlert();
                     return;
@@ -518,9 +815,11 @@
                             : activeAlerts;
 
                         if (!systemData || Number(systemData.AlarmStatus) <= 0 || visibleAlerts.length === 0) {
-                            lastAlertKey = '';
-                            if (!isDismissed) {
-                                hideFirebaseAlert();
+                            alertState.lastAlertKey = '';
+                            if (alertState.bannerSource === 'firebase' || !alertState.activeRealtimeAlertKey) {
+                                alertState.activeRealtimeAlertKey = '';
+                                forgetRealtimeAlert();
+                                hideFirebaseAlert(true);
                             }
                             return;
                         }
@@ -533,12 +832,179 @@
             }
 
             $('#firebaseAlertDismiss').on('click', function () {
-                isDismissed = true;
-                hideFirebaseAlert();
+                alertState.dismissedAlertKey = alertState.activeRealtimeAlertKey || alertState.lastAlertKey || '';
+                alertState.activeRealtimeAlertKey = '';
+                try {
+                    sessionStorage.setItem(storedDismissedAlertKey, alertState.dismissedAlertKey);
+                } catch (e) {
+                    console.warn('[SafeGuard] Cannot store dismissed alert key', e);
+                }
+                forgetRealtimeAlert();
+                hideFirebaseAlert(true);
             });
 
-            syncFirebaseAlert();
+            restoreRealtimeAlertBanner();
+            setTimeout(function () { syncFirebaseAlert(true); }, 1500);
             setInterval(syncFirebaseAlert, 3000);
+        });
+    </script>
+    <script>
+        (function () {
+            const role = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(Session["UserGroup"]?.ToString() ?? "GUEST"));
+            const userId = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(Session["UserEmail"]?.ToString() ?? ""));
+            const roomId = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(Session["AssignedRoom"]?.ToString() ?? ""));
+
+            const wsUrl =
+                'wss://6kebk039t7.execute-api.ap-southeast-1.amazonaws.com/prod'
+                + '?role=' + encodeURIComponent(role)
+                + '&userId=' + encodeURIComponent(userId)
+                + '&roomId=' + encodeURIComponent(roomId);
+
+            let socket = null;
+            let reconnectTimer = null;
+
+            function connectSafeGuardWs() {
+                socket = new WebSocket(wsUrl);
+
+                socket.onopen = function () {
+                    window.safeGuardAlertState = window.safeGuardAlertState || {};
+                    const alertState = window.safeGuardAlertState;
+                    alertState.wsConnected = true;
+                    alertState.hasConnectedWebSocket = true;
+
+                    if (alertState.bannerSource === 'firebase' && !alertState.activeRealtimeAlertKey) {
+                        alertState.lastAlertKey = '';
+                        alertState.dismissedAlertKey = '';
+                        alertState.activeRealtimeAlertKey = '';
+                        alertState.bannerSource = '';
+
+                        if (window.hideSafeGuardAlertBanner) {
+                            window.hideSafeGuardAlertBanner(true);
+                        }
+                    }
+
+                    console.log('[SafeGuard WS] connected');
+                };
+
+                socket.onmessage = function (event) {
+                    try {
+                        const data = JSON.parse(event.data);
+                        console.log('[SafeGuard WS] message:', data);
+
+                        window.dispatchEvent(new CustomEvent('safeguard:realtime', {
+                            detail: data
+                        }));
+                    } catch (e) {
+                        console.error('[SafeGuard WS] invalid message', e);
+                    }
+                };
+
+                socket.onclose = function () {
+                    window.safeGuardAlertState = window.safeGuardAlertState || {};
+                    window.safeGuardAlertState.wsConnected = false;
+                    console.log('[SafeGuard WS] closed, reconnecting...');
+                    clearTimeout(reconnectTimer);
+                    reconnectTimer = setTimeout(connectSafeGuardWs, 3000);
+                };
+
+                socket.onerror = function (err) {
+                    console.error('[SafeGuard WS] error', err);
+                    try { socket.close(); } catch (e) { }
+                };
+            }
+
+            connectSafeGuardWs();
+        })();
+    </script>
+    <script>
+        window.addEventListener('safeguard:realtime', function (e) {
+            const data = e.detail || {};
+            console.log('[SafeGuard realtime event]', data);
+
+            const $firebaseBanner = $('#firebaseAlertBanner');
+            const $firebaseMessage = $('#firebaseAlertMessage');
+            const $firebaseMeta = $('#firebaseAlertMeta');
+
+            if ((data.type === 'alert_triggered' || data.type === 'sensor_update') &&
+                window.isFreshSafeGuardRealtimeEvent &&
+                !window.isFreshSafeGuardRealtimeEvent(data)) {
+                console.log('[SafeGuard realtime event ignored: stale]', data);
+                return;
+            }
+
+            // 1) Su kien tenant vao phong la thong tin binh thuong, khong hien banner/popup canh bao.
+            if (data.type === 'room_joined') {
+                if (window.safeGuardAlertState && window.safeGuardAlertState.bannerSource !== 'websocket') {
+                    window.hideSafeGuardAlertBanner(true);
+                }
+
+                console.log('[SafeGuard room joined]', data);
+                return;
+            }
+
+            // 2) Canh bao nguy hiem rieng tu WebSocket
+            if (data.type === 'alert_triggered') {
+                const level = (data.alertLevel || '').toUpperCase();
+                const roomId = data.roomId || 'Chưa rõ phòng';
+                const currentKey = window.buildRealtimeAlertKey(data);
+                const alertState = window.safeGuardAlertState;
+
+                // Luon giu banner neu user chua an dung canh bao nay
+                if (alertState.dismissedAlertKey !== currentKey) {
+                    window.showPersistentRealtimeBanner(data);
+                } else {
+                    alertState.activeRealtimeAlertKey = currentKey;
+                }
+
+                // Popup chi hien 1 lan cho moi alert key
+                if ((level === 'FIRE' || level === 'DANGER') && alertState.lastAlertKey !== currentKey) {
+                    alertState.lastAlertKey = currentKey;
+                    let title = level === 'FIRE' ? 'Cảnh báo cháy khẩn cấp' : 'Cảnh báo nguy hiểm';
+
+                    window.showSafeGuardRealtimePopup(data, {
+                        icon: 'warning',
+                        title: title,
+                        confirmButtonColor: '#b91c1c',
+                        globalCooldownMs: 60000,
+                        roomCooldownMs: 300000,
+                        html:
+                            '<div class="safeguard-popup-body">' +
+                            '<strong>' + (data.message || ('Phòng ' + roomId + ' đang có cảnh báo.')) + '</strong>' +
+                            '<div class="safeguard-popup-meta">' +
+                            'Phòng: ' + roomId +
+                            '<br>Nhiệt độ: ' + (data.temperature != null ? data.temperature + '°C' : 'N/A') +
+                            (level ? '<br>Mức cảnh báo: ' + level : '') +
+                            '<br>Vui lòng kiểm tra thiết bị điện và khu vực xung quanh ngay khi an toàn.' +
+                            '</div>' +
+                            '</div>'
+                    });
+                }
+
+                return;
+            }
+
+            // 3) Cap nhat cam bien / canh bao nhiet do
+            if (data.type === 'sensor_update') {
+                const alertLevel = (data.alertLevel || '').toUpperCase();
+                const tempText = data.temperature != null ? (data.temperature + '°C') : 'N/A';
+                const currentKey = window.buildRealtimeAlertKey(data);
+                const alertState = window.safeGuardAlertState;
+
+                // Neu ve NORMAL thi tu clear banner
+                window.clearRealtimeBannerIfRecovered(data);
+
+                if ($firebaseBanner.length && alertLevel !== 'NORMAL') {
+                    alertState.activeRealtimeAlertKey = currentKey;
+
+                    if (alertState.dismissedAlertKey !== currentKey) {
+                        if (alertLevel === 'FIRE' || alertLevel === 'DANGER' || alertLevel === 'WARNING') {
+                            window.showPersistentRealtimeBanner(data);
+                        }
+                    }
+                }
+
+                return;
+            }
         });
     </script>
     @RenderSection("Scripts", required: false)

@@ -68,13 +68,13 @@
                     {
                         foreach (SafeGuard.Models.RoomDisplayViewModel room in (IEnumerable<SafeGuard.Models.RoomDisplayViewModel>)ViewBag.Rooms)
                         {
-                            <tr class="room-row">
+                            <tr class="room-row" data-room-id="@room.BlockName-@room.RoomId">
                                 <td class="fw-bold">@room.RoomName</td>
                                 <td class="block-column">@room.BlockName</td>
-                                <td><span class="text-primary small">@room.OwnerEmail</span></td>
+                                <td><span class="room-owner-text text-primary small">@room.OwnerEmail</span></td>
                                 <td><code class="text-secondary small">ID-@room.RoomId</code></td>
                                 <td>
-                                    <span class="badge rounded-pill @(room.IsOnline ? "bg-success" : "bg-secondary") bg-opacity-10 @(room.IsOnline ? "text-success" : "text-muted") border">
+                                    <span class="room-status-badge badge rounded-pill @(room.IsOnline ? "bg-success" : "bg-secondary") bg-opacity-10 @(room.IsOnline ? "text-success" : "text-muted") border">
                                         <i class="fa-solid @(room.IsOnline ? "fa-circle-check" : "fa-circle-minus") me-1 small"></i>
                                         @(room.IsOnline ? "Online" : "Offline")
                                     </span>
@@ -214,6 +214,165 @@
             if (txtSearch) txtSearch.addEventListener("input", applyFilters);
         });
 
+        function getRoomJoinedField(data, camelName, pascalName) {
+            return data[camelName] || data[pascalName] || '';
+        }
+
+        function getRealtimeField(data) {
+            for (let i = 1; i < arguments.length; i++) {
+                const key = arguments[i];
+                if (data[key] !== undefined && data[key] !== null) {
+                    return data[key];
+                }
+            }
+
+            return '';
+        }
+
+        function showRoomJoinedNotice(data) {
+            const card = document.querySelector('.custom-card');
+            if (!card) return;
+
+            const roomId = getRoomJoinedField(data, 'roomId', 'RoomId') || 'Chưa rõ phòng';
+            const tenantName = getRoomJoinedField(data, 'tenantName', 'TenantName') || getRoomJoinedField(data, 'userName', 'UserName') || 'Người thuê';
+            let notice = document.getElementById('roomJoinedNotice');
+
+            if (!notice) {
+                notice = document.createElement('div');
+                notice.id = 'roomJoinedNotice';
+                notice.className = 'room-joined-notice';
+                card.parentNode.insertBefore(notice, card);
+            }
+
+            notice.innerHTML =
+                '<div>' +
+                    '<div class="room-joined-notice__title">' +
+                        '<i class="fa-solid fa-circle-check me-2"></i>Cập nhật phòng' +
+                    '</div>' +
+                    '<div class="room-joined-notice__message">' +
+                        tenantName + ' đã tham gia phòng ' + roomId + '.' +
+                    '</div>' +
+                '</div>' +
+                '<button type="button" class="btn btn-sm btn-outline-success rounded-pill" data-room-notice-dismiss="true">Ẩn</button>';
+
+            const dismissButton = notice.querySelector('[data-room-notice-dismiss="true"]');
+            if (dismissButton) {
+                dismissButton.onclick = function () {
+                    notice.remove();
+                };
+            }
+
+            notice.classList.add('show');
+
+            clearTimeout(window.safeGuardRoomJoinedNoticeTimer);
+            window.safeGuardRoomJoinedNoticeTimer = setTimeout(function () {
+                notice.classList.remove('show');
+            }, 8000);
+        }
+
+        function markRoomJoinedRealtime(data) {
+            const roomId = getRoomJoinedField(data, 'roomId', 'RoomId');
+            if (!roomId) return;
+
+            const row = document.querySelector('#roomTable tbody tr[data-room-id="' + roomId + '"]');
+            if (!row) return;
+
+            const tenantName = getRoomJoinedField(data, 'tenantName', 'TenantName') || getRoomJoinedField(data, 'userName', 'UserName') || 'Đang có người thuê';
+            const ownerText = row.querySelector('.room-owner-text');
+            const statusBadge = row.querySelector('.room-status-badge');
+
+            if (ownerText) {
+                ownerText.textContent = tenantName;
+                ownerText.classList.remove('text-primary');
+                ownerText.classList.add('text-success', 'fw-bold');
+            }
+
+            if (statusBadge) {
+                statusBadge.className = 'room-status-badge badge rounded-pill bg-success bg-opacity-10 text-success border border-success';
+                statusBadge.innerHTML = '<i class="fa-solid fa-circle-check me-1 small"></i>Online';
+            }
+
+            row.classList.add('room-row-updated');
+            setTimeout(function () {
+                row.classList.remove('room-row-updated');
+            }, 5000);
+
+            showRoomJoinedNotice(data);
+        }
+
+        function updateRoomStatusRealtime(data) {
+            const roomId = getRealtimeField(data, 'roomId', 'RoomId');
+            if (!roomId) return;
+
+            const row = document.querySelector('#roomTable tbody tr[data-room-id="' + roomId + '"]');
+            if (!row) return;
+
+            const statusBadge = row.querySelector('.room-status-badge');
+            if (!statusBadge) return;
+
+            const occupancyCount = Number(getRealtimeField(data, 'occupancyCount', 'OccupancyCount') || 0);
+            const deviceStatus = (getRealtimeField(data, 'deviceStatus', 'DeviceStatus') || 'offline').toLowerCase();
+            const alertLevel = (getRealtimeField(data, 'alertLevel', 'AlertLevel') || 'NORMAL').toUpperCase();
+
+            let text = 'Offline';
+            let icon = 'fa-circle-minus';
+            let classes = 'room-status-badge badge rounded-pill bg-secondary bg-opacity-10 text-muted border';
+
+            if (alertLevel === 'FIRE' || alertLevel === 'DANGER') {
+                text = 'Nguy hiểm';
+                icon = 'fa-triangle-exclamation';
+                classes = 'room-status-badge badge rounded-pill bg-danger bg-opacity-10 text-danger border border-danger';
+            } else if (alertLevel === 'WARNING') {
+                text = 'Cảnh báo';
+                icon = 'fa-circle-exclamation';
+                classes = 'room-status-badge badge rounded-pill bg-warning bg-opacity-10 text-warning border border-warning';
+            } else if (deviceStatus === 'online' || occupancyCount > 0) {
+                text = 'Online';
+                icon = 'fa-circle-check';
+                classes = 'room-status-badge badge rounded-pill bg-success bg-opacity-10 text-success border border-success';
+            }
+
+            statusBadge.className = classes;
+            statusBadge.innerHTML = '<i class="fa-solid ' + icon + ' me-1 small"></i>' + text;
+
+            row.classList.add('room-row-updated');
+            setTimeout(function () {
+                row.classList.remove('room-row-updated');
+            }, 5000);
+        }
+
+        window.addEventListener('safeguard:realtime', function (e) {
+            const data = e.detail || {};
+
+            if (data.type === 'room_joined') {
+                markRoomJoinedRealtime(data);
+            }
+
+            if (data.type === 'room_status_changed') {
+                updateRoomStatusRealtime(data);
+            }
+
+            if (data.type === 'room_unassigned') {
+                const roomId = data.roomId || data.RoomId;
+                updateRoomStatusRealtime({
+                    roomId: roomId,
+                    occupancyCount: 0,
+                    deviceStatus: 'offline',
+                    alertLevel: 'NORMAL'
+                });
+
+                const row = document.querySelector('#roomTable tbody tr[data-room-id="' + roomId + '"]');
+                if (row) {
+                    const ownerText = row.querySelector('.room-owner-text');
+                    if (ownerText) {
+                        ownerText.textContent = 'Chưa có người thuê';
+                        ownerText.classList.remove('text-success', 'fw-bold');
+                        ownerText.classList.add('text-primary');
+                    }
+                }
+            }
+        });
+
         // --- AJAX XỬ LÝ NÚT XEM THÀNH VIÊN ---
         $(document).ready(function () {
             $('.view-members-btn').on('click', function (e) {
@@ -340,5 +499,40 @@
         border: none;
         box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
         background: #fff;
+    }
+
+    .room-joined-notice {
+        display: none;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 1rem;
+        padding: 0.95rem 1.15rem;
+        border-radius: 8px;
+        background: #ecfdf5;
+        border: 1px solid #86efac;
+        color: #14532d;
+        box-shadow: 0 10px 24px rgba(22, 163, 74, 0.12);
+    }
+
+    .room-joined-notice.show {
+        display: flex;
+        animation: fadeInUp 0.25s ease;
+    }
+
+    .room-joined-notice__title {
+        font-weight: 800;
+        color: #166534;
+    }
+
+    .room-joined-notice__message {
+        margin-top: 0.25rem;
+        font-weight: 600;
+    }
+
+    .room-row-updated {
+        background: #f0fdf4 !important;
+        box-shadow: inset 4px 0 0 #22c55e;
+        transition: background 0.25s ease;
     }
 </style>

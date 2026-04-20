@@ -17,7 +17,7 @@
             <div class="custom-card p-4">
                 <h6 class="card-title-custom text-primary mb-4"><i class="fa-solid fa-key me-2"></i>Tạo Mã Mới</h6>
 
-                <form method="post" action="@Url.Action("TaoMaMoi", "Admin")">
+                <form id="createInviteForm" method="post" action="@Url.Action("TaoMaMoi", "Admin")">
                     <div class="mb-3">
                         <label class="form-label text-muted small fw-bold">Chọn Phòng Cần Liên Kết</label>
                         <select name="selectedRoom" class="form-select shadow-sm" style="border-radius: 10px;" required>
@@ -38,7 +38,7 @@
                         <label class="form-label text-muted small fw-bold">Thời hạn mã (Giờ)</label>
                         <input type="number" name="expireHours" class="form-control shadow-sm" style="border-radius: 10px;" value="24" min="1" max="72">
                     </div>
-                    <button type="submit" class="btn btn-primary w-100 py-2 fw-bold shadow-sm" style="border-radius: 10px;">
+                    <button type="submit" id="createInviteButton" class="btn btn-primary w-100 py-2 fw-bold shadow-sm" style="border-radius: 10px;">
                         PHÁT SINH MÃ
                     </button>
                 </form>
@@ -58,7 +58,7 @@
                                 <th>Trạng Thái</th>
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody id="inviteListBody">
                             @if (ViewBag.InviteList != null)
                             {
                                 foreach (var item in ViewBag.InviteList)
@@ -68,22 +68,22 @@
                                     var roomId = item.ContainsKey("RoomId") ? item["RoomId"].AsString() : "N/A";
                                     var inviteCode = item.ContainsKey("InviteCode") ? item["InviteCode"].AsString() : "N/A";
 
-                                    <tr>
+                                    <tr data-invite-code="@inviteCode">
                                         <td class="fw-bold text-dark">Phòng @roomId</td>
                                         <td>
-                                            <code class="fs-5 fw-bold @(isUsed ? "text-muted text-decoration-line-through" : "text-primary")" style="letter-spacing: 1px;">
+                                            <span class="invite-code-text fs-5 @(isUsed ? "text-decoration-line-through text-muted" : "text-primary fw-bold")" style="letter-spacing: 1px;">
                                                 @inviteCode
-                                            </code>
+                                            </span>
                                         </td>
                                         <td class="text-muted small">@createdAt.ToString("dd/MM/yyyy - HH:mm")</td>
                                         <td>
                                             @if (isUsed)
                                             {
-                                                <span class="badge rounded-pill bg-success bg-opacity-10 text-success border border-success px-3 py-2">Đã sử dụng</span>
+                                                <span class="invite-status-badge badge rounded-pill bg-success bg-opacity-10 text-success border border-success px-3 py-2">Đã sử dụng</span>
                                             }
                                             else
                                             {
-                                                <span class="badge rounded-pill bg-warning bg-opacity-10 text-dark border border-warning px-3 py-2">Chờ nhập</span>
+                                                <span class="invite-status-badge badge rounded-pill bg-warning bg-opacity-10 text-dark border border-warning px-3 py-2">Chờ nhập</span>
                                             }
                                         </td>
                                     </tr>
@@ -91,7 +91,7 @@
                             }
                             else
                             {
-                                <tr><td colspan="4" class="text-center text-muted py-5">Chưa có mã mời nào được tạo.</td></tr>
+                                <tr id="inviteEmptyRow"><td colspan="4" class="text-center text-muted py-5">Chưa có mã mời nào được tạo.</td></tr>
                             }
                         </tbody>
                     </table>
@@ -102,6 +102,11 @@
 </div>
 
 <style>
+    .invite-success-alert {
+        display: none;
+        border-radius: 8px;
+    }
+
     .badge {
         font-size: 0.75rem;
         font-weight: 600;
@@ -122,3 +127,185 @@
         padding: 0;
     }
 </style>
+
+@section Scripts {
+    <script>
+        function showInviteSuccess(message) {
+            let alertBox = document.getElementById('inviteAjaxSuccess');
+
+            if (!alertBox) {
+                alertBox = document.createElement('div');
+                alertBox.id = 'inviteAjaxSuccess';
+                alertBox.className = 'invite-success-alert alert alert-success alert-dismissible fade show mb-4 border-0 shadow-sm';
+                const container = document.querySelector('.container-fluid.p-0');
+                if (container) {
+                    container.prepend(alertBox);
+                }
+            }
+
+            alertBox.innerHTML =
+                '<i class="fa-solid fa-circle-check me-2"></i>' +
+                '<strong>Thành công!</strong> ' + escapeInviteText(message || 'Tạo mã thành công.') +
+                '<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>';
+            alertBox.style.display = 'block';
+        }
+
+        function getInviteField(data, camelName, pascalName) {
+            return data[camelName] || data[pascalName] || '';
+        }
+
+        function escapeInviteText(value) {
+            return String(value || '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        function findInviteRow(inviteCode) {
+            const tbody = document.getElementById('inviteListBody');
+            if (!tbody) return null;
+
+            return Array.from(tbody.querySelectorAll('tr[data-invite-code]')).find(function (row) {
+                return row.getAttribute('data-invite-code') === inviteCode;
+            });
+        }
+
+        function formatInviteCreatedAt(value) {
+            if (!value) return '';
+
+            const date = new Date(value);
+            if (Number.isNaN(date.getTime())) {
+                return value;
+            }
+
+            return new Intl.DateTimeFormat('vi-VN', {
+                timeZone: 'Asia/Ho_Chi_Minh',
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: false
+            }).format(date).replace(',', ' -');
+        }
+
+        function appendInviteRowRealtime(data) {
+            const tbody = document.getElementById('inviteListBody');
+            if (!tbody) return;
+
+            const inviteCode = getInviteField(data, 'inviteCode', 'InviteCode');
+            if (!inviteCode || findInviteRow(inviteCode)) return;
+
+            const roomId = getInviteField(data, 'roomId', 'RoomId');
+            const createdAt = getInviteField(data, 'createdAt', 'CreatedAt');
+            const emptyRow = document.getElementById('inviteEmptyRow');
+
+            if (emptyRow) {
+                emptyRow.remove();
+            }
+
+            const tr = document.createElement('tr');
+            tr.setAttribute('data-invite-code', inviteCode);
+
+            tr.innerHTML =
+                '<td class="fw-bold text-dark">Phòng ' + escapeInviteText(roomId) + '</td>' +
+                '<td>' +
+                    '<span class="invite-code-text fs-5 text-primary fw-bold" style="letter-spacing: 1px;">' +
+                        escapeInviteText(inviteCode) +
+                    '</span>' +
+                '</td>' +
+                '<td class="text-muted small">' + escapeInviteText(formatInviteCreatedAt(createdAt)) + '</td>' +
+                '<td>' +
+                    '<span class="invite-status-badge badge rounded-pill bg-warning bg-opacity-10 text-dark border border-warning px-3 py-2">' +
+                        'Chờ nhập' +
+                    '</span>' +
+                '</td>';
+
+            tbody.prepend(tr);
+        }
+
+        function markInviteUsedRealtime(data) {
+            const inviteCode = getInviteField(data, 'inviteCode', 'InviteCode');
+            if (!inviteCode) return;
+
+            const row = findInviteRow(inviteCode);
+            if (!row) return;
+
+            const codeText = row.querySelector('.invite-code-text');
+            const statusBadge = row.querySelector('.invite-status-badge');
+
+            if (codeText) {
+                codeText.classList.remove('text-primary', 'fw-bold');
+                codeText.classList.add('text-decoration-line-through', 'text-muted');
+            }
+
+            if (statusBadge) {
+                statusBadge.className = 'invite-status-badge badge rounded-pill bg-success bg-opacity-10 text-success border border-success px-3 py-2';
+                statusBadge.textContent = 'Đã sử dụng';
+            }
+        }
+
+        window.addEventListener('safeguard:realtime', function (e) {
+            const data = e.detail || {};
+            console.log('[Invite realtime]', data);
+
+            if (data.type === 'invite_created') {
+                appendInviteRowRealtime(data);
+                return;
+            }
+
+            if (data.type === 'invite_used') {
+                markInviteUsedRealtime(data);
+            }
+        });
+
+        $(document).ready(function () {
+            let isCreatingInvite = false;
+
+            $('#createInviteForm').on('submit', function (e) {
+                e.preventDefault();
+
+                if (isCreatingInvite) return;
+
+                const $form = $(this);
+                const $button = $('#createInviteButton');
+                const normalHtml = $button.html();
+
+                isCreatingInvite = true;
+                $button.prop('disabled', true);
+                $button.html('<span class="spinner-border spinner-border-sm me-2"></span>ĐANG TẠO...');
+
+                $.ajax({
+                    url: $form.attr('action'),
+                    type: 'POST',
+                    data: $form.serialize(),
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    success: function (res) {
+                        if (res && res.success) {
+                            appendInviteRowRealtime({
+                                inviteCode: res.inviteCode,
+                                roomId: res.roomId,
+                                createdAt: res.createdAt
+                            });
+                            showInviteSuccess(res.message);
+                        } else {
+                            alert((res && res.message) || 'Không thể tạo mã. Vui lòng thử lại.');
+                        }
+                    },
+                    error: function () {
+                        alert('Lỗi kết nối khi tạo mã. Vui lòng thử lại.');
+                    },
+                    complete: function () {
+                        isCreatingInvite = false;
+                        $button.prop('disabled', false);
+                        $button.html(normalHtml);
+                    }
+                });
+            });
+        });
+    </script>
+}
