@@ -113,13 +113,13 @@
 
 <div class="container-fluid py-4 p-0">
 
-    <div class="alert safety-banner border-0 shadow-sm rounded-4 anim-fade-up d-flex align-items-center mb-4 p-4 position-relative overflow-hidden">
+    <div id="tenantSafetyBanner" class="alert safety-banner border-0 shadow-sm rounded-4 anim-fade-up d-flex align-items-center mb-4 p-4 position-relative overflow-hidden">
         <div class="bg-white rounded-circle p-3 d-flex align-items-center justify-content-center position-relative z-1 me-4 shadow-sm" style="width: 65px; height: 65px;">
-            <i class="fa-solid @bannerIcon @bannerText fs-2 fa-beat-fade" style="--fa-animation-duration: 2s;"></i>
+            <i id="tenantSafetyIcon" class="fa-solid @bannerIcon @bannerText fs-2 fa-beat-fade" style="--fa-animation-duration: 2s;"></i>
         </div>
         <div class="position-relative z-1">
-            <h5 class="fw-bold @bannerText mb-1 letter-spacing-1">@(Model.IsAlert ? "CẢNH BÁO AN TOÀN!" : "TRẠNG THÁI AN TOÀN!")</h5>
-            <span class="text-dark">@Model.StatusMessage</span>
+            <h5 id="tenantSafetyTitle" class="fw-bold @bannerText mb-1 letter-spacing-1">@(Model.IsAlert ? "CẢNH BÁO AN TOÀN!" : "TRẠNG THÁI AN TOÀN!")</h5>
+            <span id="tenantSafetyMessage" class="text-dark">@Model.StatusMessage</span>
         </div>
         <i class="fa-solid fa-leaf position-absolute @bannerText opacity-25" style="font-size: 8rem; right: -20px; top: -30px; transform: rotate(15deg);"></i>
     </div>
@@ -163,12 +163,12 @@
 
                 <h6 class="fw-bold text-muted mb-4 text-uppercase" style="letter-spacing: 1px;">Trạng Thái Nhiệt Độ Phòng</h6>
 
-                <div class="temp-circle mx-auto mb-4 position-relative z-1">
-                    <h1 class="display-3 fw-black @tempClass mb-0">@(Model.HasData ? Model.CurrentTemperature.ToString() : "--")<span class="fs-3 text-muted">°C</span></h1>
+                <div id="tenantTempCircle" class="temp-circle mx-auto mb-4 position-relative z-1">
+                    <h1 id="tenantCurrentTemperature" class="display-3 fw-black @tempClass mb-0">@(Model.HasData ? Model.CurrentTemperature.ToString() : "--")<span class="fs-3 text-muted">°C</span></h1>
                 </div>
 
                 <div class="position-relative z-1">
-                    <span class="badge bg-@bgTheme bg-opacity-10 @tempClass border border-@bgTheme rounded-pill px-4 py-2 shadow-sm">
+                    <span id="tenantMonitorBadge" class="badge bg-@bgTheme bg-opacity-10 @tempClass border border-@bgTheme rounded-pill px-4 py-2 shadow-sm">
                         <i class="fa-solid fa-satellite-dish fa-fade me-2"></i>Đang giám sát (Real-time)
                     </span>
                 </div>
@@ -189,11 +189,11 @@
                     </li>
                     <li class="d-flex justify-content-between align-items-center mb-3 bg-light p-3 rounded-3 border-start border-4 border-success transition-hover">
                         <span class="text-muted fw-semibold"><i class="fa-solid fa-wifi me-2 text-success"></i>Tình trạng kết nối:</span>
-                        <strong class="text-success fs-6"><i class="fa-solid fa-check me-1"></i>Đã đồng bộ</strong>
+                        <strong id="tenantConnectionStatus" class="text-success fs-6"><i class="fa-solid fa-check me-1"></i>Đã đồng bộ</strong>
                     </li>
                     <li class="d-flex justify-content-between align-items-center bg-light p-3 rounded-3 border-start border-4 border-info transition-hover">
                         <span class="text-muted fw-semibold"><i class="fa-solid fa-clock-rotate-left me-2 text-info"></i>Cập nhật lần cuối:</span>
-                        <strong class="text-dark fs-6">Vừa xong</strong>
+                        <strong id="tenantLastUpdated" class="text-dark fs-6">Vừa xong</strong>
                     </li>
                 </ul>
 
@@ -294,6 +294,10 @@
                             setButtonState($btn, false, '', normalHtml);
 
                             if (res.success) {
+                                if (window.clearRealtimeBannerIfRecovered) {
+                                    window.clearRealtimeBannerIfRecovered({ alertLevel: 'NORMAL' });
+                                }
+
                                 Swal.fire({
                                     icon: 'success',
                                     title: 'Xóa thành công',
@@ -322,6 +326,107 @@
                 });
             });
 
+        });
+
+        const tenantAssignedRoom = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(Session["AssignedRoom"]?.ToString() ?? ""));
+
+        function getTenantRealtimeField(data) {
+            for (let i = 1; i < arguments.length; i++) {
+                const key = arguments[i];
+                if (data[key] !== undefined && data[key] !== null) {
+                    return data[key];
+                }
+            }
+
+            return '';
+        }
+
+        function isTenantRoomEvent(data) {
+            const roomId = getTenantRealtimeField(data, 'roomId', 'RoomId');
+            return !tenantAssignedRoom || !roomId || roomId.toUpperCase() === tenantAssignedRoom.toUpperCase();
+        }
+
+        function formatTenantTime(value) {
+            if (!value) {
+                return 'Vừa xong';
+            }
+
+            const numericValue = Number(value);
+            const date = !Number.isNaN(numericValue)
+                ? new Date((numericValue < 1000000000000 ? numericValue * 1000 : numericValue))
+                : new Date(value);
+
+            if (Number.isNaN(date.getTime())) {
+                return 'Vừa xong';
+            }
+
+            return date.toLocaleTimeString('vi-VN', {
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: false
+            });
+        }
+
+        function updateTenantDashboardRealtime(data) {
+            if (!isTenantRoomEvent(data)) return;
+
+            const temperature = getTenantRealtimeField(data, 'temperature', 'Temperature');
+            const alertLevel = (getTenantRealtimeField(data, 'alertLevel', 'AlertLevel') || 'NORMAL').toUpperCase();
+            const deviceStatus = (getTenantRealtimeField(data, 'deviceStatus', 'DeviceStatus') || 'online').toLowerCase();
+            const timestamp = getTenantRealtimeField(data, 'timestamp', 'Timestamp', 'triggeredAt', 'TriggeredAt');
+            const isAlert = alertLevel === 'FIRE' || alertLevel === 'DANGER' || alertLevel === 'WARNING' || Number(temperature || 0) >= 38;
+            const isDanger = alertLevel === 'FIRE' || alertLevel === 'DANGER' || Number(temperature || 0) >= 45;
+
+            if (temperature !== '') {
+                $('#tenantCurrentTemperature')
+                    .removeClass('text-primary text-danger')
+                    .addClass(isAlert ? 'text-danger' : 'text-primary')
+                    .html(temperature + '<span class="fs-3 text-muted">°C</span>');
+            }
+
+            $('#tenantSafetyBanner')
+                .removeClass('alert-success alert-danger')
+                .css({
+                    background: isAlert ? 'linear-gradient(135deg, #f8d7da 0%, #f1aeb5 100%)' : 'linear-gradient(135deg, #d1e7dd 0%, #a3cfbb 100%)',
+                    borderColor: isAlert ? '#ea868f' : '#86b7fe'
+                });
+
+            $('#tenantSafetyIcon')
+                .removeClass('fa-shield-halved fa-fire text-success text-danger text-primary')
+                .addClass(isAlert ? 'fa-fire text-danger' : 'fa-shield-halved text-success');
+
+            $('#tenantSafetyTitle')
+                .removeClass('text-success text-danger text-primary')
+                .addClass(isAlert ? 'text-danger' : 'text-success')
+                .text(isDanger ? 'CẢNH BÁO NGUY HIỂM!' : (isAlert ? 'CẢNH BÁO AN TOÀN!' : 'TRẠNG THÁI AN TOÀN!'));
+
+            $('#tenantSafetyMessage').text(
+                data.message ||
+                (isDanger ? 'Nhiệt độ phòng đang ở mức nguy hiểm. Vui lòng kiểm tra thiết bị điện ngay khi an toàn.'
+                    : isAlert ? 'Nhiệt độ phòng đang cao hơn bình thường. Hãy chú ý theo dõi.'
+                    : 'Hệ thống cảm biến nhiệt độ tại phòng bạn đang hoạt động bình thường và ổn định.')
+            );
+
+            $('#tenantMonitorBadge')
+                .removeClass('bg-primary bg-danger text-primary text-danger border-primary border-danger')
+                .addClass(isAlert ? 'bg-danger text-danger border-danger' : 'bg-primary text-primary border-primary');
+
+            $('#tenantConnectionStatus')
+                .removeClass('text-success text-muted')
+                .addClass(deviceStatus === 'online' ? 'text-success' : 'text-muted')
+                .html(deviceStatus === 'online'
+                    ? '<i class="fa-solid fa-check me-1"></i>Đã đồng bộ'
+                    : '<i class="fa-solid fa-circle-minus me-1"></i>Mất kết nối');
+
+            $('#tenantLastUpdated').text(formatTenantTime(timestamp));
+        }
+
+        window.addEventListener('safeguard:realtime', function (e) {
+            const data = e.detail || {};
+
+            if (data.type === 'sensor_update' || data.type === 'alert_triggered' || data.type === 'room_status_changed') {
+                updateTenantDashboardRealtime(data);
+            }
         });
             </script>
         }

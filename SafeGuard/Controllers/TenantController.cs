@@ -460,6 +460,24 @@ namespace SafeGuard.Controllers
                             }
                             else
                             {
+                                bool needsUserSync = false;
+                                if (!userItem.ContainsKey("AssignedRoomAt"))
+                                {
+                                    userItem["AssignedRoomAt"] = DateTime.UtcNow.ToString("O");
+                                    needsUserSync = true;
+                                }
+
+                                if (!userItem.ContainsKey("role"))
+                                {
+                                    userItem["role"] = "TENANT";
+                                    needsUserSync = true;
+                                }
+
+                                if (needsUserSync)
+                                {
+                                    await usersTable.UpdateItemAsync(userItem);
+                                }
+
                                 Session["AssignedRoom"] = currentRoom;
                             }
                         }
@@ -508,6 +526,7 @@ namespace SafeGuard.Controllers
                     if (userDoc != null)
                     {
                         userDoc["AssignedRoom"] = roomId;
+                        userDoc["AssignedRoomAt"] = DateTime.UtcNow.ToString("O");
 
                         if (userDoc.ContainsKey("DemoAssignedRoom"))
                             userDoc.Remove("DemoAssignedRoom");
@@ -524,7 +543,9 @@ namespace SafeGuard.Controllers
                     {
                         var newDoc = new Document();
                         newDoc["userID"] = realUserId;
+                        newDoc["role"] = "TENANT";
                         newDoc["AssignedRoom"] = roomId;
+                        newDoc["AssignedRoomAt"] = DateTime.UtcNow.ToString("O");
                         await usersTable.UpdateItemAsync(newDoc);
                     }
                     Session["AssignedRoom"] = roomId;

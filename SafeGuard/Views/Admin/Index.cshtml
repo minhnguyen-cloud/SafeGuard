@@ -101,19 +101,19 @@
 
                     <div class="col-6 mb-2">
                         <span class="text-muted small">Cảnh Báo Hiện Tại:</span>
-                        <strong id="summary-alerts" class="fs-5 ms-2 @(ViewBag.CurrentAlerts > 0 ? "text-danger" : "text-success")">
+                        <strong id="totalAlertRooms" class="fs-5 ms-2 @(ViewBag.CurrentAlerts > 0 ? "text-danger" : "text-success")">
                             @(ViewBag.CurrentAlerts ?? 0)
                         </strong>
                     </div>
 
                     <div class="col-6">
                         <span class="text-muted small">Đang Hoạt Động:</span>
-                        <strong id="summary-active" class="fs-5 ms-2">@(ViewBag.ActiveRooms ?? 0)</strong>
+                        <strong id="totalOccupiedRooms" class="fs-5 ms-2">@(ViewBag.ActiveRooms ?? 0)</strong>
                     </div>
 
                     <div class="col-6">
                         <span class="text-muted small">Thiết Bị Online:</span>
-                        <strong id="summary-online" class="fs-5 ms-2 @(ViewBag.OnlineDevices == ViewBag.TotalRooms && ViewBag.TotalRooms > 0 ? "text-success" : "text-warning")">
+                        <strong id="totalOnlineRooms" data-total-rooms="@(ViewBag.TotalRooms ?? 0)" class="fs-5 ms-2 @(ViewBag.OnlineDevices == ViewBag.TotalRooms && ViewBag.TotalRooms > 0 ? "text-success" : "text-warning")">
                             @(ViewBag.OnlineDevices ?? 0)/@(ViewBag.TotalRooms ?? 0)
                         </strong>
                     </div>
@@ -124,7 +124,7 @@
         <div class="col-md-5 anim-fade-up delay-1">
             <div class="custom-card p-4 h-100">
                 <h6 class="card-title-custom">Trạng Thái Gần Đây</h6>
-                <ul class="list-unstyled mb-0 mt-3">
+                <ul id="recentActivitiesList" class="list-unstyled mb-0 mt-3">
                     @{
                         var recentActs = ViewBag.RecentActivities as List<SafeGuard.Controllers.ViewModels.RecentActivityVM>;
                     }
@@ -137,14 +137,17 @@
                                 <span class="status-dot bg-green me-3"></span>
                                 <span class="text-muted small">
                                     <strong>@activity.Name</strong> đã tham gia <strong>Phòng @activity.Room</strong>
-                                    <span style="font-size: 0.85em; opacity: 0.8;">(@activity.Time)</span>
+                                    @if (!string.IsNullOrWhiteSpace(activity.Time))
+                                    {
+                                        <span style="font-size: 0.85em; opacity: 0.8;">(@activity.Time)</span>
+                                    }
                                 </span>
                             </li>
                         }
                     }
                     else
                     {
-                        <li class="text-muted small d-flex align-items-center">
+                        <li class="recent-empty text-muted small d-flex align-items-center">
                             <i class="fa-solid fa-clock-rotate-left me-2"></i> Chưa có dữ liệu mới.
                         </li>
                     }
@@ -238,17 +241,17 @@
                                 foreach (var sensor in sensorList)
                                 {
                                     bool isAlert = sensor.Temp >= 38;
-                                    <tr>
-                                        <td class="fw-bold @(isAlert ? "text-danger" : "")">@sensor.RoomId</td>
-                                        <td><span class="status-dot @(isAlert ? "bg-red pulse" : "bg-green")"></span></td>
-                                        <td class="@(isAlert ? "text-danger fw-bold" : "")">@sensor.Temp°C</td>
-                                        <td class="small text-muted">@sensor.Time</td>
+                                    <tr class="sensor-room-row" data-room-id="@sensor.RoomId" data-device-online="true" data-alert-active="@(isAlert ? "true" : "false")">
+                                        <td class="room-name fw-bold @(isAlert ? "text-danger" : "")">@sensor.RoomId</td>
+                                        <td><span class="room-status-badge status-dot @(isAlert ? "bg-red pulse" : "bg-green")" title="@(isAlert ? "Cảnh báo" : "Online")"></span></td>
+                                        <td class="room-latest-temperature @(isAlert ? "text-danger fw-bold" : "")">@sensor.Temp°C</td>
+                                        <td class="room-updated-at small text-muted">@sensor.Time</td>
                                     </tr>
                                 }
                             }
                             else
                             {
-                                <tr>
+                                <tr id="sensorEmptyRow">
                                     <td colspan="4" class="text-center text-muted py-4">Chưa có dữ liệu cảm biến gần đây.</td>
                                 </tr>
                             }
@@ -354,11 +357,11 @@
                         if (sensor.IsAlert) alertCount++;
 
                         html += `
-                            <tr>
-                                <td class="fw-bold ${sensor.IsAlert ? 'text-danger' : ''}">${sensor.RoomId}</td>
-                                <td><span class="status-dot ${sensor.IsAlert ? 'bg-red pulse' : 'bg-green'}"></span></td>
-                                <td class="${sensor.IsAlert ? 'text-danger fw-bold' : ''}">${sensor.Temp}°C</td>
-                                <td class="small text-muted">${sensor.Time}</td>
+                            <tr class="sensor-room-row" data-room-id="${sensor.RoomId}" data-device-online="true" data-alert-active="${sensor.IsAlert ? 'true' : 'false'}">
+                                <td class="room-name fw-bold ${sensor.IsAlert ? 'text-danger' : ''}">${sensor.RoomId}</td>
+                                <td><span class="room-status-badge status-dot ${sensor.IsAlert ? 'bg-red pulse' : 'bg-green'}" title="${sensor.IsAlert ? 'Cảnh báo' : 'Online'}"></span></td>
+                                <td class="room-latest-temperature ${sensor.IsAlert ? 'text-danger fw-bold' : ''}">${sensor.Temp}°C</td>
+                                <td class="room-updated-at small text-muted">${sensor.Time}</td>
                             </tr>
                         `;
                     });
@@ -367,20 +370,243 @@
                 $('#alert-tbody').html(html);
 
                 const totalRooms = @(ViewBag.TotalRooms ?? 0);
-                $('#summary-online').text(data.length + '/' + totalRooms);
+                $('#totalOnlineRooms').text(data.length + '/' + totalRooms);
 
-                const alertEl = $('#summary-alerts');
+                const alertEl = $('#totalAlertRooms');
                 alertEl
                     .text(alertCount)
                     .removeClass('text-danger text-success')
                     .addClass(alertCount > 0 ? 'text-danger' : 'text-success');
 
-                const onlineEl = $('#summary-online');
+                const onlineEl = $('#totalOnlineRooms');
                 onlineEl
                     .removeClass('text-success text-warning')
                     .addClass(data.length === totalRooms && totalRooms > 0 ? 'text-success' : 'text-warning');
             });
         }
+
+        function renderRecentActivities(activities) {
+            const $list = $('#recentActivitiesList');
+            if (!$list.length || !Array.isArray(activities)) return;
+
+            if (activities.length === 0) {
+                $list.html(`
+                    <li class="recent-empty text-muted small d-flex align-items-center">
+                        <i class="fa-solid fa-clock-rotate-left me-2"></i> Chưa có dữ liệu mới.
+                    </li>
+                `);
+                return;
+            }
+
+            const html = activities.map(function (activity) {
+                const name = escapeDashboardText(activity.name || activity.Name || 'Người thuê');
+                const room = escapeDashboardText(activity.room || activity.Room || '');
+                const time = activity.time || activity.Time || '';
+                const timeHtml = time
+                    ? `<span style="font-size: 0.85em; opacity: 0.8;">(${escapeDashboardText(time)})</span>`
+                    : '';
+
+                return `
+                    <li class="mb-3 d-flex align-items-center recent-activity-row" data-room-id="${room}">
+                        <span class="status-dot bg-green me-3"></span>
+                        <span class="text-muted small">
+                            <strong>${name}</strong> đã tham gia <strong>Phòng ${room}</strong>
+                            ${timeHtml}
+                        </span>
+                    </li>
+                `;
+            }).join('');
+
+            $list.html(html);
+        }
+
+        function syncDashboardSummary() {
+            $.get('@Url.Action("GetDashboardSummary", "Admin")', function (res) {
+                if (!res || !res.success) return;
+
+                if (res.activeRooms !== undefined && res.activeRooms !== null) {
+                    $('#totalOccupiedRooms').text(res.activeRooms);
+                }
+
+                renderRecentActivities(res.recentActivities || []);
+            });
+        }
+
+        function getDashboardRealtimeField(data) {
+            for (let i = 1; i < arguments.length; i++) {
+                const key = arguments[i];
+                if (data[key] !== undefined && data[key] !== null) {
+                    return data[key];
+                }
+            }
+
+            return '';
+        }
+
+        function formatDashboardTime(value) {
+            if (!value) {
+                return new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+            }
+
+            const numericValue = Number(value);
+            const date = !Number.isNaN(numericValue)
+                ? new Date((numericValue < 1000000000000 ? numericValue * 1000 : numericValue))
+                : new Date(value);
+
+            if (Number.isNaN(date.getTime())) {
+                return value;
+            }
+
+            return date.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+        }
+
+        function escapeDashboardText(value) {
+            return String(value || '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        function updateSummaryFromSensorRows() {
+            const totalRooms = Number($('#totalOnlineRooms').data('total-rooms') || @(ViewBag.TotalRooms ?? 0));
+            const onlineCount = $('#alert-tbody tr.sensor-room-row[data-device-online="true"]').length;
+            const alertCount = $('#alert-tbody tr.sensor-room-row[data-alert-active="true"]').length;
+
+            $('#totalOnlineRooms')
+                .text(onlineCount + '/' + totalRooms)
+                .removeClass('text-success text-warning')
+                .addClass(onlineCount === totalRooms && totalRooms > 0 ? 'text-success' : 'text-warning');
+
+            $('#totalAlertRooms')
+                .text(alertCount)
+                .removeClass('text-danger text-success')
+                .addClass(alertCount > 0 ? 'text-danger' : 'text-success');
+        }
+
+        function setOccupiedRoomCount(roomId) {
+            if (!roomId) return;
+
+            window.safeGuardDashboardOccupiedRooms = window.safeGuardDashboardOccupiedRooms || {};
+            if (window.safeGuardDashboardOccupiedRooms[roomId]) return;
+
+            window.safeGuardDashboardOccupiedRooms[roomId] = true;
+
+            const $occupied = $('#totalOccupiedRooms');
+            const current = Number($occupied.text() || 0);
+            $occupied.text(current + 1);
+        }
+
+        function unsetOccupiedRoomCount(roomId) {
+            window.safeGuardDashboardOccupiedRooms = window.safeGuardDashboardOccupiedRooms || {};
+
+            if (roomId && window.safeGuardDashboardOccupiedRooms[roomId]) {
+                delete window.safeGuardDashboardOccupiedRooms[roomId];
+            }
+
+            const $occupied = $('#totalOccupiedRooms');
+            const current = Number($occupied.text() || 0);
+            $occupied.text(Math.max(0, current - 1));
+        }
+
+        function setDashboardRoomStatus(data) {
+            const roomId = getDashboardRealtimeField(data, 'roomId', 'RoomId');
+            if (!roomId) return;
+
+            const alertLevel = (getDashboardRealtimeField(data, 'alertLevel', 'AlertLevel') || 'NORMAL').toUpperCase();
+            const deviceStatus = (getDashboardRealtimeField(data, 'deviceStatus', 'DeviceStatus') || 'offline').toLowerCase();
+            const temperature = getDashboardRealtimeField(data, 'temperature', 'Temperature');
+            const timestamp = getDashboardRealtimeField(data, 'timestamp', 'Timestamp', 'triggeredAt', 'TriggeredAt');
+            const isAlert = alertLevel === 'FIRE' || alertLevel === 'DANGER' || alertLevel === 'WARNING' || Number(temperature || 0) >= 38;
+            const isOnline = deviceStatus === 'online';
+
+            $('#sensorEmptyRow').remove();
+
+            let $row = $('#alert-tbody tr.sensor-room-row[data-room-id="' + roomId + '"]');
+            if ($row.length === 0) {
+                $row = $(`
+                    <tr class="sensor-room-row" data-room-id="${roomId}">
+                        <td class="room-name fw-bold"></td>
+                        <td><span class="room-status-badge status-dot"></span></td>
+                        <td class="room-latest-temperature"></td>
+                        <td class="room-updated-at small text-muted"></td>
+                    </tr>
+                `);
+                $('#alert-tbody').prepend($row);
+            }
+
+            $row.attr('data-device-online', isOnline ? 'true' : 'false');
+            $row.attr('data-alert-active', isAlert ? 'true' : 'false');
+
+            $row.find('.room-name')
+                .text(roomId)
+                .toggleClass('text-danger', isAlert);
+
+            $row.find('.room-status-badge')
+                .removeClass('bg-green bg-red pulse')
+                .addClass(isAlert ? 'bg-red pulse' : (isOnline ? 'bg-green' : 'bg-secondary'))
+                .attr('title', isAlert ? 'Cảnh báo' : (isOnline ? 'Online' : 'Offline'));
+
+            $row.find('.room-latest-temperature')
+                .text(temperature !== '' ? temperature + '°C' : 'N/A')
+                .toggleClass('text-danger fw-bold', isAlert);
+
+            $row.find('.room-updated-at').text(formatDashboardTime(timestamp));
+
+            updateSummaryFromSensorRows();
+        }
+
+        function prependRecentActivityRealtime(data) {
+            const roomId = getDashboardRealtimeField(data, 'roomId', 'RoomId', 'roomID', 'RoomID');
+            const tenantName = getDashboardRealtimeField(data, 'tenantName', 'TenantName', 'userName', 'UserName', 'fullName', 'FullName') || 'Người thuê';
+            if (!roomId) return;
+
+            const $list = $('#recentActivitiesList');
+            if (!$list.length) return;
+
+            $list.find('.recent-empty').remove();
+            $list.find('.recent-activity-row[data-room-id="' + roomId + '"]').remove();
+            $list.prepend(`
+                <li class="mb-3 d-flex align-items-center recent-activity-row" data-room-id="${escapeDashboardText(roomId)}">
+                    <span class="status-dot bg-green me-3"></span>
+                    <span class="text-muted small">
+                        <strong>${escapeDashboardText(tenantName)}</strong> đã tham gia <strong>Phòng ${escapeDashboardText(roomId)}</strong>
+                        <span style="font-size: 0.85em; opacity: 0.8;">(vừa xong)</span>
+                    </span>
+                </li>
+            `);
+
+            $list.find('.recent-activity-row').slice(4).remove();
+            setOccupiedRoomCount(roomId);
+        }
+
+        window.addEventListener('safeguard:realtime', function (e) {
+            const data = e.detail || {};
+
+            if (data.type === 'room_status_changed' || data.type === 'sensor_update' || data.type === 'alert_triggered') {
+                setDashboardRoomStatus(data);
+            }
+
+            if (data.type === 'room_joined') {
+                prependRecentActivityRealtime(data);
+            }
+
+            if (data.type === 'invite_used') {
+                prependRecentActivityRealtime(data);
+            }
+
+            if (data.type === 'room_unassigned') {
+                const roomId = getDashboardRealtimeField(data, 'roomId', 'RoomId');
+                unsetOccupiedRoomCount(roomId);
+                setDashboardRoomStatus({
+                    roomId: roomId,
+                    deviceStatus: 'offline',
+                    occupancyCount: 0,
+                    alertLevel: 'NORMAL'
+                });
+            }
+        });
 
         const aiLabels = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(ViewBag.AIOverviewLabels ?? new List<string>()));
         const aiTemps = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(ViewBag.AIOverviewTemps ?? new List<double>()));
@@ -440,6 +666,10 @@
                             setAdminButtonState($btn, false, '', normalHtml);
 
                             if (res.success) {
+                                if (formSelector === '#formDeleteSystemDemo' && window.clearRealtimeBannerIfRecovered) {
+                                    window.clearRealtimeBannerIfRecovered({ alertLevel: 'NORMAL' });
+                                }
+
                                 Swal.fire({
                                     icon: 'success',
                                     title: successTitle,
@@ -488,6 +718,8 @@
 
         $(document).ready(function () {
             setInterval(updateDashboard, 2000);
+            setInterval(syncDashboardSummary, 3000);
+            syncDashboardSummary();
 
             bindAdminSimulationForm(
                 '#formSystemDemo',
