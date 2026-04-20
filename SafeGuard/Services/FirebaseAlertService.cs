@@ -13,7 +13,6 @@ namespace SafeGuard.Services
     {
         private static readonly HttpClient _httpClient = new HttpClient();
         private readonly string _databaseUrl;
-
         public FirebaseAlertService()
         {
             _databaseUrl = (ConfigurationManager.AppSettings["FirebaseRealtimeDatabaseUrl"] ?? string.Empty).Trim().TrimEnd('/');

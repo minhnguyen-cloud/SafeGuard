@@ -1,0 +1,26 @@
+{
+  "name": "SafeGuard - He thong canh bao chay",
+  "short_name": "SafeGuard",
+  "description": "Ung dung giam sat va canh bao nguy co chay cho khu tro va chung cu mini.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f4f7f6",
+  "theme_color": "#003366",
+  "lang": "vi",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/Content/images/Thuonghieu1.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/Content/images/Thuonghieu.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

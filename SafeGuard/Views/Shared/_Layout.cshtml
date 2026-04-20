@@ -10,6 +10,13 @@
    
     <link rel="shortcut icon" href="~/Content/images/Thuonghieu1.png" type="image/x-icon" />
     <link rel="icon" href="~/Content/images/Thuonghieu1.png" type="image/x-icon" />
+    <link rel="manifest" href="@Url.Content("~/manifest.webmanifest")" />
+    <link rel="apple-touch-icon" href="@Url.Content("~/Content/images/Thuonghieu1.png")" />
+    <meta name="theme-color" content="#003366" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="SafeGuard" />
 
     @{
         // Cách lấy URL và Domain cho ASP.NET MVC Classic
@@ -99,11 +106,11 @@
             transition: 0.3s;
         }
 
-            .btn-login:hover {
-                background-color: var(--accent-orange);
-                border-color: var(--accent-orange);
-                color: white;
-            }
+        .btn-login:hover {
+            background-color: var(--accent-orange);
+            border-color: var(--accent-orange);
+            color: white;
+        }
 
         .pulse-button {
             animation: pulse 2s infinite;
@@ -203,6 +210,64 @@
                 color: var(--accent-orange);
                 padding-left: 5px;
             }
+
+        .public-alert-banner {
+            display: none;
+            position: sticky;
+            top: 0;
+            z-index: 1055;
+            padding: 0.95rem 1.1rem;
+            background: linear-gradient(135deg, #fff1f2 0%, #fee2e2 52%, #fecaca 100%);
+            border-bottom: 1px solid #ef4444;
+            color: #7f1d1d;
+            box-shadow: 0 10px 24px rgba(220, 38, 38, 0.12);
+        }
+
+        .public-alert-banner.show {
+            display: block;
+            animation: fadeInUp 0.25s ease;
+        }
+
+        .public-alert-banner__inner {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+        }
+
+        .public-alert-banner__title {
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            color: #991b1b;
+        }
+
+        .public-alert-banner__message {
+            margin-top: 4px;
+            font-size: 1rem;
+            font-weight: 600;
+            color: #7f1d1d;
+        }
+
+        .public-alert-banner__meta {
+            margin-top: 6px;
+            font-size: 0.92rem;
+            color: #7f1d1d;
+        }
+
+        #publicAlertDismiss {
+            flex-shrink: 0;
+            border-color: #b91c1c;
+            color: #991b1b;
+            background: rgba(255, 255, 255, 0.55);
+        }
+
+        #publicAlertDismiss:hover {
+            color: #fff;
+            background: #b91c1c;
+        }
 
         .custom-input:focus {
             box-shadow: none !important;
@@ -416,6 +481,24 @@
         </div>
     </nav>
 
+    @if (Session["UserEmail"] != null)
+    {
+        <div id="publicFirebaseAlert" class="public-alert-banner" role="alert" aria-live="assertive">
+            <div class="public-alert-banner__inner">
+                <div>
+                    <div class="public-alert-banner__title">
+                        <i class="fa-solid fa-triangle-exclamation me-2"></i>Cảnh báo an toàn từ SafeGuard
+                    </div>
+                    <div id="publicFirebaseAlertMessage" class="public-alert-banner__message">
+                        Hệ thống đang kiểm tra tín hiệu cảnh báo.
+                    </div>
+                    <div id="publicFirebaseAlertMeta" class="public-alert-banner__meta"></div>
+                </div>
+                <button type="button" id="publicAlertDismiss" class="btn btn-sm btn-outline-danger rounded-pill">Ẩn</button>
+            </div>
+        </div>
+    }
+
     @RenderBody()
 
     <footer class="footer-custom">
@@ -590,8 +673,171 @@
             }
         }
     </script>
+    @if (Session["UserEmail"] != null)
+    {
+        <script>
+            $(function () {
+                const firebaseDbUrl = '@(System.Configuration.ConfigurationManager.AppSettings["FirebaseRealtimeDatabaseUrl"] ?? "")';
+                const currentUserGroup = '@(Session["UserGroup"]?.ToString() ?? "")';
+                const currentAssignedRoom = '@(Session["AssignedRoom"]?.ToString() ?? "")';
+                const $banner = $('#publicFirebaseAlert');
+                const $message = $('#publicFirebaseAlertMessage');
+                const $meta = $('#publicFirebaseAlertMeta');
+                const dismissedStorageKey = 'SafeGuard.PublicDismissedAlertKey';
+                let dismissedAlertKey = '';
+                let lastAlertKey = '';
+
+                try {
+                    dismissedAlertKey = sessionStorage.getItem(dismissedStorageKey) || '';
+                } catch (e) {
+                    dismissedAlertKey = '';
+                }
+
+                function formatAlertTime(input) {
+                    if (!input) {
+                        return '';
+                    }
+
+                    const parsed = new Date(input);
+                    if (isNaN(parsed.getTime())) {
+                        return '';
+                    }
+
+                    return parsed.toLocaleString('vi-VN', {
+                        hour12: false,
+                        timeZone: 'Asia/Ho_Chi_Minh'
+                    });
+                }
+
+                function buildAlertKey(alerts) {
+                    return alerts.map(function (item) {
+                        return [
+                            item.RoomId || '',
+                            item.Temperature || '',
+                            item.TriggeredAt || ''
+                        ].join('|');
+                    }).join('||');
+                }
+
+                function hideBanner(clearDismissed) {
+                    $banner.removeClass('show');
+                    if (clearDismissed) {
+                        dismissedAlertKey = '';
+                        try {
+                            sessionStorage.removeItem(dismissedStorageKey);
+                        } catch (e) { }
+                    }
+                }
+
+                function normalizeActiveAlerts(systemData) {
+                    const activeAlerts = systemData && systemData.ActiveAlerts
+                        ? Object.keys(systemData.ActiveAlerts).map(function (key) { return systemData.ActiveAlerts[key]; })
+                        : [];
+
+                    return activeAlerts
+                        .filter(function (item) { return item && Number(item.Temperature || 0) >= 50; })
+                        .sort(function (a, b) { return Number(b.Temperature || 0) - Number(a.Temperature || 0); });
+                }
+
+                function filterVisibleAlerts(activeAlerts) {
+                    if (currentUserGroup === 'ADMIN') {
+                        return activeAlerts;
+                    }
+
+                    if (currentUserGroup === 'TENANT') {
+                        return activeAlerts.filter(function (item) {
+                            return (item.RoomId || '').toUpperCase() === currentAssignedRoom.toUpperCase();
+                        });
+                    }
+
+                    return [];
+                }
+
+                function syncPublicFirebaseAlert() {
+                    if (!firebaseDbUrl) {
+                        hideBanner(true);
+                        return;
+                    }
+
+                    $.getJSON(firebaseDbUrl.replace(/\/$/, '') + '/System.json')
+                        .done(function (systemData) {
+                            const activeAlerts = normalizeActiveAlerts(systemData);
+                            const visibleAlerts = filterVisibleAlerts(activeAlerts);
+
+                            if (!systemData || Number(systemData.AlarmStatus) <= 0 || visibleAlerts.length === 0) {
+                                lastAlertKey = '';
+                                hideBanner(true);
+                                return;
+                            }
+
+                            const alertKey = buildAlertKey(visibleAlerts);
+                            const hottestAlert = visibleAlerts[0] || {};
+                            const roomSummary = visibleAlerts.map(function (x) {
+                                return x.RoomId || 'Chưa rõ phòng';
+                            }).slice(0, 5).join(', ');
+                            const maxTemperature = Math.max.apply(null, visibleAlerts.map(function (x) {
+                                return Number(x.Temperature || 0);
+                            }));
+                            const note = hottestAlert.Note || systemData.Note || 'Phát hiện nhiệt độ vượt ngưỡng an toàn.';
+                            const triggeredAt = formatAlertTime(hottestAlert.TriggeredAt || '');
+                            const isAdminView = currentUserGroup === 'ADMIN';
+                            const titleMessage = isAdminView
+                                ? (note + ' Hệ thống đang có ' + visibleAlerts.length + ' phòng cảnh báo.')
+                                : ('Phòng của bạn đang có cảnh báo an toàn. ' + note);
+                            const metaMessage = isAdminView
+                                ? ('Phòng: ' + roomSummary + ' | Mức cao nhất: ' + maxTemperature + '°C' + (triggeredAt ? ' | Thời gian: ' + triggeredAt : ''))
+                                : ('Phòng: ' + (hottestAlert.RoomId || currentAssignedRoom || 'Chưa rõ phòng') + ' | Nhiệt độ hiện tại: ' + maxTemperature + '°C' + (triggeredAt ? ' | Thời gian: ' + triggeredAt : ''));
+
+                            if (lastAlertKey !== alertKey) {
+                                lastAlertKey = alertKey;
+                                dismissedAlertKey = '';
+                                try {
+                                    sessionStorage.removeItem(dismissedStorageKey);
+                                } catch (e) { }
+                            }
+
+                            if (dismissedAlertKey === alertKey) {
+                                return;
+                            }
+
+                            $message.text(titleMessage);
+                            $meta.text(metaMessage);
+                            $banner.addClass('show');
+                        })
+                        .fail(function () {
+                            hideBanner(false);
+                        });
+                }
+
+                $('#publicAlertDismiss').on('click', function () {
+                    dismissedAlertKey = lastAlertKey || '';
+                    try {
+                        sessionStorage.setItem(dismissedStorageKey, dismissedAlertKey);
+                    } catch (e) { }
+                    hideBanner(false);
+                });
+
+                syncPublicFirebaseAlert();
+                setInterval(syncPublicFirebaseAlert, 5000);
+            });
+        </script>
+    }
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        (function () {
+            if (!('serviceWorker' in navigator) || !window.isSecureContext) {
+                return;
+            }
+
+            window.addEventListener('load', function () {
+                navigator.serviceWorker.register('@Url.Content("~/service-worker.js")', { scope: '@Url.Content("~/")' })
+                    .catch(function (error) {
+                        console.warn('[SafeGuard PWA] Service worker registration failed:', error);
+                    });
+            });
+        })();
+    </script>
 
     @RenderSection("Scripts", required: false)
 </body>

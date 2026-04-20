@@ -157,6 +157,9 @@
     <Content Include="Content\images\TV1.jpg" />
     <Content Include="Content\images\TV2.jpg" />
     <Content Include="Content\images\TV3.jpg" />
+    <Content Include="manifest.webmanifest" />
+    <Content Include="offline.html" />
+    <Content Include="service-worker.js" />
     <Content Include="Content\Site.css" />
     <Content Include="Global.asax" />
     <Content Include="Web.config" />

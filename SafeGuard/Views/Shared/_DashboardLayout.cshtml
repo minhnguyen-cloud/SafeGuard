@@ -9,6 +9,13 @@
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <link rel="shortcut icon" href="~/Content/images/Thuonghieu.png" type="image/x-icon" />
     <link rel="icon" href="~/Content/images/Thuonghieu.png" type="image/x-icon" />
+    <link rel="manifest" href="@Url.Content("~/manifest.webmanifest")" />
+    <link rel="apple-touch-icon" href="@Url.Content("~/Content/images/Thuonghieu.png")" />
+    <meta name="theme-color" content="#0d6efd" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="SafeGuard" />
 
     <link rel="shortcut icon" href="~/Content/images/Thuonghieu.png" type="image/x-icon" />
     <link rel="icon" href="~/Content/images/Thuonghieu.png" type="image/x-icon" />
@@ -1006,6 +1013,20 @@
                 return;
             }
         });
+    </script>
+    <script>
+        (function () {
+            if (!('serviceWorker' in navigator) || !window.isSecureContext) {
+                return;
+            }
+
+            window.addEventListener('load', function () {
+                navigator.serviceWorker.register('@Url.Content("~/service-worker.js")', { scope: '@Url.Content("~/")' })
+                    .catch(function (error) {
+                        console.warn('[SafeGuard PWA] Service worker registration failed:', error);
+                    });
+            });
+        })();
     </script>
     @RenderSection("Scripts", required: false)
 </body>
